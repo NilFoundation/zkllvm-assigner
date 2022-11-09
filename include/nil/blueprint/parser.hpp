@@ -36,46 +36,15 @@
 #include <nil/blueprint/components/algebra/fields/plonk/division_or_zero.hpp>
 #include <nil/blueprint/components/hashes/poseidon/plonk/poseidon_15_wires.hpp>
 
+#include <llvm/IRReader/IRReader.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/Support/SourceMgr.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/InstrTypes.h>
+#include <llvm/IR/Instructions.h>
+
 namespace nil {
     namespace blueprint {
-
-        struct BlueprintInstr {
-            enum opcode_type { FADD, FSUB, FMUL, FDIV, POSEIDON } opcode;
-            std::vector<std::string> arguments;
-
-            static const char *opcode_to_str(opcode_type opcode) {
-                switch (opcode) {
-#define OPCODE_CASE(Opcode) \
-    case Opcode:            \
-        return #Opcode
-
-                    OPCODE_CASE(FADD);
-                    OPCODE_CASE(FSUB);
-                    OPCODE_CASE(FMUL);
-                    OPCODE_CASE(FDIV);
-                    OPCODE_CASE(POSEIDON);
-#undef OPCODE_CASE
-                    default:
-                        std::cerr << "Unknown BlueprintInstr opcode";
-                        std::abort();
-                }
-            }
-        };
-
-        struct BlueprintCode {
-            int input_size;
-            std::vector<BlueprintInstr> instructions;
-
-            void dump() {
-                for (const auto &inst : instructions) {
-                    std::cout << BlueprintInstr::opcode_to_str(inst.opcode) << ' ';
-                    for (const auto &reg : inst.arguments) {
-                        std::cout << reg << ' ';
-                    }
-                    std::cout << std::endl;
-                }
-            }
-        };
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         struct parser {
@@ -88,16 +57,18 @@ namespace nil {
             assignment<ArithmetizationType> assignmnt;
 
         private:
-            void parse_instruction(std::map<std::string, var> &variables, const BlueprintInstr &instruction) {
+            const llvm::Instruction *handle_instruction(std::map<const llvm::Value *, var> &variables, const llvm::Instruction *inst) {
 
                 std::size_t start_row = assignmnt.allocated_rows();
 
-                switch (instruction.opcode) {
-                    case BlueprintInstr::opcode_type::FADD: {
+                const unsigned POSEIDON_OPCODE = 6666;  // TODO(maksenov: implement poseidon in clang)
+
+                switch (inst->getOpcode()) {
+                    case llvm::Instruction::Add: {
                         using component_type = components::addition<ArithmetizationType, 3>;
 
-                        var x = variables[instruction.arguments[0]];
-                        var y = variables[instruction.arguments[1]];
+                        var x = variables[inst->getOperand(0)];
+                        var y = variables[inst->getOperand(1)];
 
                         typename component_type::input_type instance_input = {x, y};
 
@@ -109,15 +80,15 @@ namespace nil {
                             components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
                                 component_instance, assignmnt, instance_input, start_row);
 
-                        variables[instruction.arguments[2]] = component_result.output;
+                        variables[inst] = component_result.output;
 
-                        break;
+                        return inst->getNextNonDebugInstruction();
                     }
-                    case BlueprintInstr::opcode_type::FSUB: {
+                    case llvm::Instruction::Sub: {
                         using component_type = components::subtraction<ArithmetizationType, 3>;
 
-                        var x = variables[instruction.arguments[0]];
-                        var y = variables[instruction.arguments[1]];
+                        var x = variables[inst->getOperand(0)];
+                        var y = variables[inst->getOperand(1)];
 
                         typename component_type::input_type instance_input = {x, y};
 
@@ -129,14 +100,14 @@ namespace nil {
                             components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
                                 component_instance, assignmnt, instance_input, start_row);
 
-                        variables[instruction.arguments[2]] = component_result.output;
-                        break;
+                        variables[inst] = component_result.output;
+                        return inst->getNextNonDebugInstruction();
                     }
-                    case BlueprintInstr::opcode_type::FMUL: {
+                    case llvm::Instruction::Mul: {
                         using component_type = components::multiplication<ArithmetizationType, 3>;
 
-                        var x = variables[instruction.arguments[0]];
-                        var y = variables[instruction.arguments[1]];
+                        var x = variables[inst->getOperand(0)];
+                        var y = variables[inst->getOperand(1)];
 
                         typename component_type::input_type instance_input = {x, y};
 
@@ -148,14 +119,14 @@ namespace nil {
                             components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
                                 component_instance, assignmnt, instance_input, start_row);
 
-                        variables[instruction.arguments[2]] = component_result.output;
-                        break;
+                        variables[inst] = component_result.output;
+                        return inst->getNextNonDebugInstruction();
                     }
-                    case BlueprintInstr::opcode_type::FDIV: {
+                    case llvm::Instruction::SDiv: {
                         using component_type = components::division<ArithmetizationType, 4>;
 
-                        var x = variables[instruction.arguments[0]];
-                        var y = variables[instruction.arguments[1]];
+                        var x = variables[inst->getOperand(0)];
+                        var y = variables[inst->getOperand(1)];
 
                         typename component_type::input_type instance_input = {x, y};
 
@@ -167,15 +138,15 @@ namespace nil {
                             components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
                                 component_instance, assignmnt, instance_input, start_row);
 
-                        variables[instruction.arguments[2]] = component_result.output;
-                        break;
+                        variables[inst] = component_result.output;
+                        return inst->getNextNonDebugInstruction();
                     }
-                    case BlueprintInstr::opcode_type::POSEIDON: {
+                    case POSEIDON_OPCODE: {
                         using component_type = components::poseidon<ArithmetizationType, BlueprintFieldType, 15>;
 
                         std::array<var, component_type::state_size> input_state_var;
                         for (std::uint32_t i = 0; i < component_type::state_size; i++) {
-                            input_state_var[i] = variables[instruction.arguments[i]];
+                            input_state_var[i] = variables[inst->getOperand(i)];
                         }
 
                         typename component_type::input_type instance_input = {input_state_var};
@@ -190,36 +161,101 @@ namespace nil {
                                 component_instance, assignmnt, instance_input, start_row);
 
                         for (std::uint32_t i = 0; i < component_type::state_size; i++) {
-                            variables[instruction.arguments[component_type::state_size + i]] =
-                                component_result.output_state[i];
+                            // variables[instruction.arguments[component_type::state_size + i]] =
+                            //     component_result.output_state[i];
                         }
+                        return inst->getNextNonDebugInstruction();
+                    }
+                    case llvm::Instruction::ICmp: {
+                        var x = variables[inst->getOperand(0)];
+                        var y = variables[inst->getOperand(1)];
+                        auto predicate = llvm::cast<llvm::ICmpInst>(inst)->getPredicate();
+                        auto next_inst = inst->getNextNonDebugInstruction();
+                        if (next_inst->getOpcode() == llvm::Instruction::Br && next_inst->getNumOperands() == 3) {
+                            // Handle if
+                            auto false_bb = llvm::cast<llvm::BasicBlock>(next_inst->getOperand(1));
+                            auto true_bb = llvm::cast<llvm::BasicBlock>(next_inst->getOperand(2));
+                            // ...
+                            predecessor = inst->getParent();
+                            return &true_bb->front();
+                        }
+
+                        assert(false && "Unhandled cmp instruction");
+                    }
+                    case llvm::Instruction::Br: {
+                        if (inst->getNumOperands() != 1) {
+                            std::cerr << "Unexpected if" << std::endl;
+                            return nullptr;
+                        }
+                        auto bb_to_jump = llvm::cast<llvm::BasicBlock>(inst->getOperand(0));
+                        predecessor = inst->getParent();
+                        return &bb_to_jump->front();
+                    }
+                    case llvm::Instruction::PHI: {
+                        auto phi_node = llvm::cast<llvm::PHINode>(inst);
+                        for (int i = 0; i < phi_node->getNumIncomingValues(); ++i) {
+                            if (phi_node->getIncomingBlock(i) == predecessor) {
+                                llvm::Value *incoming_value = phi_node->getIncomingValue(i);
+                                // Take found incoming value as instruction result
+                                variables[phi_node] = variables[incoming_value];
+                                return phi_node->getNextNonDebugInstruction();
+                            }
+                        }
+                        assert(false && "Incoming value for phi was not found");
                         break;
                     }
+
                     default:
                         assert(1 == 0 && "unsupported opcode type");
                 }
             }
 
         public:
-            template<typename PublicInputContainerType>
-            bool evaluate(const BlueprintCode &code, const PublicInputContainerType &public_input) {
+            std::unique_ptr<llvm::Module> parseIRFile(const char *ir_file) {
+                llvm::SMDiagnostic diagnostic;
+                std::unique_ptr<llvm::Module> module = llvm::parseIRFile(ir_file, diagnostic, context);
+                if (module == nullptr) {
+                    std::cout << "Unable to parse IR file: " + diagnostic.getMessage().str() << std::endl;
+                }
+                return module;
+            }
 
-                std::map<std::string, var> variables;
-                if (code.input_size != public_input.size()) {
+            template<typename PublicInputContainerType>
+            bool evaluate(const llvm::Module &module, const PublicInputContainerType &public_input) {
+
+                std::map<const llvm::Value *, var> variables;
+                if (module.size() != 1) {
+                    std::cerr << "IR module must contain only one function" << std::endl;
+                    return false;
+                }
+                const llvm::Function &function = *module.begin();
+                if (function.arg_size() != public_input.size()) {
                     std::cerr << "Public input must match the size of arguments" << std::endl;
                     return false;
                 }
 
                 for (std::size_t i = 0; i < public_input.size(); i++) {
                     assignmnt.public_input(0, i) = (public_input[i]);
-                    variables[code.instructions[0].arguments[i]] = var(0, i, false, var::column_type::public_input);
+                    variables[function.getArg(i)] = var(0, i, false, var::column_type::public_input);
                 }
 
-                for (std::int32_t instruction_index = 0; instruction_index < code.instructions.size(); instruction_index++) {
-                    parse_instruction(variables, code.instructions[instruction_index]);
+                // for (std::int32_t instruction_index = 0; instruction_index < code.instructions.size(); instruction_index++) {
+                //     parse_instruction(variables, code.instructions[instruction_index]);
+                // }
+
+                const llvm::Instruction *next_inst = &function.begin()->front();
+                while (next_inst->getOpcode() != llvm::Instruction::Ret) {
+                    next_inst = handle_instruction(variables, next_inst);
+                    if (next_inst == nullptr) {
+                        return false;
+                    }
                 }
                 return true;
             }
+
+        private:
+            llvm::LLVMContext context;
+            const llvm::BasicBlock *predecessor = nullptr;
         };
 
     }    // namespace blueprint
