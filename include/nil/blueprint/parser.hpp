@@ -35,6 +35,7 @@
 #include <nil/blueprint/components/algebra/fields/plonk/multiplication_by_constant.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/division_or_zero.hpp>
 #include <nil/blueprint/components/hashes/poseidon/plonk/poseidon_15_wires.hpp>
+#include <nil/blueprint/components/hashes/sha256/plonk/sha512_process.hpp>
 
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/IR/LLVMContext.h>
@@ -62,6 +63,7 @@ namespace nil {
                 std::size_t start_row = assignmnt.allocated_rows();
 
                 const unsigned POSEIDON_OPCODE = 6666;  // TODO(maksenov: implement poseidon in clang)
+                const unsigned SHA512_OPCODE = 6667;  // TODO(maksenov: implement poseidon in clang)
 
                 switch (inst->getOpcode()) {
                     case llvm::Instruction::Add: {
@@ -162,6 +164,39 @@ namespace nil {
 
                         for (std::uint32_t i = 0; i < component_type::state_size; i++) {
                             // variables[instruction.arguments[component_type::state_size + i]] =
+                            //     component_result.output_state[i];
+                        }
+                        return inst->getNextNonDebugInstruction();
+                    }
+                    case SHA512_OPCODE: {
+                        using component_type = components::sha512_process<ArithmetizationType, 9, 1>;
+
+                        constexpr const std::int32_t state_size = 8;
+                        constexpr const std::int32_t words_size = 16;
+
+                        std::array<var, state_size> input_state_vars;
+                        for (std::uint32_t i = 0; i < state_size; i++) {
+                            input_state_vars[i] = variables[inst->getOperand(i)];
+                        }
+
+                        std::array<var, words_size> input_words_vars;
+                        for (std::uint32_t i = 0; i < words_size; i++) {
+                            input_words_vars[i] = variables[inst->getOperand(state_size + i)];
+                        }
+
+                        typename component_type::input_type instance_input = {input_state_vars, input_words_vars};
+
+                        component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8},{0},{});
+
+                        components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
+                            component_instance, bp, assignmnt, instance_input, start_row);
+
+                        typename component_type::result_type component_result =
+                            components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
+                                component_instance, assignmnt, instance_input, start_row);
+
+                        for (std::uint32_t i = 0; i < state_size; i++) {
+                            // variables[instruction.arguments[state_size + i]] =
                             //     component_result.output_state[i];
                         }
                         return inst->getNextNonDebugInstruction();
