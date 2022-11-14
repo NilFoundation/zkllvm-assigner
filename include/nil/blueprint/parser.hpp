@@ -62,9 +62,6 @@ namespace nil {
 
                 std::size_t start_row = assignmnt.allocated_rows();
 
-                const unsigned POSEIDON_OPCODE = 6666;  // TODO(maksenov: implement poseidon in clang)
-                const unsigned SHA512_OPCODE = 6667;  // TODO(maksenov: implement poseidon in clang)
-
                 switch (inst->getOpcode()) {
                     case llvm::Instruction::Add: {
                         using component_type = components::addition<ArithmetizationType, 3>;
@@ -143,63 +140,72 @@ namespace nil {
                         variables[inst] = component_result.output;
                         return inst->getNextNonDebugInstruction();
                     }
-                    case POSEIDON_OPCODE: {
-                        using component_type = components::poseidon<ArithmetizationType, BlueprintFieldType, 15>;
+                    case llvm::Instruction::Call: {
+                        auto *call_inst = llvm::cast<llvm::CallInst>(inst);
+                        unsigned fun_idx = call_inst->getNumOperands() - 1;
+                        std::string fun_name =  call_inst->getOperand(fun_idx)->getName().str();
+                        if (fun_name.find("nil7crypto36hashes8poseidon") != std::string::npos) {
+                            // Poseidon handling
+                            using component_type = components::poseidon<ArithmetizationType, BlueprintFieldType, 15>;
 
-                        std::array<var, component_type::state_size> input_state_var;
-                        for (std::uint32_t i = 0; i < component_type::state_size; i++) {
-                            input_state_var[i] = variables[inst->getOperand(i)];
+                            std::array<var, component_type::state_size> input_state_var;
+                            for (std::uint32_t i = 0; i < component_type::state_size; i++) {
+                                input_state_var[i] = variables[inst->getOperand(i)];
+                            }
+
+                            typename component_type::input_type instance_input = {input_state_var};
+
+                            component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {}, {});
+
+                            components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
+                                component_instance, bp, assignmnt, instance_input, start_row);
+
+                            typename component_type::result_type component_result =
+                                components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
+                                    component_instance, assignmnt, instance_input, start_row);
+
+                            for (std::uint32_t i = 0; i < component_type::state_size; i++) {
+                                // variables[instruction.arguments[component_type::state_size + i]] =
+                                //     component_result.output_state[i];
+                            }
+                            return inst->getNextNonDebugInstruction();
+                        } else if (fun_name.find("nil7crypto36hashes6sha512") != std::string::npos) {
+                            // SHA512 handling
+                            std::cerr << "SHA handling" << std::endl;
+                            using component_type = components::sha512_process<ArithmetizationType, 9, 1>;
+
+                            constexpr const std::int32_t state_size = 8;
+                            constexpr const std::int32_t words_size = 16;
+
+                            std::array<var, state_size> input_state_vars;
+                            for (std::uint32_t i = 0; i < state_size; i++) {
+                                input_state_vars[i] = variables[inst->getOperand(i)];
+                            }
+
+                            std::array<var, words_size> input_words_vars;
+                            for (std::uint32_t i = 0; i < words_size; i++) {
+                                input_words_vars[i] = variables[inst->getOperand(state_size + i)];
+                            }
+
+                            typename component_type::input_type instance_input = {input_state_vars, input_words_vars};
+
+                            component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8},{0},{});
+
+                            components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
+                                component_instance, bp, assignmnt, instance_input, start_row);
+
+                            typename component_type::result_type component_result =
+                                components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
+                                    component_instance, assignmnt, instance_input, start_row);
+
+                            for (std::uint32_t i = 0; i < state_size; i++) {
+                                // variables[instruction.arguments[state_size + i]] =
+                                //     component_result.output_state[i];
+                            }
+                            return inst->getNextNonDebugInstruction();
                         }
-
-                        typename component_type::input_type instance_input = {input_state_var};
-
-                        component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {}, {});
-
-                        components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
-                            component_instance, bp, assignmnt, instance_input, start_row);
-
-                        typename component_type::result_type component_result =
-                            components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
-                                component_instance, assignmnt, instance_input, start_row);
-
-                        for (std::uint32_t i = 0; i < component_type::state_size; i++) {
-                            // variables[instruction.arguments[component_type::state_size + i]] =
-                            //     component_result.output_state[i];
-                        }
-                        return inst->getNextNonDebugInstruction();
-                    }
-                    case SHA512_OPCODE: {
-                        using component_type = components::sha512_process<ArithmetizationType, 9, 1>;
-
-                        constexpr const std::int32_t state_size = 8;
-                        constexpr const std::int32_t words_size = 16;
-
-                        std::array<var, state_size> input_state_vars;
-                        for (std::uint32_t i = 0; i < state_size; i++) {
-                            input_state_vars[i] = variables[inst->getOperand(i)];
-                        }
-
-                        std::array<var, words_size> input_words_vars;
-                        for (std::uint32_t i = 0; i < words_size; i++) {
-                            input_words_vars[i] = variables[inst->getOperand(state_size + i)];
-                        }
-
-                        typename component_type::input_type instance_input = {input_state_vars, input_words_vars};
-
-                        component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8},{0},{});
-
-                        components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
-                            component_instance, bp, assignmnt, instance_input, start_row);
-
-                        typename component_type::result_type component_result =
-                            components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
-                                component_instance, assignmnt, instance_input, start_row);
-
-                        for (std::uint32_t i = 0; i < state_size; i++) {
-                            // variables[instruction.arguments[state_size + i]] =
-                            //     component_result.output_state[i];
-                        }
-                        return inst->getNextNonDebugInstruction();
+                        std::cerr << "Unknown call instruction" << std::endl;
+                        return nullptr;
                     }
                     case llvm::Instruction::ICmp: {
                         var x = variables[inst->getOperand(0)];
@@ -213,6 +219,13 @@ namespace nil {
                             // ...
                             predecessor = inst->getParent();
                             return &true_bb->front();
+                        } else if (next_inst->getOpcode() == llvm::Instruction::Select) {
+                            llvm::Value *condition = next_inst->getOperand(0);
+                            llvm::Value *true_val = next_inst->getOperand(1);
+                            llvm::Value *false_val = next_inst->getOperand(2);
+                            // ...
+                            variables[next_inst] = variables[true_val];
+                            return next_inst->getNextNonDebugInstruction();
                         }
 
                         assert(false && "Unhandled cmp instruction");
@@ -241,6 +254,7 @@ namespace nil {
                     }
 
                     default:
+                        std::cerr << inst->getOpcodeName() << std::endl;
                         assert(1 == 0 && "unsupported opcode type");
                 }
             }
@@ -259,11 +273,12 @@ namespace nil {
             bool evaluate(const llvm::Module &module, const PublicInputContainerType &public_input) {
 
                 std::map<const llvm::Value *, var> variables;
-                if (module.size() != 1) {
-                    std::cerr << "IR module must contain only one function" << std::endl;
+                auto function_it = std::find_if(module.begin(), module.end(), [](const auto &fun) { return fun.getName().str().find("example") != std::string::npos;});
+                if (function_it == module.end()) {
+                    std::cerr << "Entry point is not found" << std::endl;
                     return false;
                 }
-                const llvm::Function &function = *module.begin();
+                auto &function = *function_it;
                 if (function.arg_size() != public_input.size()) {
                     std::cerr << "Public input must match the size of arguments" << std::endl;
                     return false;
@@ -273,10 +288,6 @@ namespace nil {
                     assignmnt.public_input(0, i) = (public_input[i]);
                     variables[function.getArg(i)] = var(0, i, false, var::column_type::public_input);
                 }
-
-                // for (std::int32_t instruction_index = 0; instruction_index < code.instructions.size(); instruction_index++) {
-                //     parse_instruction(variables, code.instructions[instruction_index]);
-                // }
 
                 const llvm::Instruction *next_inst = &function.begin()->front();
                 while (next_inst->getOpcode() != llvm::Instruction::Ret) {
