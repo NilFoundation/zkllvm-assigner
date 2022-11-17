@@ -308,12 +308,22 @@ namespace nil {
             bool evaluate(const llvm::Module &module, const PublicInputContainerType &public_input) {
 
                 std::map<const llvm::Value *, map_value> variables;
-                auto function_it = std::find_if(module.begin(), module.end(), [](const auto &fun) { return fun.getName().str().find("example") != std::string::npos;});
-                if (function_it == module.end()) {
+                auto entry_point_it = module.end();
+                for (auto function_it = module.begin(); function_it != module.end(); ++function_it) {
+                    if (function_it->hasFnAttribute(llvm::Attribute::Circuit)) {
+                        if (entry_point_it != module.end()) {
+                            std::cerr << "More then one functions with [[circuit]] attribute in the module"
+                                      << std::endl;
+                            return false;
+                        }
+                        entry_point_it = function_it;
+                    }
+                }
+                if (entry_point_it == module.end()) {
                     std::cerr << "Entry point is not found" << std::endl;
                     return false;
                 }
-                auto &function = *function_it;
+                auto &function = *entry_point_it;
 
                 // Fill in the public input
                 bool overflow = false;
