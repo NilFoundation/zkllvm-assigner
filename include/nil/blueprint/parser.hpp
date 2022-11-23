@@ -35,7 +35,7 @@
 #include <nil/blueprint/components/algebra/fields/plonk/multiplication_by_constant.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/division_or_zero.hpp>
 #include <nil/blueprint/components/hashes/poseidon/plonk/poseidon_15_wires.hpp>
-#include <nil/blueprint/components/hashes/sha256/plonk/sha512_process.hpp>
+#include <nil/blueprint/components/hashes/sha256/plonk/sha256.hpp>
 
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/IR/LLVMContext.h>
@@ -69,7 +69,7 @@ namespace nil {
 
                 switch (inst->getOpcode()) {
                     case llvm::Instruction::Add: {
-                        using component_type = components::addition<ArithmetizationType, 3>;
+                        using component_type = components::addition<ArithmetizationType, BlueprintFieldType, 3>;
 
                         var x = std::get<0>(variables[inst->getOperand(0)]);
                         var y = std::get<0>(variables[inst->getOperand(1)]);
@@ -89,7 +89,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Sub: {
-                        using component_type = components::subtraction<ArithmetizationType, 3>;
+                        using component_type = components::subtraction<ArithmetizationType, BlueprintFieldType, 3>;
 
                         var x = std::get<0>(variables[inst->getOperand(0)]);
                         var y = std::get<0>(variables[inst->getOperand(1)]);
@@ -108,7 +108,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Mul: {
-                        using component_type = components::multiplication<ArithmetizationType, 3>;
+                        using component_type = components::multiplication<ArithmetizationType, BlueprintFieldType, 3>;
 
                         var x = std::get<0>(variables[inst->getOperand(0)]);
                         var y = std::get<0>(variables[inst->getOperand(1)]);
@@ -127,7 +127,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::SDiv: {
-                        using component_type = components::division<ArithmetizationType, 4>;
+                        using component_type = components::division<ArithmetizationType, BlueprintFieldType, 4>;
 
                         var x = std::get<0>(variables[inst->getOperand(0)]);
                         var y = std::get<0>(variables[inst->getOperand(1)]);
@@ -172,22 +172,18 @@ namespace nil {
                                                     component_result.output_state.end());
                             variables[inst] = output;
                             return inst->getNextNonDebugInstruction();
-                        } else if (fun_name.find("nil7crypto36hashes6sha512") != std::string::npos) {
-                            // SHA512 handling
-                            using component_type = components::sha512_process<ArithmetizationType, 9, 1>;
+                        } else if (fun_name.find("nil7crypto36hashes6sha256") != std::string::npos) {
+                            // SHA256 handling
+                            using component_type = components::sha256<ArithmetizationType, 9>;
 
-                            constexpr const std::int32_t state_size = 8;
-                            constexpr const std::int32_t words_size = 16;
+                            constexpr const std::int32_t block_size = 2;
+                            constexpr const std::int32_t input_blocks_amount = 2;
 
-                            auto &state_arg = std::get<1>(variables[inst->getOperand(0)]);
-                            std::array<var, state_size> input_state_vars;
-                            std::copy(state_arg.begin(), state_arg.end(), input_state_vars.begin());
+                            auto &block_arg = std::get<1>(variables[inst->getOperand(0)]);
+                            std::array<var, input_blocks_amount*block_size> input_block_vars;
+                            std::copy(block_arg.begin(), block_arg.end(), input_block_vars.begin());
 
-                            auto &words_arg =std::get<1>(variables[inst->getOperand(1)]);
-                            std::array<var, words_size> input_words_vars;
-                            std::copy(words_arg.begin(), words_arg.end(), input_words_vars.begin());
-
-                            typename component_type::input_type instance_input = {input_state_vars, input_words_vars};
+                            typename component_type::input_type instance_input = {input_block_vars};
 
                             component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8},{0},{});
 
@@ -198,8 +194,8 @@ namespace nil {
                                 components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
                                     component_instance, assignmnt, instance_input, start_row);
 
-                            std::vector<var> output(component_result.output_state.begin(),
-                                                    component_result.output_state.end());
+                            std::vector<var> output(component_result.output.begin(),
+                                                    component_result.output.end());
                             variables[inst] = output;
                             return inst->getNextNonDebugInstruction();
                         }
