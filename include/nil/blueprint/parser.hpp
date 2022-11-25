@@ -46,6 +46,7 @@
 #include "llvm/IR/Constants.h"
 
 #include <variant>
+#include <stack>
 
 namespace nil {
     namespace blueprint {
@@ -58,13 +59,18 @@ namespace nil {
             using var = crypto3::zk::snark::plonk_variable<BlueprintFieldType>;
 
             using map_value = std::variant<var, std::vector<var>>;
+            struct stack_frame {
+                std::map<const llvm::Value *, map_value> frame_variables;
+                const llvm::CallInst *caller;
+            };
 
             circuit<ArithmetizationType> bp;
             assignment<ArithmetizationType> assignmnt;
 
         private:
-            const llvm::Instruction *handle_instruction(std::map<const llvm::Value *, map_value> &variables, const llvm::Instruction *inst) {
+            const llvm::Instruction *handle_instruction(const llvm::Instruction *inst) {
 
+                std::map<const llvm::Value *, map_value> &variables = call_stack.top().frame_variables;
                 std::size_t start_row = assignmnt.allocated_rows();
 
                 switch (inst->getOpcode()) {
@@ -147,8 +153,14 @@ namespace nil {
                     }
                     case llvm::Instruction::Call: {
                         auto *call_inst = llvm::cast<llvm::CallInst>(inst);
+                        auto *fun = call_inst->getCalledFunction();
+                        if (fun == nullptr) {
+                            std::cerr << "Unresolved call";
+                            return nullptr;
+                        }
                         unsigned fun_idx = call_inst->getNumOperands() - 1;
-                        std::string fun_name =  call_inst->getOperand(fun_idx)->getName().str();
+                        std::string fun_name = fun->getNameOrAsOperand();
+                        assert(fun->arg_size() == call_inst->getNumOperands() - 1);
                         if (fun_name.find("nil7crypto36hashes8poseidon") != std::string::npos) {
                             // Poseidon handling
                             using component_type = components::poseidon<ArithmetizationType, BlueprintFieldType, 15>;
@@ -172,7 +184,8 @@ namespace nil {
                                                     component_result.output_state.end());
                             variables[inst] = output;
                             return inst->getNextNonDebugInstruction();
-                        } else if (fun_name.find("nil7crypto36hashes6sha256") != std::string::npos) {
+                        }
+                        if (fun_name.find("nil7crypto36hashes6sha256") != std::string::npos) {
                             // SHA256 handling
                             using component_type = components::sha256<ArithmetizationType, 9>;
 
@@ -199,8 +212,18 @@ namespace nil {
                             variables[inst] = output;
                             return inst->getNextNonDebugInstruction();
                         }
-                        std::cerr << "Unknown call instruction" << std::endl;
-                        return nullptr;
+                        if (fun->empty()) {
+                            std::cerr << "Function " << fun_name << " has no implementation." << std::endl;
+                            return nullptr;
+                        }
+                        stack_frame new_frame;
+                        auto &new_variables = new_frame.frame_variables;
+                        for (int i = 0; i < fun->arg_size(); ++i) {
+                            new_variables[fun->getArg(i)] = variables[call_inst->getOperand(i)];
+                        }
+                        new_frame.caller = call_inst;
+                        call_stack.emplace(std::move(new_frame));
+                        return &fun->begin()->front();
                     }
                     case llvm::Instruction::ICmp: {
                         var x = std::get<0>(variables[inst->getOperand(0)]);
@@ -283,6 +306,22 @@ namespace nil {
                         variables[inst] = std::get<1>(variables[vec])[index];
                         return inst->getNextNonDebugInstruction();
                     }
+                    case llvm::Instruction::Ret: {
+                        auto extracted_frame = std::move(call_stack.top());
+                        call_stack.pop();
+                        if (extracted_frame.caller == nullptr) {
+                            // Final return
+                            assert(call_stack.size() == 0);
+                            finished = true;
+                            return nullptr;
+                        }
+                        llvm::Value *ret_val = inst->getOperand(0);
+                        if (ret_val != nullptr) {
+                            auto &upper_frame_variables = call_stack.top().frame_variables;
+                            upper_frame_variables[extracted_frame.caller] = extracted_frame.frame_variables[ret_val];
+                        }
+                        return extracted_frame.caller->getNextNonDebugInstruction();
+                    }
 
                     default:
                         std::cerr << inst->getOpcodeName() << std::endl;
@@ -353,20 +392,25 @@ namespace nil {
                     std::cerr << "Public input must match the size of arguments" << std::endl;
                     return false;
                 }
+                call_stack.emplace(stack_frame{std::move(variables), nullptr});
 
                 const llvm::Instruction *next_inst = &function.begin()->front();
-                while (next_inst->getOpcode() != llvm::Instruction::Ret) {
-                    next_inst = handle_instruction(variables, next_inst);
+                while (true) {
+                    next_inst = handle_instruction(next_inst);
+                    if (finished) {
+                        return true;
+                    }
                     if (next_inst == nullptr) {
                         return false;
                     }
                 }
-                return true;
             }
 
         private:
             llvm::LLVMContext context;
             const llvm::BasicBlock *predecessor = nullptr;
+            std::stack<stack_frame> call_stack;
+            bool finished = false;
         };
 
     }    // namespace blueprint
