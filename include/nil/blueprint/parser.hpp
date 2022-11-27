@@ -26,6 +26,9 @@
 #ifndef CRYPTO3_BLUEPRINT_COMPONENT_INSTRUCTION_PARSER_HPP
 #define CRYPTO3_BLUEPRINT_COMPONENT_INSTRUCTION_PARSER_HPP
 
+#include <variant>
+#include <stack>
+
 #include <nil/blueprint/blueprint/plonk/assignment.hpp>
 #include <nil/blueprint/blueprint/plonk/circuit.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/addition.hpp>
@@ -44,9 +47,9 @@
 #include <llvm/IR/InstrTypes.h>
 #include <llvm/IR/Instructions.h>
 #include "llvm/IR/Constants.h"
-
-#include <variant>
-#include <stack>
+#include "llvm/IR/Type.h"
+#include "llvm/IR/TypeFinder.h"
+#include "llvm/IR/TypedPointerType.h"
 
 namespace nil {
     namespace blueprint {
@@ -75,14 +78,30 @@ namespace nil {
 
                 switch (inst->getOpcode()) {
                     case llvm::Instruction::Add: {
-                        using component_type = components::addition<ArithmetizationType, BlueprintFieldType, 3>;
-
                         var x = std::get<0>(variables[inst->getOperand(0)]);
                         var y = std::get<0>(variables[inst->getOperand(1)]);
+                        
+                        llvm::Type* op0_type = inst->getOperand(0)->getType();
+                        llvm::Type* op1_type = inst->getOperand(0)->getType();
+                        
+                        if (std::is_same<BlueprintFieldType,
+                            typename algebra::curves::pallas::base_field_type>::value){
+
+                            switch (llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind()) {
+                                case llvm::GALOIS_FIELD_PALLAS_BASE:
+                                    using component_type = components::addition<ArithmetizationType,
+                                        typename algebra::curves::pallas::base_field_type, 3>;
+                                    component_type component_instance({0, 1, 2}, {}, {});
+                                    break;
+                                case llvm::GALOIS_FIELD_CURVE_25519_BASE:
+                                    using component_type = components::addition<ArithmetizationType,
+                                        typename algebra::curves::ed25519::base_field_type, 9>;
+                                    component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {}, {});
+                                    break;
+                            };
+                        }
 
                         typename component_type::input_type instance_input = {x, y};
-
-                        component_type component_instance({0, 1, 2}, {}, {});
 
                         components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
                             component_instance, bp, assignmnt, instance_input, start_row);
