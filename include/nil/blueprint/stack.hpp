@@ -39,8 +39,8 @@
 
 namespace nil {
     namespace blueprint {
-        
-        template <typename VarType>
+
+        template<typename VarType>
         struct stack_frame {
             using map_value = std::variant<VarType, std::vector<VarType>>;
             using map_type = std::map<const llvm::Value *, map_value>;
