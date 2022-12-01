@@ -31,12 +31,6 @@
 
 #include <nil/blueprint/blueprint/plonk/assignment.hpp>
 #include <nil/blueprint/blueprint/plonk/circuit.hpp>
-#include <nil/blueprint/components/algebra/fields/plonk/addition.hpp>
-#include <nil/blueprint/components/algebra/fields/plonk/subtraction.hpp>
-#include <nil/blueprint/components/algebra/fields/plonk/multiplication.hpp>
-#include <nil/blueprint/components/algebra/fields/plonk/division.hpp>
-#include <nil/blueprint/components/algebra/fields/plonk/multiplication_by_constant.hpp>
-#include <nil/blueprint/components/algebra/fields/plonk/division_or_zero.hpp>
 #include <nil/blueprint/components/hashes/poseidon/plonk/poseidon_15_wires.hpp>
 #include <nil/blueprint/components/hashes/sha256/plonk/sha256.hpp>
 
@@ -51,6 +45,12 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
+#include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/fields/addition.hpp>
+#include <nil/blueprint/fields/subtraction.hpp>
+#include <nil/blueprint/fields/multiplication.hpp>
+#include <nil/blueprint/fields/division.hpp>
+
 namespace nil {
     namespace blueprint {
 
@@ -61,113 +61,42 @@ namespace nil {
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
             using var = crypto3::zk::snark::plonk_variable<BlueprintFieldType>;
 
-            using map_value = std::variant<var, std::vector<var>>;
-            struct stack_frame {
-                std::map<const llvm::Value *, map_value> frame_variables;
-                const llvm::CallInst *caller;
-            };
-
             circuit<ArithmetizationType> bp;
             assignment<ArithmetizationType> assignmnt;
 
         private:
             const llvm::Instruction *handle_instruction(const llvm::Instruction *inst) {
 
-                std::map<const llvm::Value *, map_value> &variables = call_stack.top().frame_variables;
-                std::size_t start_row = assignmnt.allocated_rows();
+                typename stack_frame<var>::map_type &variables = call_stack.top().frame_variables;
+                std::uint32_t start_row = assignmnt.allocated_rows();
 
                 switch (inst->getOpcode()) {
                     case llvm::Instruction::Add: {
-                        var x = std::get<0>(variables[inst->getOperand(0)]);
-                        var y = std::get<0>(variables[inst->getOperand(1)]);
-                        
-                        llvm::Type* op0_type = inst->getOperand(0)->getType();
-                        llvm::Type* op1_type = inst->getOperand(0)->getType();
-                        
-                        if (std::is_same<BlueprintFieldType,
-                            typename algebra::curves::pallas::base_field_type>::value){
 
-                            switch (llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind()) {
-                                case llvm::GALOIS_FIELD_PALLAS_BASE:
-                                    using component_type = components::addition<ArithmetizationType,
-                                        typename algebra::curves::pallas::base_field_type, 3>;
-                                    component_type component_instance({0, 1, 2}, {}, {});
-                                    break;
-                                case llvm::GALOIS_FIELD_CURVE_25519_BASE:
-                                    using component_type = components::addition<ArithmetizationType,
-                                        typename algebra::curves::ed25519::base_field_type, 9>;
-                                    component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {}, {});
-                                    break;
-                            };
-                        }
-
-                        typename component_type::input_type instance_input = {x, y};
-
-                        components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
-                            component_instance, bp, assignmnt, instance_input, start_row);
-                        typename component_type::result_type component_result =
-                            components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
-                                component_instance, assignmnt, instance_input, start_row);
-
-                        variables[inst] = component_result.output;
+                        handle_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
+                            inst, variables, bp, assignmnt, start_row);
 
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Sub: {
-                        using component_type = components::subtraction<ArithmetizationType, BlueprintFieldType, 3>;
 
-                        var x = std::get<0>(variables[inst->getOperand(0)]);
-                        var y = std::get<0>(variables[inst->getOperand(1)]);
+                        handle_field_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
+                            inst, variables, bp, assignmnt, start_row);
 
-                        typename component_type::input_type instance_input = {x, y};
-
-                        component_type component_instance({0, 1, 2}, {}, {});
-
-                        components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
-                            component_instance, bp, assignmnt, instance_input, start_row);
-                        typename component_type::result_type component_result =
-                            components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
-                                component_instance, assignmnt, instance_input, start_row);
-
-                        variables[inst] = component_result.output;
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Mul: {
-                        using component_type = components::multiplication<ArithmetizationType, BlueprintFieldType, 3>;
 
-                        var x = std::get<0>(variables[inst->getOperand(0)]);
-                        var y = std::get<0>(variables[inst->getOperand(1)]);
+                        handle_field_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
+                            inst, variables, bp, assignmnt, start_row);
 
-                        typename component_type::input_type instance_input = {x, y};
-
-                        component_type component_instance({0, 1, 2}, {}, {});
-
-                        components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
-                            component_instance, bp, assignmnt, instance_input, start_row);
-                        typename component_type::result_type component_result =
-                            components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
-                                component_instance, assignmnt, instance_input, start_row);
-
-                        variables[inst] = component_result.output;
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::SDiv: {
-                        using component_type = components::division<ArithmetizationType, BlueprintFieldType, 4>;
 
-                        var x = std::get<0>(variables[inst->getOperand(0)]);
-                        var y = std::get<0>(variables[inst->getOperand(1)]);
+                        handle_field_division_component<BlueprintFieldType, ArithmetizationParams>(
+                            inst, variables, bp, assignmnt, start_row);
 
-                        typename component_type::input_type instance_input = {x, y};
-
-                        component_type component_instance({0, 1, 2, 3}, {}, {});
-
-                        components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
-                            component_instance, bp, assignmnt, instance_input, start_row);
-                        typename component_type::result_type component_result =
-                            components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
-                                component_instance, assignmnt, instance_input, start_row);
-
-                        variables[inst] = component_result.output;
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Call: {
@@ -190,7 +119,8 @@ namespace nil {
 
                             typename component_type::input_type instance_input = {input_state_var};
 
-                            component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {}, {});
+                            component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {},
+                                                              {});
 
                             components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
                                 component_instance, bp, assignmnt, instance_input, start_row);
@@ -212,12 +142,12 @@ namespace nil {
                             constexpr const std::int32_t input_blocks_amount = 2;
 
                             auto &block_arg = std::get<1>(variables[inst->getOperand(0)]);
-                            std::array<var, input_blocks_amount*block_size> input_block_vars;
+                            std::array<var, input_blocks_amount * block_size> input_block_vars;
                             std::copy(block_arg.begin(), block_arg.end(), input_block_vars.begin());
 
                             typename component_type::input_type instance_input = {input_block_vars};
 
-                            component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8},{0},{});
+                            component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
 
                             components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
                                 component_instance, bp, assignmnt, instance_input, start_row);
@@ -226,8 +156,7 @@ namespace nil {
                                 components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
                                     component_instance, assignmnt, instance_input, start_row);
 
-                            std::vector<var> output(component_result.output.begin(),
-                                                    component_result.output.end());
+                            std::vector<var> output(component_result.output.begin(), component_result.output.end());
                             variables[inst] = output;
                             return inst->getNextNonDebugInstruction();
                         }
@@ -235,7 +164,7 @@ namespace nil {
                             std::cerr << "Function " << fun_name << " has no implementation." << std::endl;
                             return nullptr;
                         }
-                        stack_frame new_frame;
+                        stack_frame<var> new_frame;
                         auto &new_variables = new_frame.frame_variables;
                         for (int i = 0; i < fun->arg_size(); ++i) {
                             new_variables[fun->getArg(i)] = variables[call_inst->getOperand(i)];
@@ -361,7 +290,7 @@ namespace nil {
             template<typename PublicInputContainerType>
             bool evaluate(const llvm::Module &module, const PublicInputContainerType &public_input) {
 
-                std::map<const llvm::Value *, map_value> variables;
+                typename stack_frame<var>::map_type variables;
                 auto entry_point_it = module.end();
                 for (auto function_it = module.begin(); function_it != module.end(); ++function_it) {
                     if (function_it->hasFnAttribute(llvm::Attribute::Circuit)) {
@@ -404,14 +333,15 @@ namespace nil {
                     } else {
                         assert(llvm::isa<llvm::GaloisFieldType>(arg_type));
                         assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
-                        variables[current_arg] = var(0, public_input_counter++, false, var::column_type::public_input);;
+                        variables[current_arg] = var(0, public_input_counter++, false, var::column_type::public_input);
+                        ;
                     }
                 }
                 if (public_input_counter != public_input.size() || overflow) {
                     std::cerr << "Public input must match the size of arguments" << std::endl;
                     return false;
                 }
-                call_stack.emplace(stack_frame{std::move(variables), nullptr});
+                call_stack.emplace(stack_frame<var> {std::move(variables), nullptr});
 
                 const llvm::Instruction *next_inst = &function.begin()->front();
                 while (true) {
@@ -428,7 +358,7 @@ namespace nil {
         private:
             llvm::LLVMContext context;
             const llvm::BasicBlock *predecessor = nullptr;
-            std::stack<stack_frame> call_stack;
+            std::stack<stack_frame<var>> call_stack;
             bool finished = false;
         };
 
