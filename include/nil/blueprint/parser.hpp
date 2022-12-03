@@ -37,6 +37,7 @@
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/SourceMgr.h>
+#include <llvm/IR/Value.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/InstrTypes.h>
 #include <llvm/IR/Instructions.h>
@@ -107,7 +108,7 @@ namespace nil {
                             return nullptr;
                         }
                         unsigned fun_idx = call_inst->getNumOperands() - 1;
-                        std::string fun_name = fun->getNameOrAsOperand();
+                        llvm::StringRef fun_name = fun->getName();
                         assert(fun->arg_size() == call_inst->getNumOperands() - 1);
                         if (fun_name.find("nil7crypto36hashes8poseidon") != std::string::npos) {
                             // Poseidon handling
@@ -161,7 +162,7 @@ namespace nil {
                             return inst->getNextNonDebugInstruction();
                         }
                         if (fun->empty()) {
-                            std::cerr << "Function " << fun_name << " has no implementation." << std::endl;
+                            std::cerr << "Function " << fun_name.str() << " has no implementation." << std::endl;
                             return nullptr;
                         }
                         stack_frame<var> new_frame;
