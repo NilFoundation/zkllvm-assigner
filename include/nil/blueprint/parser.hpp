@@ -71,6 +71,21 @@ namespace nil {
                 typename stack_frame<var>::map_type &variables = call_stack.top().frame_variables;
                 std::uint32_t start_row = assignmnt.allocated_rows();
 
+                // Put constant operands to public input
+                for (int i = 0; i < inst->getNumOperands(); ++i) {
+                    llvm::Value *op = inst->getOperand(i);
+                    if (llvm::isa<llvm::ConstantField>(op)) {
+                        llvm::FieldElem elem = llvm::cast<llvm::ConstantField>(op)->getValue();
+                        auto APIntData = reinterpret_cast<char *>(elem.getData());
+                        // TODO(maksenov): avoid copying here
+                        std::vector<char> bytes(APIntData, APIntData + elem.getNumWords() * 8);
+                        nil::marshalling::status_type status;
+                        typename BlueprintFieldType::value_type field_constant = nil::marshalling::pack<nil::marshalling::option::little_endian>(bytes, status);
+                        assignmnt.public_input(0, constant_index) = field_constant;
+                        variables[op] = var(0, constant_index++, false, var::column_type::public_input);
+                    }
+                }
+
                 switch (inst->getOpcode()) {
                     case llvm::Instruction::Add: {
 
@@ -342,6 +357,7 @@ namespace nil {
                     std::cerr << "Public input must match the size of arguments" << std::endl;
                     return false;
                 }
+                constant_index = public_input.size();
                 call_stack.emplace(stack_frame<var> {std::move(variables), nullptr});
 
                 const llvm::Instruction *next_inst = &function.begin()->front();
@@ -361,6 +377,7 @@ namespace nil {
             const llvm::BasicBlock *predecessor = nullptr;
             std::stack<stack_frame<var>> call_stack;
             bool finished = false;
+            size_t constant_index = 0;
         };
 
     }    // namespace blueprint
