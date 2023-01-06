@@ -100,7 +100,7 @@ namespace nil {
                    llvm::cast<llvm::GaloisFieldType>(op1_type)->getFieldKind());
 
             switch (llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind()) {
-                case llvm::GALOIS_FIELD_BLS12_381_BASE: {
+                case llvm::GALOIS_FIELD_BLS12381_BASE: {
                     using operating_field_type = typename crypto3::algebra::curves::bls12<381>::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
@@ -136,7 +136,7 @@ namespace nil {
 
                     break;
                 }
-                case llvm::GALOIS_FIELD_CURVE_25519_BASE: {
+                case llvm::GALOIS_FIELD_CURVE25519_BASE: {
                     using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
