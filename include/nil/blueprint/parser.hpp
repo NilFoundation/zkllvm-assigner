@@ -66,6 +66,56 @@ namespace nil {
             assignment<ArithmetizationType> assignmnt;
 
         private:
+            // TODO(maksenov): handle it properly and move to another file
+            template <typename map_type>
+            void handle_int_addition(const llvm::Instruction *inst, map_type &variables) {
+                assert(inst->getOperand(0)->getType()->isIntegerTy());
+                assert(inst->getOperand(1)->getType()->isIntegerTy());
+
+                var x = std::get<0>(variables[inst->getOperand(0)]);
+                var y = std::get<0>(variables[inst->getOperand(1)]);
+                auto res = var_value(assignmnt, x) + var_value(assignmnt, y);
+                assignmnt.public_input(0, public_input_idx) = res;
+                variables[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
+            }
+
+            // TODO(maksenov): handle it properly and move to another file
+            template<typename map_type>
+            void handle_int_cmp(const llvm::ICmpInst *inst, map_type &variables) {
+                var x = std::get<0>(variables[inst->getOperand(0)]);
+                var y = std::get<0>(variables[inst->getOperand(1)]);
+                bool res = false;
+                switch (inst->getPredicate()) {
+                    case llvm::CmpInst::ICMP_EQ:
+                        res = var_value(assignmnt, x) == var_value(assignmnt, y);
+                        break;
+                    case llvm::CmpInst::ICMP_NE:
+                        res = var_value(assignmnt, x) != var_value(assignmnt, y);
+                        break;
+                    case llvm::CmpInst::ICMP_SGE:
+                    case llvm::CmpInst::ICMP_UGE:
+                        res = var_value(assignmnt, x) >= var_value(assignmnt, y);
+                        break;
+                    case llvm::CmpInst::ICMP_SGT:
+                    case llvm::CmpInst::ICMP_UGT:
+                        res = var_value(assignmnt, x) > var_value(assignmnt, y);
+                        break;
+                    case llvm::CmpInst::ICMP_SLE:
+                    case llvm::CmpInst::ICMP_ULE:
+                        res = var_value(assignmnt, x) <= var_value(assignmnt, y);
+                        break;
+                    case llvm::CmpInst::ICMP_SLT:
+                    case llvm::CmpInst::ICMP_ULT:
+                        res = var_value(assignmnt, x) < var_value(assignmnt, y);
+                        break;
+                    default:
+                        assert(false && "Unsupported predicate");
+                        break;
+                }
+                assignmnt.public_input(0, public_input_idx) = res;
+                variables[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
+            }
+
             const llvm::Instruction *handle_instruction(const llvm::Instruction *inst) {
 
                 typename stack_frame<var>::map_type &variables = call_stack.top().frame_variables;
@@ -74,20 +124,38 @@ namespace nil {
                 // Put constant operands to public input
                 for (int i = 0; i < inst->getNumOperands(); ++i) {
                     llvm::Value *op = inst->getOperand(i);
-                    if (llvm::isa<llvm::ConstantField>(op)) {
-                        llvm::FieldElem elem = llvm::cast<llvm::ConstantField>(op)->getValue();
-                        auto APIntData = reinterpret_cast<char *>(elem.getData());
-                        // TODO(maksenov): avoid copying here
-                        std::vector<char> bytes(APIntData, APIntData + elem.getNumWords() * 8);
-                        nil::marshalling::status_type status;
-                        typename BlueprintFieldType::value_type field_constant = nil::marshalling::pack<nil::marshalling::option::little_endian>(bytes, status);
-                        assignmnt.public_input(0, constant_index) = field_constant;
-                        variables[op] = var(0, constant_index++, false, var::column_type::public_input);
+                    if ((llvm::isa<llvm::ConstantField>(op) || llvm::isa<llvm::ConstantInt>(op)) &&
+                        variables.find(op) == variables.end()) {
+                        llvm::APInt IntVal;
+                        if (llvm::isa<llvm::ConstantField>(op)) {
+                            IntVal = llvm::cast<llvm::ConstantField>(op)->getValue();
+                        } else {
+                            IntVal = llvm::cast<llvm::ConstantInt>(op)->getValue();
+                        }
+                        unsigned words = IntVal.getNumWords();
+                        typename BlueprintFieldType::value_type field_constant;
+                        if (words == 1) {
+                            field_constant = IntVal.getZExtValue();
+                        } else {
+                            // TODO(maksenov): avoid copying here
+                            const char *APIntData = reinterpret_cast<const char *>(IntVal.getRawData());
+                            std::vector<char> bytes(APIntData, APIntData + words * 8);
+                            nil::marshalling::status_type status;
+                            field_constant = nil::marshalling::pack<nil::marshalling::option::little_endian>(bytes, status);
+                            assert(status == nil::marshalling::status_type::success);
+                        }
+                        assignmnt.public_input(0, public_input_idx) = field_constant;
+                        variables[op] = var(0, public_input_idx++, false, var::column_type::public_input);
                     }
                 }
 
                 switch (inst->getOpcode()) {
                     case llvm::Instruction::Add: {
+
+                        if (inst->getOperand(0)->getType()->isIntegerTy()) {
+                            handle_int_addition(inst, variables);
+                            return inst->getNextNonDebugInstruction();
+                        }
 
                         handle_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
                             inst, variables, bp, assignmnt, start_row);
@@ -190,35 +258,36 @@ namespace nil {
                         return &fun->begin()->front();
                     }
                     case llvm::Instruction::ICmp: {
-                        var x = std::get<0>(variables[inst->getOperand(0)]);
-                        var y = std::get<0>(variables[inst->getOperand(1)]);
-                        auto predicate = llvm::cast<llvm::ICmpInst>(inst)->getPredicate();
-                        auto next_inst = inst->getNextNonDebugInstruction();
-                        if (next_inst->getOpcode() == llvm::Instruction::Br && next_inst->getNumOperands() == 3) {
-                            // Handle if
-                            auto false_bb = llvm::cast<llvm::BasicBlock>(next_inst->getOperand(1));
-                            auto true_bb = llvm::cast<llvm::BasicBlock>(next_inst->getOperand(2));
-                            // ...
-                            predecessor = inst->getParent();
-                            return &true_bb->front();
-                        } else if (next_inst->getOpcode() == llvm::Instruction::Select) {
-                            llvm::Value *condition = next_inst->getOperand(0);
-                            llvm::Value *true_val = next_inst->getOperand(1);
-                            llvm::Value *false_val = next_inst->getOperand(2);
-                            // ...
-                            variables[next_inst] = variables[true_val];
-                            return next_inst->getNextNonDebugInstruction();
-                        }
-
-                        assert(false && "Unhandled cmp instruction");
+                        handle_int_cmp(llvm::cast<const llvm::ICmpInst>(inst), variables);
+                        return inst->getNextNonDebugInstruction();
                     }
+                    case llvm::Instruction::Select: {
+
+                        var condition = std::get<0>(variables[inst->getOperand(0)]);
+                        llvm::Value *true_val = inst->getOperand(1);
+                        llvm::Value *false_val = inst->getOperand(2);
+                        if (var_value(assignmnt, condition) != 0) {
+                            variables[inst] = variables[true_val];
+                        } else {
+                            variables[inst] = variables[false_val];
+                        }
+                        return inst->getNextNonDebugInstruction();
+                    }
+
                     case llvm::Instruction::Br: {
+                        // Save current basic block to resolve PHI inst further
+                        predecessor = inst->getParent();
+
                         if (inst->getNumOperands() != 1) {
-                            std::cerr << "Unexpected if" << std::endl;
-                            return nullptr;
+                            assert(inst->getNumOperands() == 3);
+                            auto false_bb = llvm::cast<llvm::BasicBlock>(inst->getOperand(1));
+                            auto true_bb = llvm::cast<llvm::BasicBlock>(inst->getOperand(2));
+                            var cond = std::get<0>(variables[inst->getOperand(0)]);
+                            if (var_value(assignmnt, cond) != 0)
+                                return &true_bb->front();
+                            return &false_bb->front();
                         }
                         auto bb_to_jump = llvm::cast<llvm::BasicBlock>(inst->getOperand(0));
-                        predecessor = inst->getParent();
                         return &bb_to_jump->front();
                     }
                     case llvm::Instruction::PHI: {
@@ -226,6 +295,7 @@ namespace nil {
                         for (int i = 0; i < phi_node->getNumIncomingValues(); ++i) {
                             if (phi_node->getIncomingBlock(i) == predecessor) {
                                 llvm::Value *incoming_value = phi_node->getIncomingValue(i);
+                                assert(variables.find(incoming_value) != variables.end());
                                 // Take found incoming value as instruction result
                                 variables[phi_node] = variables[incoming_value];
                                 return phi_node->getNextNonDebugInstruction();
@@ -357,7 +427,7 @@ namespace nil {
                     std::cerr << "Public input must match the size of arguments" << std::endl;
                     return false;
                 }
-                constant_index = public_input.size();
+                public_input_idx = public_input.size();
                 call_stack.emplace(stack_frame<var> {std::move(variables), nullptr});
 
                 const llvm::Instruction *next_inst = &function.begin()->front();
@@ -377,7 +447,7 @@ namespace nil {
             const llvm::BasicBlock *predecessor = nullptr;
             std::stack<stack_frame<var>> call_stack;
             bool finished = false;
-            size_t constant_index = 0;
+            size_t public_input_idx = 0;
         };
 
     }    // namespace blueprint
