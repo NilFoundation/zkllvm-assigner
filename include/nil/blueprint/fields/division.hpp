@@ -55,7 +55,7 @@ namespace nil {
                 BlueprintFieldType, 4, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_native_field_division_component(
                     llvm::Value *operand0, llvm::Value *operand1,
-                    typename stack_frame<crypto3::zk::snark::plonk_variable<BlueprintFieldType>>::map_type &variables,
+                    typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<BlueprintFieldType>> &variables,
                     circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
@@ -68,8 +68,8 @@ namespace nil {
                     BlueprintFieldType, 4, basic_non_native_policy<BlueprintFieldType>>;
                 component_type component_instance({0, 1, 2, 3}, {}, {});
 
-                var x = std::get<0>(variables[operand0]);
-                var y = std::get<0>(variables[operand1]);
+                var x = variables[operand0];
+                var y = variables[operand1];
 
                 components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(component_instance, bp,
                                                                                         assignment, {x, y}, start_row);
@@ -82,7 +82,7 @@ namespace nil {
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         void handle_field_division_component(
             const llvm::Instruction *inst,
-            typename stack_frame<crypto3::zk::snark::plonk_variable<BlueprintFieldType>>::map_type &variables,
+            stack_frame<crypto3::zk::snark::plonk_variable<BlueprintFieldType>> &frame,
             circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
@@ -104,15 +104,15 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::bls12<381>::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        variables[inst] =
+                        frame.scalars[inst] =
                             detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, variables, bp, assignment, start_row)
+                                operand0, operand1, frame.scalars, bp, assignment, start_row)
                                 .output;
                     } else {
                         // Non-native bls12-381 is undefined yet
                         // variables[inst] = detail::handle_non_native_field_division_component<
                         //                       BlueprintFieldType, ArithmetizationParams, operating_field_type>(
-                        //                       operand0, operand1, variables, bp, assignment, start_row)
+                        //                       operand0, operand1, frame.vectors, bp, assignment, start_row)
                         //                       .output;
                     }
 
@@ -122,15 +122,15 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::pallas::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        variables[inst] =
+                        frame.scalars[inst] =
                             detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, variables, bp, assignment, start_row)
+                                operand0, operand1, frame.scalars, bp, assignment, start_row)
                                 .output;
                     } else {
                         // Non-native pallas is undefined yet
                         // variables[inst] = detail::handle_non_native_field_division_component<
                         //                       BlueprintFieldType, ArithmetizationParams, operating_field_type>(
-                        //                       operand0, operand1, variables, bp, assignment, start_row)
+                        //                       operand0, operand1, frame.vectors, bp, assignment, start_row)
                         //                       .output;
                     }
 
@@ -140,19 +140,19 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        variables[inst] =
+                        frame.scalars[inst] =
                             detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, variables, bp, assignment, start_row)
+                                operand0, operand1, frame.scalars, bp, assignment, start_row)
                                 .output;
                     } else {
                         // Non-native ed25519 is undefined yet
                         // typename non_native_policy_type::template field<operating_field_type>::value_type
                         //     component_result = detail::handle_non_native_field_division_component<
                         //                            BlueprintFieldType, ArithmetizationParams, operating_field_type>(
-                        //                            operand0, operand1, variables, bp, assignment, start_row)
+                        //                            operand0, operand1, frame.vectors, bp, assignment, start_row)
                         //                            .output;
 
-                        // variables[inst] = std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>>(
+                        // frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>>(
                         //     std::begin(component_result), std::end(component_result));
                     }
 
