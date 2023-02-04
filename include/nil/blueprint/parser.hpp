@@ -52,6 +52,10 @@
 #include <nil/blueprint/fields/multiplication.hpp>
 #include <nil/blueprint/fields/division.hpp>
 
+#include <nil/blueprint/curves/addition.hpp>
+#include <nil/blueprint/curves/subtraction.hpp>
+#include <nil/blueprint/curves/multiplication.hpp>
+
 namespace nil {
     namespace blueprint {
 
@@ -156,23 +160,58 @@ namespace nil {
                             handle_int_addition(inst, variables);
                             return inst->getNextNonDebugInstruction();
                         }
-
-                        handle_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                            inst, variables, bp, assignmnt, start_row);
-
+                        if (inst->getOperand(0)->getType()->isFieldTy()) {
+                            handle_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
+                                        inst, variables, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        }
+                        if (inst->getOperand(0)->getType()->isCurveTy()) {
+                            handle_curve_addition_component<BlueprintFieldType, ArithmetizationParams>(
+                                        inst, variables, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        }
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Sub: {
 
-                        handle_field_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
-                            inst, variables, bp, assignmnt, start_row);
+                        if (inst->getOperand(0)->getType()->isFieldTy()) {
+                            handle_field_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, variables, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        }
+                        if (inst->getOperand(0)->getType()->isCurveTy()) {
+                            handle_curve_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, variables, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        }
 
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Mul: {
 
-                        handle_field_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
-                            inst, variables, bp, assignmnt, start_row);
+                        if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
+                            handle_field_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, variables, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        }
+                        if (
+                            (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isFieldTy()) || 
+                            (inst->getOperand(1)->getType()->isCurveTy() && inst->getOperand(0)->getType()->isFieldTy())) {
+
+                            unsigned curve_nr, field_nr;
+                            for (unsigned i = 0; i < 2; i++) {
+                                if (inst->getOperand(i)->getType()->isFieldTy()) {
+                                    field_nr = i;
+                                }
+                                if (inst->getOperand(i)->getType()->isCurveTy()) {
+                                    curve_nr = i;
+                                }
+                            }
+                            
+                            handle_curve_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, variables, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        }
 
                         return inst->getNextNonDebugInstruction();
                     }
