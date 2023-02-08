@@ -64,7 +64,7 @@ namespace nil {
 
                 using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
                 using component_type = components::unified_addition<ArithmetizationType, CurveType, 11>;
-                component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, {}, {});
+                typename components::unified_addition<ArithmetizationType, CurveType, 11> component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, {}, {});
 
                 struct var_ec_point {
                     var X;
@@ -76,8 +76,8 @@ namespace nil {
 
                 typename component_type::input_type addition_input = {{P.X, P.Y}, {Q.X, Q.Y}};
 
-                components::generate_circuit<BlueprintFieldType, ArithmetizationParams, CurveType>(component_instance, bp, assignment, addition_input, start_row);
-                return components::generate_assignments<BlueprintFieldType, ArithmetizationParams, CurveType>(
+                components::generate_circuit_unified_addition<BlueprintFieldType, ArithmetizationParams, CurveType>(component_instance, bp, assignment, addition_input, start_row);
+                return components::generate_assignments_unified_addition<BlueprintFieldType, ArithmetizationParams, CurveType>(
                             component_instance, assignment, addition_input, start_row);
             }
         }    // namespace detail
@@ -127,13 +127,7 @@ namespace nil {
                     using operating_field_type = operating_curve_type::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
-                        using component_type = components::unified_addition<ArithmetizationType, operating_curve_type, 11>;
-                        typename component_type::result_type res =
-                            detail::handle_native_curve_unified_addition_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
-                                operand0, operand1, variables, bp, assignment, start_row);
-                        std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>> res_vector = {res.X, res.Y};
-                        variables[inst] = res_vector;
+                        assert(1 == 0 && "native vesta is not implemented");
                     } else {
                          assert(1 == 0 && "non-native vesta is undefined");
                     }
@@ -142,7 +136,7 @@ namespace nil {
                 }
 
                 case llvm::ELLIPTIC_CURVE_CURVE25519: {
-                    using operating_field_type = typename crypto3::algebra::curves::curve25519::base_field_type;
+                    using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         assert(1==0 && "native curve25519 addition is not implemented");
