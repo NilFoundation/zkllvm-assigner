@@ -196,7 +196,14 @@ namespace nil {
                             handle_field_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, variables, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
-                        } else if (
+                        } else {
+                            assert(1==0 && "Mul opcode is defined only for fieldTy * fieldTy");
+                        }
+
+                        return inst->getNextNonDebugInstruction();
+                    }
+                    case llvm::Instruction::CMul: {
+                        if (
                             (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isFieldTy()) || 
                             (inst->getOperand(1)->getType()->isCurveTy() && inst->getOperand(0)->getType()->isFieldTy())) {
                             
@@ -204,10 +211,8 @@ namespace nil {
                                 inst, variables, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         } else {
-                            assert (1==0 && "curve * curve is undefined");
+                            assert (1==0 && "cmul opcode is defined only for curveTy * fieldTy");
                         }
-
-                        return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::SDiv: {
 
@@ -449,11 +454,101 @@ namespace nil {
                             input_vector[j] = var(0, public_input_counter++, false, var::column_type::public_input);
                         }
                         variables[current_arg] = input_vector;
-                    } else {
-                        assert(llvm::isa<llvm::GaloisFieldType>(arg_type));
-                        assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
-                        variables[current_arg] = var(0, public_input_counter++, false, var::column_type::public_input);
-                        ;
+                    } else if (llvm::isa<llvm::EllipticCurveType>(arg_type)) {
+                        size_t size;
+
+                        switch (llvm::cast<llvm::EllipticCurveType>(arg_type)->getCurveKind()) {
+                            case llvm::ELLIPTIC_CURVE_PALLAS: {
+                                size = 2;
+                                break;
+                            }
+                            case llvm::ELLIPTIC_CURVE_VESTA: {
+                                size = 2;
+                                break;
+                            }
+                            case llvm::ELLIPTIC_CURVE_CURVE25519: {
+                                assert(1 == 0 && "curve25519 is not supported yet");
+                                break;
+                            }
+                            case llvm::ELLIPTIC_CURVE_BLS12381: {
+                                assert(1 == 0 && "curve bls12381 is not supported yet");
+                                break;
+                            }
+                            default:
+                                assert(1 == 0 && "unsupported curve type");
+                        };
+
+                        if (size + public_input_counter > public_input.size()) {
+                            overflow = true;
+                            break;
+                        }
+                        std::vector<var> input_vector(size);
+                        for (size_t j = 0; j < size; ++j) {
+                            assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
+                            input_vector[j] = var(0, public_input_counter++, false, var::column_type::public_input);
+                        }
+                        variables[current_arg] = input_vector;
+                    } else if (llvm::isa<llvm::GaloisFieldType>(arg_type)) {
+                        size_t size = 1;
+
+                        switch (llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind()) {
+                            case llvm::GALOIS_FIELD_BLS12381_BASE: {
+                                assert(1 == 0 && "bls12381 base field is not supported yet");
+                                break;
+                            }
+                            case llvm::GALOIS_FIELD_BLS12381_SCALAR: {
+                                assert(1 == 0 && "bls12381 scalar field is not supported yet");
+                                break;
+                            }
+                            case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
+                                size = 2;
+                                break;
+                            }
+                            case llvm::GALOIS_FIELD_PALLAS_BASE: {
+                                size = 1;
+                                break;
+                            }
+                            case llvm::GALOIS_FIELD_CURVE25519_BASE: {
+                                size = 4;
+                                break;
+                            }
+                            case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
+                                assert(1 == 0 && "ed25519 scalar field is not supported yet");
+                                break;
+                            } 
+                            case llvm::GALOIS_FIELD_VESTA_BASE: {
+                                assert(1 == 0 && "vesta base field is not supported yet");
+                                break;
+                            }
+                            case llvm::GALOIS_FIELD_VESTA_SCALAR: {
+                                assert(1 == 0 && "vesta scalar field is not supported yet");
+                                break;
+                            }
+
+                            default:
+                                assert(1 == 0 && "unsupported field operand type");
+                        };
+                        
+                        if (size + public_input_counter > public_input.size()) {
+                            overflow = true;
+                            break;
+                        }
+                        if (size == 1) {
+                            assert(llvm::isa<llvm::GaloisFieldType>(arg_type));
+                            assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
+                            variables[current_arg] = var(0, public_input_counter++, false, var::column_type::public_input);
+                        } else if (size > 1) {
+                            std::vector<var> input_vector(size);
+                            for (size_t j = 0; j < size; ++j) {
+                                assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
+                                input_vector[j] = var(0, public_input_counter++, false, var::column_type::public_input);
+                            }
+                            variables[current_arg] = input_vector;
+                        } else {assert(0==1 && "wrong input size");}
+
+                    }
+                    else {
+                        assert(1==0 && "unsupported input type");
                     }
                 }
                 if (public_input_counter != public_input.size() || overflow) {

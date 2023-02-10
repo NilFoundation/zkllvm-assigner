@@ -154,7 +154,7 @@ namespace nil {
                     using operating_curve_type = typename crypto3::algebra::curves::vesta;
                     using operating_field_type = operating_curve_type::base_field_type;
 
-                    assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_VESTA_BASE);
+                    assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_VESTA_SCALAR);
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         assert(1==0 && "native vesta multiplication is not implemented");
@@ -174,7 +174,7 @@ namespace nil {
                 }
 
                 case llvm::ELLIPTIC_CURVE_PALLAS: {
-                    assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_PALLAS_BASE);
+                    assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_PALLAS_SCALAR);
 
                     using operating_curve_type = typename crypto3::algebra::curves::pallas;
                     using operating_field_type = operating_curve_type::base_field_type;
@@ -196,7 +196,7 @@ namespace nil {
                 }
 
                 case llvm::ELLIPTIC_CURVE_CURVE25519: {
-                    assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_CURVE25519_BASE);
+                    assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_CURVE25519_SCALAR);
 
                     using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
 
@@ -211,7 +211,7 @@ namespace nil {
                 }
 
                 case llvm::ELLIPTIC_CURVE_BLS12381: {
-                    assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_BLS12381_BASE);
+                    assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_BLS12381_SCALAR);
 
                     using operating_field_type = typename crypto3::algebra::curves::bls12<381>::base_field_type;
 
