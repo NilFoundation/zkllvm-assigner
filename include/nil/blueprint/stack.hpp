@@ -26,6 +26,8 @@
 #ifndef CRYPTO3_ASSIGNER_STACK_HPP
 #define CRYPTO3_ASSIGNER_STACK_HPP
 
+#include <list>
+#include <map>
 #include <variant>
 #include <stack>
 
@@ -37,15 +39,17 @@
 #include <llvm/IR/Instructions.h>
 #include "llvm/IR/Constants.h"
 
+#include <nil/blueprint/memory.hpp>
+
 namespace nil {
     namespace blueprint {
 
         template<typename VarType>
         struct stack_frame {
-            using map_value = std::variant<VarType, std::vector<VarType>>;
-            using map_type = std::map<const llvm::Value *, map_value>;
-
-            map_type frame_variables;
+            std::map<const llvm::Value *, VarType> scalars;
+            std::map<const llvm::Value *, Pointer<VarType>> pointers;
+            std::map<const llvm::Value *, std::vector<VarType>> vectors;
+            std::list<Chunk<VarType>> memory;
             const llvm::CallInst *caller;
         };
 
