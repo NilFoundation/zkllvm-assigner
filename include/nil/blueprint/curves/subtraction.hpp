@@ -51,7 +51,7 @@ namespace nil {
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         void handle_curve_subtraction_component(
             const llvm::Instruction *inst,
-            typename stack_frame<crypto3::zk::snark::plonk_variable<BlueprintFieldType>>::map_type &variables,
+            stack_frame<crypto3::zk::snark::plonk_variable<BlueprintFieldType>> &frame,
             circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
