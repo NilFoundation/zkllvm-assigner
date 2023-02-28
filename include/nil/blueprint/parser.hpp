@@ -243,7 +243,7 @@ namespace nil {
                             (inst->getOperand(1)->getType()->isCurveTy() && inst->getOperand(0)->getType()->isFieldTy())) {
                             
                             handle_curve_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, variables, bp, assignmnt, start_row);
+                                inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         } else {
                             assert (1==0 && "cmul opcode is defined only for curveTy * fieldTy");
@@ -580,17 +580,16 @@ namespace nil {
                             else
                                 base_frame.vectors[current_arg][j] = input_var;
                         }
-                        variables[current_arg] = input_vector;
                     } else if (llvm::isa<llvm::EllipticCurveType>(arg_type)) {
-                        size_t size;
+                        size_t arg_len = 0;
 
                         switch (llvm::cast<llvm::EllipticCurveType>(arg_type)->getCurveKind()) {
                             case llvm::ELLIPTIC_CURVE_PALLAS: {
-                                size = 2;
+                                arg_len = 2;
                                 break;
                             }
                             case llvm::ELLIPTIC_CURVE_VESTA: {
-                                size = 2;
+                                arg_len = 2;
                                 break;
                             }
                             case llvm::ELLIPTIC_CURVE_CURVE25519: {
@@ -605,19 +604,22 @@ namespace nil {
                                 assert(1 == 0 && "unsupported curve type");
                         };
 
-                        if (size + public_input_counter > public_input.size()) {
+                        if (arg_len + public_input_counter > public_input.size()) {
                             overflow = true;
                             break;
                         }
-                        std::vector<var> input_vector(size);
-                        for (size_t j = 0; j < size; ++j) {
-                            assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
-                            input_vector[j] = var(0, public_input_counter++, false, var::column_type::public_input);
+                        if (arg_len > 1) { 
+                            base_frame.vectors[current_arg] = std::vector<var>(arg_len);
+                            for (size_t j = 0; j < arg_len; ++j) {
+                                assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
+                                auto input_var = var(0, public_input_counter++, false, var::column_type::public_input);
+                                base_frame.vectors[current_arg][j] = input_var;
+                            }
+                        } else {
+                            assert(1==0 && "arg_len of curveTy cannot be less than two");
                         }
-                        variables[current_arg] = input_vector;
                     } else if (llvm::isa<llvm::GaloisFieldType>(arg_type)) {
-                        size_t size = 1;
-
+                        size_t arg_len = 0;
                         switch (llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind()) {
                             case llvm::GALOIS_FIELD_BLS12381_BASE: {
                                 assert(1 == 0 && "bls12381 base field is not supported yet");
@@ -628,15 +630,15 @@ namespace nil {
                                 break;
                             }
                             case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
-                                size = 2;
+                                arg_len = 2;
                                 break;
                             }
                             case llvm::GALOIS_FIELD_PALLAS_BASE: {
-                                size = 1;
+                                arg_len = 1;
                                 break;
                             }
                             case llvm::GALOIS_FIELD_CURVE25519_BASE: {
-                                size = 4;
+                                arg_len = 4;
                                 break;
                             }
                             case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
@@ -656,21 +658,21 @@ namespace nil {
                                 assert(1 == 0 && "unsupported field operand type");
                         };
                         
-                        if (size + public_input_counter > public_input.size()) {
+                        if (arg_len + public_input_counter > public_input.size()) {
                             overflow = true;
                             break;
                         }
-                        if (size == 1) {
+                        if (arg_len == 1) {
                             assert(llvm::isa<llvm::GaloisFieldType>(arg_type));
                             assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
                             variables[current_arg] = var(0, public_input_counter++, false, var::column_type::public_input);
-                        } else if (size > 1) {
-                            std::vector<var> input_vector(size);
-                            for (size_t j = 0; j < size; ++j) {
+                        } else if (arg_len > 1) {
+                            base_frame.vectors[current_arg] = std::vector<var>(arg_len);
+                            for (size_t j = 0; j < arg_len; ++j) {
                                 assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
-                                input_vector[j] = var(0, public_input_counter++, false, var::column_type::public_input);
+                                auto input_var = var(0, public_input_counter++, false, var::column_type::public_input);
+                                base_frame.vectors[current_arg][j] = input_var;
                             }
-                            variables[current_arg] = input_vector;
                         } else {assert(0==1 && "wrong input size");}
 
                     }
