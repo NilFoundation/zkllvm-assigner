@@ -22,7 +22,7 @@ expected_crct = args.expected_crct
 real_tbl =  args.real_tbl
 real_crct = args.real_crct
 
-assigner_command = assigner_binary_path + " -b " + ll_file + " -i " + inp_file + " -t " + real_tbl + " -c " + real_crct
+assigner_command = assigner_binary_path + " -b " + ll_file + " -i " + inp_file + " -t " + real_tbl + " -c " + real_crct + " -e 0"
 
 result = subprocess.run(assigner_command, shell=True)
 if result.returncode != 0:
