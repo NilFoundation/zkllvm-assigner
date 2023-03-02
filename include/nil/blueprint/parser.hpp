@@ -207,6 +207,7 @@ namespace nil {
                         } else {
                             assert (1==0 && "curve + scalar is undefined");
                         }
+                        
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Sub: {
@@ -576,6 +577,7 @@ namespace nil {
                             else
                                 base_frame.vectors[current_arg][j] = input_var;
                         }
+
                     } else if (llvm::isa<llvm::EllipticCurveType>(arg_type)) {
                         size_t arg_len = 0;
 
