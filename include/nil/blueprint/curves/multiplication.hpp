@@ -78,10 +78,8 @@ namespace nil {
 
                 typename component_type::input_type addition_input = {{T.X, T.Y}, b[0], b[1]};
 
-                components::generate_circuit_decomposed_vbsm<BlueprintFieldType, ArithmetizationParams>(component_instance, bp,
-                                                                                        assignment, addition_input, start_row);
-                return components::generate_assignments_decomposed_vbsm<BlueprintFieldType, ArithmetizationParams>(
-                    component_instance, assignment, addition_input, start_row);
+                components::generate_circuit(component_instance, bp, assignment, addition_input, start_row);
+                return components::generate_assignments(component_instance, assignment, addition_input, start_row);
             }
             
         }    // namespace detail
@@ -115,7 +113,7 @@ namespace nil {
 
             switch (llvm::cast<llvm::EllipticCurveType>(op_curve_type)->getCurveKind()) {
                 case llvm::ELLIPTIC_CURVE_VESTA: {
-                    using operating_curve_type = typename crypto3::algebra::curves::vesta;
+                    using operating_curve_type = crypto3::algebra::curves::vesta;
                     using operating_field_type = operating_curve_type::base_field_type;
 
                     assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_VESTA_SCALAR);
@@ -132,7 +130,7 @@ namespace nil {
                 case llvm::ELLIPTIC_CURVE_PALLAS: {
                     assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_PALLAS_SCALAR);
 
-                    using operating_curve_type = typename crypto3::algebra::curves::pallas;
+                    using operating_curve_type = crypto3::algebra::curves::pallas;
                     using operating_field_type = operating_curve_type::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {

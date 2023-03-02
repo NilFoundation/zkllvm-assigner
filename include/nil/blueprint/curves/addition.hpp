@@ -64,7 +64,7 @@ namespace nil {
 
                 using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
                 using component_type = components::unified_addition<ArithmetizationType, CurveType, 11>;
-                typename components::unified_addition<ArithmetizationType, CurveType, 11> component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, {}, {});
+                component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, {}, {});
 
                 struct var_ec_point {
                     var X;
@@ -76,8 +76,8 @@ namespace nil {
 
                 typename component_type::input_type addition_input = {{P.X, P.Y}, {Q.X, Q.Y}};
 
-                components::generate_circuit_unified_addition<BlueprintFieldType, ArithmetizationParams, CurveType>(component_instance, bp, assignment, addition_input, start_row);
-                return components::generate_assignments_unified_addition<BlueprintFieldType, ArithmetizationParams, CurveType>(
+                components::generate_circuit(component_instance, bp, assignment, addition_input, start_row);
+                return components::generate_assignments(
                             component_instance, assignment, addition_input, start_row);
             }
         }    // namespace detail
@@ -104,7 +104,7 @@ namespace nil {
 
             switch (llvm::cast<llvm::EllipticCurveType>(op0_type)->getCurveKind()) {
                 case llvm::ELLIPTIC_CURVE_PALLAS: {
-                    using operating_curve_type = typename crypto3::algebra::curves::pallas;
+                    using operating_curve_type = crypto3::algebra::curves::pallas;
                     using operating_field_type = typename operating_curve_type::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
@@ -123,7 +123,7 @@ namespace nil {
                 }
 
                 case llvm::ELLIPTIC_CURVE_VESTA: {
-                    using operating_curve_type = typename crypto3::algebra::curves::vesta;
+                    using operating_curve_type = crypto3::algebra::curves::vesta;
                     using operating_field_type = operating_curve_type::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {

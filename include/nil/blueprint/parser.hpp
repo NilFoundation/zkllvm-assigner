@@ -283,12 +283,10 @@ namespace nil {
                             component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {},
                                                               {});
 
-                            components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
-                                component_instance, bp, assignmnt, instance_input, start_row);
+                            components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
 
                             typename component_type::result_type component_result =
-                                components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
-                                    component_instance, assignmnt, instance_input, start_row);
+                                components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
 
                             std::vector<var> output(component_result.output_state.begin(),
                                                     component_result.output_state.end());
@@ -310,12 +308,10 @@ namespace nil {
 
                             component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
 
-                            components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
-                                component_instance, bp, assignmnt, instance_input, start_row);
+                            components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
 
                             typename component_type::result_type component_result =
-                                components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
-                                    component_instance, assignmnt, instance_input, start_row);
+                                components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
 
                             std::vector<var> output(component_result.output.begin(), component_result.output.end());
                             frame.vectors[inst] = output;

@@ -71,10 +71,8 @@ namespace nil {
                 var x = variables[operand0];
                 var y = variables[operand1];
 
-                components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(component_instance, bp,
-                                                                                        assignment, {x, y}, start_row);
-                return components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
-                    component_instance, assignment, {x, y}, start_row);
+                components::generate_circuit(component_instance, bp, assignment, {x, y}, start_row);
+                return components::generate_assignments(component_instance, assignment, {x, y}, start_row);
             }
 
         }    // namespace detail
