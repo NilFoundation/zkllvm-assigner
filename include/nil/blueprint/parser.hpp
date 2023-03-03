@@ -96,32 +96,32 @@ namespace nil {
                 case llvm::ELLIPTIC_CURVE_PALLAS: {
                     size = blueprint_element_size<BlueprintFieldType>::pallas_curve_size;
                     if (size == 0) {
-                        assert(1 == 0 && "pallas curve is not supported for used native field yet");
                         std::cerr << "pallas curve is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "pallas curve is not supported for used native field yet");
                     }
                     return size;
                 }
                 case llvm::ELLIPTIC_CURVE_VESTA: {
                     size = blueprint_element_size<BlueprintFieldType>::vesta_curve_size;
                     if (size == 0) {
-                        assert(1 == 0 && "vesta curve is not supported for used native field yet");
                         std::cerr << "vesta curve is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "vesta curve is not supported for used native field yet");
                     }
                     return size;
                 }
                 case llvm::ELLIPTIC_CURVE_CURVE25519: {
                     size = blueprint_element_size<BlueprintFieldType>::ed25519_curve_size;
                     if (size == 0) {
-                        assert(1 == 0 && "curve25519 is not supported for used native field yet");
                         std::cerr << "curve25519 is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "curve25519 is not supported for used native field yet");
                     }
                     return size;
                 }
                 case llvm::ELLIPTIC_CURVE_BLS12381: {
                     size = blueprint_element_size<BlueprintFieldType>::bls12381_curve_size;
                     if (size == 0) {
-                        assert(1 == 0 && "bls12381 is not supported for used native field yet");
                         std::cerr << "bls12381 is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "bls12381 is not supported for used native field yet");
                     }
                     return size;
                 }
@@ -140,64 +140,64 @@ namespace nil {
                 case llvm::GALOIS_FIELD_PALLAS_BASE: {
                     size = blueprint_element_size<BlueprintFieldType>::pallas_base_size;
                     if (size == 0) {
-                        assert(1 == 0 && "pallas base field is not supported for used native field yet");
                         std::cerr << "pallas base field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "pallas base field is not supported for used native field yet");
                     }
                     return size;
                 }
                 case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
                     size = blueprint_element_size<BlueprintFieldType>::pallas_scalar_size;
                     if (size == 0) {
-                        assert(1 == 0 && "pallas scalar field is not supported for used native field yet");
                         std::cerr <<  "pallas scalar field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "pallas scalar field is not supported for used native field yet");
                     }
                     return size;
                 }
                 case llvm::GALOIS_FIELD_VESTA_BASE: {
                     size = blueprint_element_size<BlueprintFieldType>::vesta_base_size;
                     if (size == 0) {
-                        assert(1 == 0 && "vesta base field is not supported for used native field yet");
                         std::cerr <<  "vesta base field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "vesta base field is not supported for used native field yet");
                     }
                     return size;
                 }
                 case llvm::GALOIS_FIELD_VESTA_SCALAR: {
                     size = blueprint_element_size<BlueprintFieldType>::vesta_scalar_size;
                     if (size == 0) {
-                        assert(1 == 0 && "vesta scalar field is not supported for used native field yet");
                         std::cerr <<  "vesta scalar field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "vesta scalar field is not supported for used native field yet");
                     }
                     return size;
                 }
                 case llvm::GALOIS_FIELD_BLS12381_BASE: {
                     size = blueprint_element_size<BlueprintFieldType>::bls12381_base_size;
                     if (size == 0) {
-                        assert(1 == 0 && "bls12381 base field is not supported for used native field yet");
                         std::cerr <<  "bls12381 base field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "bls12381 base field is not supported for used native field yet");
                     }
                     return size;
                 }
                 case llvm::GALOIS_FIELD_BLS12381_SCALAR: {
                     size = blueprint_element_size<BlueprintFieldType>::bls12381_scalar_size;
                     if (size == 0) {
-                        assert(1 == 0 && "bls12381 scalar field is not supported for used native field yet");
                         std::cerr << "bls12381 scalar field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "bls12381 scalar field is not supported for used native field yet");
                     }
                     return size;
                 }
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
                     size = blueprint_element_size<BlueprintFieldType>::ed25519_base_size;
                     if (size == 0) {
-                        assert(1 == 0 && "ed25519 base field is not supported for used native field yet");
                         std::cerr << "ed25519 base field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "ed25519 base field is not supported for used native field yet");
                     }
                     return size;
                 }
                 case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
                     size = blueprint_element_size<BlueprintFieldType>::ed25519_scalar_size;
                     if (size == 0) {
-                        assert(1 == 0 && "ed25519 scalar field is not supported for used native field yet");
                         std::cerr << "ed25519 scalar field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "ed25519 scalar field is not supported for used native field yet");
                     }
                     return size;
                 } 
