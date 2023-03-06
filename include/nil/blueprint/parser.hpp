@@ -53,6 +53,10 @@
 #include <nil/blueprint/fields/multiplication.hpp>
 #include <nil/blueprint/fields/division.hpp>
 
+#include <nil/blueprint/curves/addition.hpp>
+#include <nil/blueprint/curves/subtraction.hpp>
+#include <nil/blueprint/curves/multiplication.hpp>
+
 namespace nil {
     namespace blueprint {
 
@@ -62,6 +66,145 @@ namespace nil {
                 return llvm::cast<llvm::ArrayType>(pointee->getContainedType(0))->getNumElements();
             }
             return 0;
+        }
+
+        template<typename BlueprintFieldType>
+        struct blueprint_element_size;
+
+        template<>
+        struct blueprint_element_size<typename nil::crypto3::algebra::fields::pallas_base_field> {
+            constexpr static const std::size_t pallas_curve_size = 2;
+            constexpr static const std::size_t vesta_curve_size = 2;
+            constexpr static const std::size_t ed25519_curve_size = 0;
+            constexpr static const std::size_t bls12381_curve_size = 0;
+
+            constexpr static const std::size_t pallas_base_size = 1;
+            constexpr static const std::size_t pallas_scalar_size = 2;
+            constexpr static const std::size_t vesta_base_size = 0;
+            constexpr static const std::size_t vesta_scalar_size = 0;
+            constexpr static const std::size_t bls12381_base_size = 0;
+            constexpr static const std::size_t bls12381_scalar_size = 0;
+            constexpr static const std::size_t ed25519_base_size = 4;
+            constexpr static const std::size_t ed25519_scalar_size = 0;
+        };
+
+        template<typename BlueprintFieldType> 
+        std::size_t curve_arg_num(llvm::Type *arg_type) {
+            std::size_t size = 0;
+
+            switch (llvm::cast<llvm::EllipticCurveType>(arg_type)->getCurveKind()) {
+                case llvm::ELLIPTIC_CURVE_PALLAS: {
+                    size = blueprint_element_size<BlueprintFieldType>::pallas_curve_size;
+                    if (size == 0) {
+                        std::cerr << "pallas curve is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "pallas curve is not supported for used native field yet");
+                    }
+                    return size;
+                }
+                case llvm::ELLIPTIC_CURVE_VESTA: {
+                    size = blueprint_element_size<BlueprintFieldType>::vesta_curve_size;
+                    if (size == 0) {
+                        std::cerr << "vesta curve is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "vesta curve is not supported for used native field yet");
+                    }
+                    return size;
+                }
+                case llvm::ELLIPTIC_CURVE_CURVE25519: {
+                    size = blueprint_element_size<BlueprintFieldType>::ed25519_curve_size;
+                    if (size == 0) {
+                        std::cerr << "curve25519 is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "curve25519 is not supported for used native field yet");
+                    }
+                    return size;
+                }
+                case llvm::ELLIPTIC_CURVE_BLS12381: {
+                    size = blueprint_element_size<BlueprintFieldType>::bls12381_curve_size;
+                    if (size == 0) {
+                        std::cerr << "bls12381 is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "bls12381 is not supported for used native field yet");
+                    }
+                    return size;
+                }
+                default:
+                    assert(1 == 0 && "unsupported curve type");
+                    return 0;
+            };
+        }
+
+            
+
+        template<typename BlueprintFieldType> 
+        std::size_t field_arg_num(llvm::Type *arg_type) {
+            std::size_t size = 0;
+            switch (llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind()) {
+                case llvm::GALOIS_FIELD_PALLAS_BASE: {
+                    size = blueprint_element_size<BlueprintFieldType>::pallas_base_size;
+                    if (size == 0) {
+                        std::cerr << "pallas base field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "pallas base field is not supported for used native field yet");
+                    }
+                    return size;
+                }
+                case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
+                    size = blueprint_element_size<BlueprintFieldType>::pallas_scalar_size;
+                    if (size == 0) {
+                        std::cerr <<  "pallas scalar field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "pallas scalar field is not supported for used native field yet");
+                    }
+                    return size;
+                }
+                case llvm::GALOIS_FIELD_VESTA_BASE: {
+                    size = blueprint_element_size<BlueprintFieldType>::vesta_base_size;
+                    if (size == 0) {
+                        std::cerr <<  "vesta base field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "vesta base field is not supported for used native field yet");
+                    }
+                    return size;
+                }
+                case llvm::GALOIS_FIELD_VESTA_SCALAR: {
+                    size = blueprint_element_size<BlueprintFieldType>::vesta_scalar_size;
+                    if (size == 0) {
+                        std::cerr <<  "vesta scalar field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "vesta scalar field is not supported for used native field yet");
+                    }
+                    return size;
+                }
+                case llvm::GALOIS_FIELD_BLS12381_BASE: {
+                    size = blueprint_element_size<BlueprintFieldType>::bls12381_base_size;
+                    if (size == 0) {
+                        std::cerr <<  "bls12381 base field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "bls12381 base field is not supported for used native field yet");
+                    }
+                    return size;
+                }
+                case llvm::GALOIS_FIELD_BLS12381_SCALAR: {
+                    size = blueprint_element_size<BlueprintFieldType>::bls12381_scalar_size;
+                    if (size == 0) {
+                        std::cerr << "bls12381 scalar field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "bls12381 scalar field is not supported for used native field yet");
+                    }
+                    return size;
+                }
+                case llvm::GALOIS_FIELD_CURVE25519_BASE: {
+                    size = blueprint_element_size<BlueprintFieldType>::ed25519_base_size;
+                    if (size == 0) {
+                        std::cerr << "ed25519 base field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "ed25519 base field is not supported for used native field yet");
+                    }
+                    return size;
+                }
+                case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
+                    size = blueprint_element_size<BlueprintFieldType>::ed25519_scalar_size;
+                    if (size == 0) {
+                        std::cerr << "ed25519 scalar field is not supported for used native field yet" << std::endl;
+                        assert(1 == 0 && "ed25519 scalar field is not supported for used native field yet");
+                    }
+                    return size;
+                } 
+                
+                default:
+                    assert(1 == 0 && "unsupported field operand type");
+            };
         }
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
@@ -192,24 +335,59 @@ namespace nil {
                             return inst->getNextNonDebugInstruction();
                         }
 
-                        handle_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                            inst, frame, bp, assignmnt, start_row);
-
+                        if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
+                            handle_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
+                                        inst, frame, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        } else if (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isCurveTy()) {
+                            handle_curve_addition_component<BlueprintFieldType, ArithmetizationParams>(
+                                        inst, frame, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        } else {
+                            assert (1==0 && "curve + scalar is undefined");
+                        }
+                        
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Sub: {
 
-                        handle_field_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
-                            inst, frame, bp, assignmnt, start_row);
+                        if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
+                            handle_field_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        } else if (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isCurveTy()) {
+                            handle_curve_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        } else {
+                            assert (1==0 && "curve - scalar is undefined");
+                        }
 
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Mul: {
 
-                        handle_field_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
-                            inst, frame, bp, assignmnt, start_row);
+                        if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
+                            handle_field_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        } else {
+                            assert(1==0 && "Mul opcode is defined only for fieldTy * fieldTy");
+                        }
 
                         return inst->getNextNonDebugInstruction();
+                    }
+                    case llvm::Instruction::CMul: {
+                        if (
+                            (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isFieldTy()) || 
+                            (inst->getOperand(1)->getType()->isCurveTy() && inst->getOperand(0)->getType()->isFieldTy())) {
+                            
+                            handle_curve_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        } else {
+                            assert (1==0 && "cmul opcode is defined only for curveTy * fieldTy");
+                        }
                     }
                     case llvm::Instruction::SDiv: {
 
@@ -245,12 +423,10 @@ namespace nil {
                             component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {},
                                                               {});
 
-                            components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
-                                component_instance, bp, assignmnt, instance_input, start_row);
+                            components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
 
                             typename component_type::result_type component_result =
-                                components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
-                                    component_instance, assignmnt, instance_input, start_row);
+                                components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
 
                             std::vector<var> output(component_result.output_state.begin(),
                                                     component_result.output_state.end());
@@ -272,12 +448,10 @@ namespace nil {
 
                             component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
 
-                            components::generate_circuit<BlueprintFieldType, ArithmetizationParams>(
-                                component_instance, bp, assignmnt, instance_input, start_row);
+                            components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
 
                             typename component_type::result_type component_result =
-                                components::generate_assignments<BlueprintFieldType, ArithmetizationParams>(
-                                    component_instance, assignmnt, instance_input, start_row);
+                                components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
 
                             std::vector<var> output(component_result.output.begin(), component_result.output.end());
                             frame.vectors[inst] = output;
@@ -542,10 +716,45 @@ namespace nil {
                             else
                                 base_frame.vectors[current_arg][j] = input_var;
                         }
-                    } else {
-                        assert(llvm::isa<llvm::GaloisFieldType>(arg_type));
-                        assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
-                        variables[current_arg] = var(0, public_input_counter++, false, var::column_type::public_input);
+
+                    } else if (llvm::isa<llvm::EllipticCurveType>(arg_type)) {
+                        size_t arg_len = curve_arg_num<BlueprintFieldType>(arg_type);
+                        if (arg_len + public_input_counter > public_input.size()) {
+                            overflow = true;
+                            break;
+                        }
+                        if (arg_len > 1) { 
+                            base_frame.vectors[current_arg] = std::vector<var>(arg_len);
+                            for (size_t j = 0; j < arg_len; ++j) {
+                                assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
+                                auto input_var = var(0, public_input_counter++, false, var::column_type::public_input);
+                                base_frame.vectors[current_arg][j] = input_var;
+                            }
+                        } else {
+                            assert(1==0 && "arg_len of curveTy cannot be less than two");
+                        }
+                    } else if (llvm::isa<llvm::GaloisFieldType>(arg_type)) {
+                        size_t arg_len = field_arg_num<BlueprintFieldType>(arg_type);
+                        if (arg_len + public_input_counter > public_input.size()) {
+                            overflow = true;
+                            break;
+                        }
+                        if (arg_len == 1) {
+                            assert(llvm::isa<llvm::GaloisFieldType>(arg_type));
+                            assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
+                            variables[current_arg] = var(0, public_input_counter++, false, var::column_type::public_input);
+                        } else if (arg_len > 1) {
+                            base_frame.vectors[current_arg] = std::vector<var>(arg_len);
+                            for (size_t j = 0; j < arg_len; ++j) {
+                                assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
+                                auto input_var = var(0, public_input_counter++, false, var::column_type::public_input);
+                                base_frame.vectors[current_arg][j] = input_var;
+                            }
+                        } else {assert(0==1 && "wrong input size");}
+
+                    }
+                    else {
+                        assert(1==0 && "unsupported input type");
                     }
                 }
                 if (public_input_counter != public_input.size() || overflow) {
