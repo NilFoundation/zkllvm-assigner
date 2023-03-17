@@ -45,6 +45,9 @@ namespace nil {
             Pointer<VarType> adjust(int idx) {
                 return Pointer<VarType>(base, index + idx);
             }
+            Chunk<VarType> *get_base() {
+                return base;
+            }
             VarType load_var();
             Pointer<VarType> load_pointer();
             void store_var(const VarType &variable);

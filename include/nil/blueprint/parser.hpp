@@ -135,7 +135,6 @@ namespace nil {
                         break;
                     case llvm::CmpInst::ICMP_NE:
                         res = !(lhs == rhs);
-                        std::cout << "ne " << res << std::endl;
                         break;
                     default:
                         assert(false && "Unsupported predicate");
@@ -166,6 +165,33 @@ namespace nil {
                     assert(status == nil::marshalling::status_type::success);
                 }
                 return field_constant;
+            }
+
+            Pointer<var> resolve_pointer(stack_frame<var> &frame, const llvm::Value *ptr_value) {
+                if (llvm::isa<llvm::GlobalVariable>(ptr_value)) {
+                    return globals[ptr_value];
+                }
+                assert(frame.pointers.find(ptr_value) != frame.pointers.end());
+                return frame.pointers[ptr_value];
+            }
+
+            bool handle_intrinsic(const llvm::CallInst *inst, llvm::Intrinsic::ID id, stack_frame<var> &frame) {
+                switch (id) {
+                    case llvm::Intrinsic::assigner_malloc: {
+                        global_data.emplace_back();
+                        frame.pointers[inst] = Pointer<var>{&global_data.back(), 0};
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_free: {
+                        Pointer<var> ptr = resolve_pointer(frame, inst->getOperand(0));
+                        Chunk<var> *chunk = ptr.get_base();
+                        auto entry = std::find_if(global_data.begin(), global_data.end(),
+                                  [chunk](const Chunk<var> &elem) { return &elem == chunk; });
+                        global_data.erase(entry);
+                        return true;
+                    }
+                }
+                return false;
             }
 
             const llvm::Instruction *handle_instruction(const llvm::Instruction *inst) {
@@ -225,11 +251,10 @@ namespace nil {
                             std::cerr << "Unresolved call";
                             return nullptr;
                         }
-                        unsigned fun_idx = call_inst->getNumOperands() - 1;
                         llvm::StringRef fun_name = fun->getName();
                         assert(fun->arg_size() == call_inst->getNumOperands() - 1);
                         if (fun->isIntrinsic()) {
-                            std::cout << "Intrinsic " << fun_name.str() << std::endl;
+                            handle_intrinsic(call_inst, fun->getIntrinsicID(), frame);
                             return inst->getNextNonDebugInstruction();
                         }
                         if (fun_name.find("nil7crypto36hashes8poseidon") != std::string::npos) {
@@ -416,7 +441,7 @@ namespace nil {
                     }
                     case llvm::Instruction::Load: {
                         auto *load_inst = llvm::cast<llvm::LoadInst>(inst);
-                        Pointer<var> ptr = frame.pointers[load_inst->getPointerOperand()];
+                        Pointer<var> ptr = resolve_pointer(frame, load_inst->getPointerOperand());
                         if (load_inst->getType()->isPointerTy())
                             frame.pointers[load_inst] = ptr.load_pointer();
                         else
@@ -425,7 +450,7 @@ namespace nil {
                     }
                     case llvm::Instruction::Store: {
                         auto *store_inst = llvm::cast<llvm::StoreInst>(inst);
-                        Pointer<var> ptr = frame.pointers[store_inst->getPointerOperand()];
+                        Pointer<var> ptr = resolve_pointer(frame, store_inst->getPointerOperand());
                         const llvm::Value *val = store_inst->getValueOperand();
                         if (val->getType()->isPointerTy()) {
                             ptr.store_pointer(frame.pointers[val]);
@@ -433,6 +458,11 @@ namespace nil {
                         else {
                             ptr.store_var(variables[val]);
                         }
+                        return inst->getNextNonDebugInstruction();
+                    }
+                    case llvm::Instruction::BitCast: {
+                        // just return pointer argument as is
+                        frame.pointers[inst] = resolve_pointer(frame, inst->getOperand(0));
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Ret: {
@@ -555,6 +585,18 @@ namespace nil {
                 public_input_idx = public_input.size();
                 call_stack.emplace(std::move(base_frame));
 
+                for (const llvm::GlobalVariable &global : module.getGlobalList()) {
+                    global_data.emplace_back();
+                    auto ptr = Pointer<var>(&global_data.back(), 0);
+                    globals[&global] = ptr;
+                    if (!global.getInitializer()->getType()->isIntegerTy() &&
+                        !global.getInitializer()->getType()->isFieldTy()) {
+                        // Only int and field constants are supported for now
+                        continue;
+                    }
+                    assignmnt.public_input(0, public_input_idx) = marshal_int_val(global.getInitializer());
+                    ptr.store_var(var(0, public_input_idx++, false, var::column_type::public_input));
+                }
                 const llvm::Instruction *next_inst = &function.begin()->front();
                 while (true) {
                     next_inst = handle_instruction(next_inst);
@@ -571,6 +613,8 @@ namespace nil {
             llvm::LLVMContext context;
             const llvm::BasicBlock *predecessor = nullptr;
             std::stack<stack_frame<var>> call_stack;
+            std::map<const llvm::Value *, Pointer<var>> globals;
+            std::list<Chunk<var>> global_data;
             bool finished = false;
             size_t public_input_idx = 0;
         };
