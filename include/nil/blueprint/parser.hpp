@@ -653,7 +653,11 @@ namespace nil {
                             if (ret_val->getType()->isPointerTy()) {
                                 auto &upper_frame_pointers = call_stack.top().pointers;
                                 auto res = extracted_frame.pointers[ret_val];
-                                upper_frame_pointers[extracted_frame.caller] = res;;
+                                upper_frame_pointers[extracted_frame.caller] = res;
+                            } else if (ret_val->getType()->isVectorTy()) {
+                                auto &upper_frame_vectors = call_stack.top().vectors;
+                                auto res = extracted_frame.vectors[ret_val];
+                                upper_frame_vectors[extracted_frame.caller] = res;
                             } else {
                                 auto &upper_frame_variables = call_stack.top().scalars;
                                 upper_frame_variables[extracted_frame.caller] = extracted_frame.scalars[ret_val];
