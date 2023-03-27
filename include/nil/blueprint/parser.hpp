@@ -220,13 +220,24 @@ namespace nil {
         private:
             // TODO(maksenov): handle it properly and move to another file
             template <typename map_type>
-            void handle_int_addition(const llvm::Instruction *inst, map_type &variables) {
+            void handle_int_binop(const llvm::Instruction *inst, map_type &variables) {
                 assert(inst->getOperand(0)->getType()->isIntegerTy());
                 assert(inst->getOperand(1)->getType()->isIntegerTy());
 
                 var x = variables[inst->getOperand(0)];
                 var y = variables[inst->getOperand(1)];
-                auto res = var_value(assignmnt, x) + var_value(assignmnt, y);
+                typename BlueprintFieldType::value_type res;
+                switch (inst->getOpcode()) {
+                    case llvm::Instruction::Add:
+                        res = var_value(assignmnt, x) + var_value(assignmnt, y);
+                        break;
+                    case llvm::Instruction::Mul:
+                        res = var_value(assignmnt, x) * var_value(assignmnt, y);
+                        break;
+                    default:
+                        assert(1 == 0 && "Unsupported operation!");
+                        break;
+                }
                 assignmnt.public_input(0, public_input_idx) = res;
                 variables[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
             }
@@ -357,7 +368,7 @@ namespace nil {
                     case llvm::Instruction::Add: {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
-                            handle_int_addition(inst, variables);
+                            handle_int_binop(inst, variables);
                             return inst->getNextNonDebugInstruction();
                         }
 
@@ -392,6 +403,11 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Mul: {
+
+                        if (inst->getOperand(0)->getType()->isIntegerTy()) {
+                            handle_int_binop(inst, variables);
+                            return inst->getNextNonDebugInstruction();
+                        }
 
                         if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
