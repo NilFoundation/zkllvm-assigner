@@ -47,6 +47,7 @@
 #include "llvm/IR/TypedPointerType.h"
 #include "llvm/IR/Intrinsics.h"
 
+#include <nil/blueprint/public_input.hpp>
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/fields/addition.hpp>
 #include <nil/blueprint/fields/subtraction.hpp>
@@ -59,153 +60,6 @@
 
 namespace nil {
     namespace blueprint {
-
-        static unsigned getStdArrayLen(const llvm::Type *arg_type) {
-            auto pointee = llvm::cast<llvm::PointerType>(arg_type)->getNonOpaquePointerElementType();
-            if (pointee->getNumContainedTypes() == 1 && pointee->getContainedType(0)->isArrayTy()) {
-                return llvm::cast<llvm::ArrayType>(pointee->getContainedType(0))->getNumElements();
-            }
-            return 0;
-        }
-
-        template<typename BlueprintFieldType>
-        struct blueprint_element_size;
-
-        template<>
-        struct blueprint_element_size<typename nil::crypto3::algebra::fields::pallas_base_field> {
-            constexpr static const std::size_t pallas_curve_size = 2;
-            constexpr static const std::size_t vesta_curve_size = 2;
-            constexpr static const std::size_t ed25519_curve_size = 0;
-            constexpr static const std::size_t bls12381_curve_size = 0;
-
-            constexpr static const std::size_t pallas_base_size = 1;
-            constexpr static const std::size_t pallas_scalar_size = 2;
-            constexpr static const std::size_t vesta_base_size = 0;
-            constexpr static const std::size_t vesta_scalar_size = 0;
-            constexpr static const std::size_t bls12381_base_size = 0;
-            constexpr static const std::size_t bls12381_scalar_size = 0;
-            constexpr static const std::size_t ed25519_base_size = 4;
-            constexpr static const std::size_t ed25519_scalar_size = 0;
-        };
-
-        template<typename BlueprintFieldType> 
-        std::size_t curve_arg_num(llvm::Type *arg_type) {
-            std::size_t size = 0;
-
-            switch (llvm::cast<llvm::EllipticCurveType>(arg_type)->getCurveKind()) {
-                case llvm::ELLIPTIC_CURVE_PALLAS: {
-                    size = blueprint_element_size<BlueprintFieldType>::pallas_curve_size;
-                    if (size == 0) {
-                        std::cerr << "pallas curve is not supported for used native field yet" << std::endl;
-                        assert(1 == 0 && "pallas curve is not supported for used native field yet");
-                    }
-                    return size;
-                }
-                case llvm::ELLIPTIC_CURVE_VESTA: {
-                    size = blueprint_element_size<BlueprintFieldType>::vesta_curve_size;
-                    if (size == 0) {
-                        std::cerr << "vesta curve is not supported for used native field yet" << std::endl;
-                        assert(1 == 0 && "vesta curve is not supported for used native field yet");
-                    }
-                    return size;
-                }
-                case llvm::ELLIPTIC_CURVE_CURVE25519: {
-                    size = blueprint_element_size<BlueprintFieldType>::ed25519_curve_size;
-                    if (size == 0) {
-                        std::cerr << "curve25519 is not supported for used native field yet" << std::endl;
-                        assert(1 == 0 && "curve25519 is not supported for used native field yet");
-                    }
-                    return size;
-                }
-                case llvm::ELLIPTIC_CURVE_BLS12381: {
-                    size = blueprint_element_size<BlueprintFieldType>::bls12381_curve_size;
-                    if (size == 0) {
-                        std::cerr << "bls12381 is not supported for used native field yet" << std::endl;
-                        assert(1 == 0 && "bls12381 is not supported for used native field yet");
-                    }
-                    return size;
-                }
-                default:
-                    assert(1 == 0 && "unsupported curve type");
-                    return 0;
-            };
-        }
-
-            
-
-        template<typename BlueprintFieldType> 
-        std::size_t field_arg_num(llvm::Type *arg_type) {
-            std::size_t size = 0;
-            switch (llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind()) {
-                case llvm::GALOIS_FIELD_PALLAS_BASE: {
-                    size = blueprint_element_size<BlueprintFieldType>::pallas_base_size;
-                    if (size == 0) {
-                        std::cerr << "pallas base field is not supported for used native field yet" << std::endl;
-                        assert(1 == 0 && "pallas base field is not supported for used native field yet");
-                    }
-                    return size;
-                }
-                case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
-                    size = blueprint_element_size<BlueprintFieldType>::pallas_scalar_size;
-                    if (size == 0) {
-                        std::cerr <<  "pallas scalar field is not supported for used native field yet" << std::endl;
-                        assert(1 == 0 && "pallas scalar field is not supported for used native field yet");
-                    }
-                    return size;
-                }
-                case llvm::GALOIS_FIELD_VESTA_BASE: {
-                    size = blueprint_element_size<BlueprintFieldType>::vesta_base_size;
-                    if (size == 0) {
-                        std::cerr <<  "vesta base field is not supported for used native field yet" << std::endl;
-                        assert(1 == 0 && "vesta base field is not supported for used native field yet");
-                    }
-                    return size;
-                }
-                case llvm::GALOIS_FIELD_VESTA_SCALAR: {
-                    size = blueprint_element_size<BlueprintFieldType>::vesta_scalar_size;
-                    if (size == 0) {
-                        std::cerr <<  "vesta scalar field is not supported for used native field yet" << std::endl;
-                        assert(1 == 0 && "vesta scalar field is not supported for used native field yet");
-                    }
-                    return size;
-                }
-                case llvm::GALOIS_FIELD_BLS12381_BASE: {
-                    size = blueprint_element_size<BlueprintFieldType>::bls12381_base_size;
-                    if (size == 0) {
-                        std::cerr <<  "bls12381 base field is not supported for used native field yet" << std::endl;
-                        assert(1 == 0 && "bls12381 base field is not supported for used native field yet");
-                    }
-                    return size;
-                }
-                case llvm::GALOIS_FIELD_BLS12381_SCALAR: {
-                    size = blueprint_element_size<BlueprintFieldType>::bls12381_scalar_size;
-                    if (size == 0) {
-                        std::cerr << "bls12381 scalar field is not supported for used native field yet" << std::endl;
-                        assert(1 == 0 && "bls12381 scalar field is not supported for used native field yet");
-                    }
-                    return size;
-                }
-                case llvm::GALOIS_FIELD_CURVE25519_BASE: {
-                    size = blueprint_element_size<BlueprintFieldType>::ed25519_base_size;
-                    if (size == 0) {
-                        std::cerr << "ed25519 base field is not supported for used native field yet" << std::endl;
-                        assert(1 == 0 && "ed25519 base field is not supported for used native field yet");
-                    }
-                    return size;
-                }
-                case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
-                    size = blueprint_element_size<BlueprintFieldType>::ed25519_scalar_size;
-                    if (size == 0) {
-                        std::cerr << "ed25519 scalar field is not supported for used native field yet" << std::endl;
-                        assert(1 == 0 && "ed25519 scalar field is not supported for used native field yet");
-                    }
-                    return size;
-                } 
-                
-                default:
-                    assert(1 == 0 && "unsupported field operand type");
-            };
-        }
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         struct parser {
@@ -349,7 +203,6 @@ namespace nil {
             }
 
             const llvm::Instruction *handle_instruction(const llvm::Instruction *inst) {
-
                 stack_frame<var> &frame = call_stack.top();
                 auto &variables = frame.scalars;
                 std::uint32_t start_row = assignmnt.allocated_rows();
@@ -383,7 +236,7 @@ namespace nil {
                         } else {
                             assert (1==0 && "curve + scalar is undefined");
                         }
-                        
+
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Sub: {
@@ -421,9 +274,9 @@ namespace nil {
                     }
                     case llvm::Instruction::CMul: {
                         if (
-                            (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isFieldTy()) || 
+                            (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isFieldTy()) ||
                             (inst->getOperand(1)->getType()->isCurveTy() && inst->getOperand(0)->getType()->isFieldTy())) {
-                            
+
                             handle_curve_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
@@ -561,7 +414,7 @@ namespace nil {
                                 if (phi_node->getType()->isPointerTy()) {
                                     assert(frame.pointers.find(incoming_value) != frame.pointers.end());
                                     frame.pointers[phi_node] = frame.pointers[incoming_value];
-                                } else if (incoming_value->getType()->isVectorTy()) {
+                                } else if (incoming_value->getType()->isVectorTy() || incoming_value->getType()->isCurveTy()) {
                                     assert(frame.vectors.find(incoming_value) != frame.vectors.end());
                                     frame.vectors[phi_node] = frame.vectors[incoming_value];
                                 } else
@@ -584,18 +437,28 @@ namespace nil {
                         }
 
                         int index = llvm::cast<llvm::ConstantInt>(index_value)->getZExtValue();
-                        if (llvm::isa<llvm::UndefValue>(vec)) {
-                            llvm::Type *vector_type = vec->getType();
-                            assert(llvm::isa<llvm::FixedVectorType>(vector_type));
-                            unsigned size = llvm::cast<llvm::FixedVectorType>(vector_type)->getNumElements();
-                            std::vector<var> result_vector(size);
-                            result_vector[index] = variables[inst->getOperand(1)];
-                            frame.vectors[inst] = result_vector;
+                        std::vector<var> result_vector;
+                        if (llvm::isa<llvm::Constant>(vec)) {
+                            auto *vector_type = llvm::cast<llvm::FixedVectorType>(vec->getType());
+                            assert(vector_type->getElementType()->isFieldTy());
+                            unsigned size = vector_type->getNumElements();
+                            result_vector = std::vector<var>(size);
+                            if (auto *cv = llvm::dyn_cast<llvm::ConstantVector>(vec)) {
+                                for (int i = 0; i < size; ++i) {
+                                    llvm::Constant *elem = cv->getAggregateElement(i);
+                                    if (llvm::isa<llvm::UndefValue>(elem))
+                                        continue;
+                                    assignmnt.public_input(0, public_input_idx) = marshal_int_val(elem);
+                                    result_vector[i] = var(0, public_input_idx++, false, var::column_type::public_input);
+                                }
+                            } else {
+                                assert(llvm::isa<llvm::UndefValue>(vec) && "Unexpected constant value!");
+                            }
                         } else {
-                            std::vector<var> result_vector(frame.vectors[vec]);
-                            result_vector[index] = variables[inst->getOperand(1)];
-                            frame.vectors[inst] = result_vector;
+                            result_vector = frame.vectors[vec];
                         }
+                        result_vector[index] = variables[inst->getOperand(1)];
+                        frame.vectors[inst] = result_vector;
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::ExtractElement: {
@@ -632,10 +495,13 @@ namespace nil {
                     case llvm::Instruction::Load: {
                         auto *load_inst = llvm::cast<llvm::LoadInst>(inst);
                         Pointer<var> ptr = resolve_pointer(frame, load_inst->getPointerOperand());
-                        if (load_inst->getType()->isPointerTy())
+                        if (load_inst->getType()->isPointerTy()) {
                             frame.pointers[load_inst] = ptr.load_pointer();
-                        else
+                        } else if (load_inst->getType()->isVectorTy()) {
+                            frame.vectors[load_inst] = ptr.load_vector();
+                        } else {
                             variables[load_inst] = ptr.load_var();
+                        }
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Store: {
@@ -644,8 +510,9 @@ namespace nil {
                         const llvm::Value *val = store_inst->getValueOperand();
                         if (val->getType()->isPointerTy()) {
                             ptr.store_pointer(frame.pointers[val]);
-                        }
-                        else {
+                        } else if (val->getType()->isVectorTy()) {
+                            ptr.store_vector(frame.vectors[val]);
+                        } else {
                             ptr.store_var(variables[val]);
                         }
                         return inst->getNextNonDebugInstruction();
@@ -722,92 +589,10 @@ namespace nil {
                 }
                 auto &function = *entry_point_it;
 
-                // Fill in the public input
-                bool overflow = false;
-                size_t public_input_counter = 0;
-                for (size_t i = 0; i < function.arg_size(); ++i) {
-                    if (public_input_counter >= public_input.size()) {
-                        overflow = true;
-                        break;
-                    }
-                    llvm::Argument *current_arg = function.getArg(i);
-                    llvm::Type *arg_type = current_arg->getType();
-                    bool is_array = false;
-                    unsigned arg_len = 0;
-                    if (llvm::isa<llvm::PointerType>(arg_type)) {
-                        base_frame.memory.emplace_back();
-                        pointers[current_arg] = Pointer<var>(&base_frame.memory.back(), 0);
-                        arg_len = getStdArrayLen(arg_type);
-                        if (arg_len == 0) {
-                            std::cerr << "Got pointer argument, only pointers to std::array are supported" << std::endl;
-                            return false;
-                        }
-                        is_array = true;
-                        if (current_arg->hasStructRetAttr()) {
-                            // No need to fill in a return argument
-                            continue;
-                        }
-
-                    }
-                    if (llvm::isa<llvm::FixedVectorType>(arg_type) || is_array) {
-                        if (!is_array) {
-                            arg_len = llvm::cast<llvm::FixedVectorType>(arg_type)->getNumElements();
-                            base_frame.vectors[current_arg] = std::vector<var>(arg_len);
-                        }
-                        if (arg_len + public_input_counter > public_input.size()) {
-                            overflow = true;
-                            break;
-                        }
-                        for (size_t j = 0; j < arg_len; ++j) {
-                            assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
-                            auto input_var = var(0, public_input_counter++, false, var::column_type::public_input);
-                            if (is_array)
-                                base_frame.memory.back().store_var(input_var, j);
-                            else
-                                base_frame.vectors[current_arg][j] = input_var;
-                        }
-
-                    } else if (llvm::isa<llvm::EllipticCurveType>(arg_type)) {
-                        size_t arg_len = curve_arg_num<BlueprintFieldType>(arg_type);
-                        if (arg_len + public_input_counter > public_input.size()) {
-                            overflow = true;
-                            break;
-                        }
-                        if (arg_len > 1) { 
-                            base_frame.vectors[current_arg] = std::vector<var>(arg_len);
-                            for (size_t j = 0; j < arg_len; ++j) {
-                                assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
-                                auto input_var = var(0, public_input_counter++, false, var::column_type::public_input);
-                                base_frame.vectors[current_arg][j] = input_var;
-                            }
-                        } else {
-                            assert(1==0 && "arg_len of curveTy cannot be less than two");
-                        }
-                    } else if (llvm::isa<llvm::GaloisFieldType>(arg_type)) {
-                        size_t arg_len = field_arg_num<BlueprintFieldType>(arg_type);
-                        if (arg_len + public_input_counter > public_input.size()) {
-                            overflow = true;
-                            break;
-                        }
-                        if (arg_len == 1) {
-                            assert(llvm::isa<llvm::GaloisFieldType>(arg_type));
-                            assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
-                            variables[current_arg] = var(0, public_input_counter++, false, var::column_type::public_input);
-                        } else if (arg_len > 1) {
-                            base_frame.vectors[current_arg] = std::vector<var>(arg_len);
-                            for (size_t j = 0; j < arg_len; ++j) {
-                                assignmnt.public_input(0, public_input_counter) = public_input[public_input_counter];
-                                auto input_var = var(0, public_input_counter++, false, var::column_type::public_input);
-                                base_frame.vectors[current_arg][j] = input_var;
-                            }
-                        } else {assert(0==1 && "wrong input size");}
-
-                    }
-                    else {
-                        assert(1==0 && "unsupported input type");
-                    }
-                }
-                if (public_input_counter != public_input.size() || overflow) {
+                auto public_input_reader =
+                    PublicInputReader<BlueprintFieldType, var, assignment<ArithmetizationType>,
+                                      PublicInputContainerType>(base_frame, assignmnt, public_input);
+                if (!public_input_reader.fill_public_input(function)) {
                     std::cerr << "Public input must match the size of arguments" << std::endl;
                     return false;
                 }
