@@ -28,6 +28,8 @@
 #define CRYPTO3_ASSIGNER_MEMORY_HPP
 
 #include <unordered_map>
+#include <vector>
+
 namespace nil {
     namespace blueprint {
 
@@ -50,8 +52,10 @@ namespace nil {
             }
             VarType load_var();
             Pointer<VarType> load_pointer();
+            std::vector<VarType> load_vector();
             void store_var(const VarType &variable);
             void store_pointer(const Pointer<VarType> &ptr);
+            void store_vector(const std::vector<VarType> &vector);
 
             bool operator==(const Pointer<VarType> &other) const {
                 return base == other.base && index == other.index;
@@ -62,6 +66,7 @@ namespace nil {
         class Chunk {
             std::unordered_map<unsigned, Pointer<VarType>> links;
             std::unordered_map<unsigned, VarType> data;
+            std::unordered_map<unsigned, std::vector<VarType>> vectors;
 
         public:
             VarType load_var(unsigned idx) {
@@ -70,11 +75,17 @@ namespace nil {
             Pointer<VarType> load_pointer(unsigned idx) {
                 return links[idx];
             }
+            std::vector<VarType> load_vector(unsigned idx) {
+                return vectors[idx];
+            }
             void store_var(const VarType &variable, unsigned idx) {
                 data[idx] = variable;
             }
             void store_pointer(const Pointer<VarType> &ptr, unsigned idx) {
                 links[idx] = ptr;
+            }
+            void store_vector(const std::vector<VarType> &vec, unsigned idx) {
+                vectors[idx] = vec;
             }
         };
 
@@ -87,12 +98,20 @@ namespace nil {
             return base->load_pointer(index);
         }
         template<typename VarType>
+        inline std::vector<VarType> Pointer<VarType>::load_vector() {
+            return base->load_vector(index);
+        }
+        template<typename VarType>
         inline void Pointer<VarType>::store_var(const VarType &variable) {
             base->store_var(variable, index);
         }
         template<typename VarType>
         inline void Pointer<VarType>::store_pointer(const Pointer<VarType> &ptr) {
             base->store_pointer(ptr, index);
+        }
+        template<typename VarType>
+        inline void Pointer<VarType>::store_vector(const std::vector<VarType> &vec) {
+            base->store_vector(vec, index);
         }
 
     }    // namespace blueprint
