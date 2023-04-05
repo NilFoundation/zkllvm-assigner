@@ -183,7 +183,7 @@ namespace nil {
                 return frame.pointers[ptr_value];
             }
 
-            bool handle_intrinsic(const llvm::CallInst *inst, llvm::Intrinsic::ID id, stack_frame<var> &frame) {
+            bool handle_intrinsic(const llvm::CallInst *inst, llvm::Intrinsic::ID id, stack_frame<var> &frame, uint32_t start_row) {
                 switch (id) {
                     case llvm::Intrinsic::assigner_malloc: {
                         global_data.emplace_back();
@@ -198,6 +198,57 @@ namespace nil {
                         global_data.erase(entry);
                         return true;
                     }
+                    case llvm::Intrinsic::assigner_poseidon: {
+                        using component_type = components::poseidon<ArithmetizationType, BlueprintFieldType, 15>;
+
+                        auto &input_block = frame.vectors[inst->getOperand(0)];
+                        std::array<var, component_type::state_size> input_state_var;
+                        std::copy(input_block.begin(), input_block.end(), input_state_var.begin());
+
+                        typename component_type::input_type instance_input = {input_state_var};
+
+                        component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {},
+                                                            {});
+
+                        components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
+
+                        typename component_type::result_type component_result =
+                            components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
+
+                        std::vector<var> output(component_result.output_state.begin(),
+                                                component_result.output_state.end());
+                        frame.vectors[inst] = output;
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_sha2_256: {
+                        using component_type = components::sha256<ArithmetizationType, 9>;
+
+                        constexpr const std::int32_t block_size = 2;
+                        constexpr const std::int32_t input_blocks_amount = 2;
+
+                        auto &block_arg = frame.vectors[inst->getOperand(0)];
+                        std::array<var, input_blocks_amount * block_size> input_block_vars;
+                        std::copy(block_arg.begin(), block_arg.end(), input_block_vars.begin());
+
+                        typename component_type::input_type instance_input = {input_block_vars};
+
+                        component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
+
+                        components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
+
+                        typename component_type::result_type component_result =
+                            components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
+
+                        std::vector<var> output(component_result.output.begin(), component_result.output.end());
+                        frame.vectors[inst] = output;
+                        return true;
+                    }
+                    case llvm::Intrinsic::lifetime_start:
+                    case llvm::Intrinsic::lifetime_end:
+                        // Nothing to do
+                        return true;
+                    default:
+                        assert(false && "Unexpected intrinsic!");
                 }
                 return false;
             }
@@ -301,54 +352,8 @@ namespace nil {
                         llvm::StringRef fun_name = fun->getName();
                         assert(fun->arg_size() == call_inst->getNumOperands() - 1);
                         if (fun->isIntrinsic()) {
-                            handle_intrinsic(call_inst, fun->getIntrinsicID(), frame);
-                            return inst->getNextNonDebugInstruction();
-                        }
-                        if (fun_name.find("nil7crypto36hashes8poseidon") != std::string::npos) {
-                            // Poseidon handling
-                            using component_type = components::poseidon<ArithmetizationType, BlueprintFieldType, 15>;
-
-                            auto &input_block = frame.vectors[inst->getOperand(0)];
-                            std::array<var, component_type::state_size> input_state_var;
-                            std::copy(input_block.begin(), input_block.end(), input_state_var.begin());
-
-                            typename component_type::input_type instance_input = {input_state_var};
-
-                            component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {},
-                                                              {});
-
-                            components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
-
-                            typename component_type::result_type component_result =
-                                components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
-
-                            std::vector<var> output(component_result.output_state.begin(),
-                                                    component_result.output_state.end());
-                            frame.vectors[inst] = output;
-                            return inst->getNextNonDebugInstruction();
-                        }
-                        if (fun_name.find("nil7crypto36hashes6sha256") != std::string::npos) {
-                            // SHA256 handling
-                            using component_type = components::sha256<ArithmetizationType, 9>;
-
-                            constexpr const std::int32_t block_size = 2;
-                            constexpr const std::int32_t input_blocks_amount = 2;
-
-                            auto &block_arg = frame.vectors[inst->getOperand(0)];
-                            std::array<var, input_blocks_amount * block_size> input_block_vars;
-                            std::copy(block_arg.begin(), block_arg.end(), input_block_vars.begin());
-
-                            typename component_type::input_type instance_input = {input_block_vars};
-
-                            component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
-
-                            components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
-
-                            typename component_type::result_type component_result =
-                                components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
-
-                            std::vector<var> output(component_result.output.begin(), component_result.output.end());
-                            frame.vectors[inst] = output;
+                            if (!handle_intrinsic(call_inst, fun->getIntrinsicID(), frame, start_row))
+                                return nullptr;
                             return inst->getNextNonDebugInstruction();
                         }
                         if (fun->empty()) {
@@ -361,6 +366,8 @@ namespace nil {
                             llvm::Argument *arg = fun->getArg(i);
                             if (arg->getType()->isPointerTy())
                                 new_frame.pointers[arg] = frame.pointers[call_inst->getOperand(i)];
+                            else if (arg->getType()->isVectorTy())
+                                new_frame.vectors[arg] = frame.vectors[call_inst->getOperand(i)];
                             else
                                 new_variables[arg] = variables[call_inst->getOperand(i)];
 
