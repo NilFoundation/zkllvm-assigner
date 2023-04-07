@@ -57,6 +57,9 @@ namespace nil {
             void store_pointer(const Pointer<VarType> &ptr);
             void store_vector(const std::vector<VarType> &vector);
 
+            void memcpy(Chunk<VarType> *mem);
+            void memcpy(Pointer<VarType> ptr);
+
             bool operator==(const Pointer<VarType> &other) const {
                 return base == other.base && index == other.index;
             }
@@ -87,6 +90,21 @@ namespace nil {
             void store_vector(const std::vector<VarType> &vec, unsigned idx) {
                 vectors[idx] = vec;
             }
+            void memcpy(Chunk<VarType> *other) {
+                links.clear();
+                data.clear();
+                vectors.clear();
+
+                for (const auto &[key, val] : other->links) {
+                    links[key] = val;
+                }
+                for (const auto &[key, val] : other->data) {
+                    data[key] = val;
+                }
+                for (const auto &[key, val] : other->vectors) {
+                    vectors[key] = val;
+                }
+            }
         };
 
         template<typename VarType>
@@ -112,6 +130,16 @@ namespace nil {
         template<typename VarType>
         inline void Pointer<VarType>::store_vector(const std::vector<VarType> &vec) {
             base->store_vector(vec, index);
+        }
+        template<typename VarType>
+        inline void Pointer<VarType>::memcpy(Chunk<VarType> *mem) {
+            assert(index == 0);
+            base->memcpy(mem);
+        }
+        template<typename VarType>
+        inline void Pointer<VarType>::memcpy(Pointer<VarType> mem) {
+            assert(mem.index == 0);
+            base->memcpy(mem.base);
         }
 
     }    // namespace blueprint

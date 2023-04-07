@@ -47,6 +47,7 @@
 #include "llvm/IR/TypedPointerType.h"
 #include "llvm/IR/Intrinsics.h"
 
+#include <nil/blueprint/gep_resolver.hpp>
 #include <nil/blueprint/public_input.hpp>
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/fields/addition.hpp>
@@ -183,6 +184,48 @@ namespace nil {
                 return frame.pointers[ptr_value];
             }
 
+            template<typename VarType>
+            Chunk<VarType> store_constant(llvm::Constant *constant_init) {
+                if (auto operation = llvm::dyn_cast<llvm::ConstantExpr>(constant_init)) {
+                    assert(operation->isCast());
+                    constant_init = operation->getOperand(0);
+                }
+                if (auto CS = llvm::cast<llvm::GlobalVariable>(constant_init)) {
+                    assert(CS->isConstant());
+                    constant_init = CS->getInitializer();
+                }
+
+                // We need to flatten a complex struct to put it into a chunk
+                // So we use deep-first search for scalar elements of the struct (or array)
+                Chunk<var> chunk;
+                unsigned idx = 0;
+                std::stack<llvm::Constant *> component_stack;
+                component_stack.push(constant_init);
+                while (!component_stack.empty()) {
+                    llvm::Constant *constant = component_stack.top();
+                    component_stack.pop();
+                    llvm::Type *type = constant->getType();
+                    if (!type->isAggregateType()) {
+                        assignmnt.public_input(0, public_input_idx) = marshal_int_val(constant);
+                        auto variable = var(0, public_input_idx++, false, var::column_type::public_input);
+                        chunk.store_var(variable, idx++);
+                        continue;
+                    }
+                    unsigned num_elements = 0;
+                    if (llvm::isa<llvm::StructType>(type)) {
+                        num_elements = type->getStructNumElements();
+                    } else {
+                        num_elements = type->getArrayNumElements();
+                    }
+                    // Start element must always be on the top of the stack,
+                    // so put elements on top in reverse order
+                    for (int i = num_elements - 1; i >= 0; --i) {
+                        component_stack.push(constant->getAggregateElement(i));
+                    }
+                }
+                return chunk;
+            }
+
             bool handle_intrinsic(const llvm::CallInst *inst, llvm::Intrinsic::ID id, stack_frame<var> &frame, uint32_t start_row) {
                 switch (id) {
                     case llvm::Intrinsic::assigner_malloc: {
@@ -241,6 +284,18 @@ namespace nil {
 
                         std::vector<var> output(component_result.output.begin(), component_result.output.end());
                         frame.vectors[inst] = output;
+                        return true;
+                    }
+                    case llvm::Intrinsic::memcpy: {
+                        Pointer<var> dst = resolve_pointer(frame, inst->getOperand(0));
+                        llvm::Value *src_val = inst->getOperand(1);
+                        if (auto constant = llvm::dyn_cast<llvm::Constant>(src_val)) {
+                            auto chunk = store_constant<var>(constant);
+                            dst.memcpy(&chunk);
+                        } else {
+                            Pointer<var> src = resolve_pointer(frame, src_val);
+                            dst.memcpy(src);
+                        }
                         return true;
                     }
                     case llvm::Intrinsic::lifetime_start:
@@ -494,8 +549,9 @@ namespace nil {
                         llvm::Value *idx2 = gep->getOperand(2);
                         var x = variables[idx2];
                         auto v = var_value(assignmnt, x);
-                        int ai = (int)static_cast<typename BlueprintFieldType::integral_type>(v.data);
-                        Pointer<var> ptr = frame.pointers[gep->getPointerOperand()].adjust(ai);
+                        int gep_index = (int)static_cast<typename BlueprintFieldType::integral_type>(v.data);
+                        int resolved_index = gep_resolver.get_flat_index(gep->getSourceElementType(), gep_index);
+                        Pointer<var> ptr = frame.pointers[gep->getPointerOperand()].adjust(resolved_index);
                         frame.pointers[gep] = ptr;
                         return inst->getNextNonDebugInstruction();
                     }
@@ -638,6 +694,7 @@ namespace nil {
             std::list<Chunk<var>> global_data;
             bool finished = false;
             size_t public_input_idx = 0;
+            GepResolver gep_resolver;
         };
 
     }    // namespace blueprint
