@@ -28,6 +28,7 @@
 #define CRYPTO3_ASSIGNER_GEP_RESOLVER_HPP
 
 #include <vector>
+#include <unordered_map>
 
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
