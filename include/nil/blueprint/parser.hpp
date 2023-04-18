@@ -558,12 +558,14 @@ namespace nil {
                     case llvm::Instruction::Load: {
                         auto *load_inst = llvm::cast<llvm::LoadInst>(inst);
                         Pointer<var> ptr = resolve_pointer(frame, load_inst->getPointerOperand());
-                        if (load_inst->getType()->isPointerTy()) {
+                        llvm::Type *load_type = load_inst->getType();
+                        if (load_type->isPointerTy()) {
                             frame.pointers[load_inst] = ptr.load_pointer();
-                        } else if (load_inst->getType()->isVectorTy()) {
-                            frame.vectors[load_inst] = ptr.load_vector();
-                        } else {
+                        } else if (load_type->isIntegerTy() ||
+                                   (load_type->isFieldTy() && field_arg_num<BlueprintFieldType>(load_type) == 1)) {
                             variables[load_inst] = ptr.load_var();
+                        } else {
+                            frame.vectors[load_inst] = ptr.load_vector();
                         }
                         return inst->getNextNonDebugInstruction();
                     }
@@ -571,12 +573,14 @@ namespace nil {
                         auto *store_inst = llvm::cast<llvm::StoreInst>(inst);
                         Pointer<var> ptr = resolve_pointer(frame, store_inst->getPointerOperand());
                         const llvm::Value *val = store_inst->getValueOperand();
-                        if (val->getType()->isPointerTy()) {
+                        llvm::Type *store_type = store_inst->getType();
+                        if (store_type->isPointerTy()) {
                             ptr.store_pointer(frame.pointers[val]);
-                        } else if (val->getType()->isVectorTy()) {
-                            ptr.store_vector(frame.vectors[val]);
-                        } else {
+                        } else if (store_type->isIntegerTy() ||
+                                   (store_type->isFieldTy() && field_arg_num<BlueprintFieldType>(store_type) == 1)) {
                             ptr.store_var(variables[val]);
+                        } else {
+                            ptr.store_vector(frame.vectors[val]);
                         }
                         return inst->getNextNonDebugInstruction();
                     }
