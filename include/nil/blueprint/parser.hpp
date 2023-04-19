@@ -573,7 +573,7 @@ namespace nil {
                         auto *store_inst = llvm::cast<llvm::StoreInst>(inst);
                         Pointer<var> ptr = resolve_pointer(frame, store_inst->getPointerOperand());
                         const llvm::Value *val = store_inst->getValueOperand();
-                        llvm::Type *store_type = store_inst->getType();
+                        llvm::Type *store_type = val->getType();
                         if (store_type->isPointerTy()) {
                             ptr.store_pointer(frame.pointers[val]);
                         } else if (store_type->isIntegerTy() ||
@@ -620,6 +620,7 @@ namespace nil {
                         std::cerr << inst->getOpcodeName() << std::endl;
                         assert(1 == 0 && "unsupported opcode type");
                 }
+                return nullptr;
             }
 
         public:
