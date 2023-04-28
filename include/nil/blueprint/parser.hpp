@@ -473,16 +473,18 @@ namespace nil {
                         for (int i = 0; i < phi_node->getNumIncomingValues(); ++i) {
                             if (phi_node->getIncomingBlock(i) == predecessor) {
                                 llvm::Value *incoming_value = phi_node->getIncomingValue(i);
-                                if (phi_node->getType()->isPointerTy()) {
+                                llvm::Type *value_type = incoming_value->getType();
+                                if (value_type->isPointerTy()) {
                                     assert(frame.pointers.find(incoming_value) != frame.pointers.end());
                                     frame.pointers[phi_node] = frame.pointers[incoming_value];
-                                } else if (incoming_value->getType()->isVectorTy() || incoming_value->getType()->isCurveTy()) {
+                                } else if (value_type->isIntegerTy() ||
+                                           (value_type->isFieldTy() && field_arg_num<BlueprintFieldType>(value_type) == 1)) {
+                                    assert(variables.find(incoming_value) != variables.end());
+                                    variables[phi_node] = variables[incoming_value];
+                                } else {
                                     assert(frame.vectors.find(incoming_value) != frame.vectors.end());
                                     frame.vectors[phi_node] = frame.vectors[incoming_value];
-                                } else
-                                    assert(variables.find(incoming_value) != variables.end());
-                                    // Take found incoming value as instruction result
-                                    variables[phi_node] = variables[incoming_value];
+                                }
                                 return phi_node->getNextNonDebugInstruction();
                             }
                         }
