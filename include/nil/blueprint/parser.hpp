@@ -32,7 +32,8 @@
 #include <nil/blueprint/blueprint/plonk/assignment.hpp>
 #include <nil/blueprint/blueprint/plonk/circuit.hpp>
 #include <nil/blueprint/components/hashes/poseidon/plonk/poseidon_15_wires.hpp>
-#include <nil/blueprint/components/hashes/sha256/plonk/sha256.hpp>
+#include <nil/blueprint/components/hashes/sha2/plonk/sha256.hpp>
+#include <nil/blueprint/components/hashes/sha2/plonk/sha512.hpp>
 
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/IR/LLVMContext.h>
@@ -58,6 +59,9 @@
 #include <nil/blueprint/curves/addition.hpp>
 #include <nil/blueprint/curves/subtraction.hpp>
 #include <nil/blueprint/curves/multiplication.hpp>
+
+#include <nil/blueprint/hashes/sha2_256.hpp>
+#include <nil/blueprint/hashes/sha2_512.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -264,26 +268,11 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_sha2_256: {
-                        using component_type = components::sha256<ArithmetizationType, 9>;
-
-                        constexpr const std::int32_t block_size = 2;
-                        constexpr const std::int32_t input_blocks_amount = 2;
-
-                        auto &block_arg = frame.vectors[inst->getOperand(0)];
-                        std::array<var, input_blocks_amount * block_size> input_block_vars;
-                        std::copy(block_arg.begin(), block_arg.end(), input_block_vars.begin());
-
-                        typename component_type::input_type instance_input = {input_block_vars};
-
-                        component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
-
-                        components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
-
-                        typename component_type::result_type component_result =
-                            components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
-
-                        std::vector<var> output(component_result.output.begin(), component_result.output.end());
-                        frame.vectors[inst] = output;
+                        handle_sha2_256_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_sha2_512: {
+                        handle_sha2_512_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
                         return true;
                     }
                     case llvm::Intrinsic::memcpy: {
