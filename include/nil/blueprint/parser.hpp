@@ -298,6 +298,22 @@ namespace nil {
                         }
                         return true;
                     }
+                    case llvm::Intrinsic::assigner_zkml_convolution: {
+                        assert(false && "zkml_convolution intrinsic is not implemented yet");
+                        return false;
+                    }
+                    case llvm::Intrinsic::assigner_zkml_pooling: {
+                        assert(false && "zkml_pooling intrinsic is not implemented yet");
+                        return false;
+                    }
+                    case llvm::Intrinsic::assigner_zkml_ReLU: {
+                        assert(false && "zkml_ReLU intrinsic is not implemented yet");
+                        return false;
+                    }
+                    case llvm::Intrinsic::assigner_zkml_batch_norm: {
+                        assert(false && "zkml_batch_norm intrinsic is not implemented yet");
+                        return false;
+                    }
                     case llvm::Intrinsic::lifetime_start:
                     case llvm::Intrinsic::lifetime_end:
                         // Nothing to do
