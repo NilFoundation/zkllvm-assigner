@@ -92,6 +92,9 @@ namespace nil {
                     case llvm::Instruction::Mul:
                         res = var_value(assignmnt, x) * var_value(assignmnt, y);
                         break;
+                    case llvm::Instruction::Sub:
+                        res = var_value(assignmnt, x) - var_value(assignmnt, y);
+                        break;
                     default:
                         UNREACHABLE("Unsupported operation!");
                         break;
@@ -370,6 +373,11 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Sub: {
+                        if (inst->getOperand(0)->getType()->isIntegerTy()) {
+                            handle_int_binop(inst, variables);
+                            return inst->getNextNonDebugInstruction();
+                        }
+
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
                             handle_int_binop(inst, variables);
                             return inst->getNextNonDebugInstruction();
