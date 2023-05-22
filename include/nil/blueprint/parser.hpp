@@ -89,6 +89,9 @@ namespace nil {
                     case llvm::Instruction::Mul:
                         res = var_value(assignmnt, x) * var_value(assignmnt, y);
                         break;
+                    case llvm::Instruction::Sub:
+                        res = var_value(assignmnt, x) - var_value(assignmnt, y);
+                        break;
                     default:
                         assert(1 == 0 && "Unsupported operation!");
                         break;
@@ -362,6 +365,11 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Sub: {
+
+                        if (inst->getOperand(0)->getType()->isIntegerTy()) {
+                            handle_int_binop(inst, variables);
+                            return inst->getNextNonDebugInstruction();
+                        }
 
                         if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
