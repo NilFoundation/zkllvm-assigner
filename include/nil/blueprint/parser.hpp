@@ -680,8 +680,7 @@ namespace nil {
                 return module;
             }
 
-            template<typename PublicInputContainerType>
-            bool evaluate(const llvm::Module &module, const PublicInputContainerType &public_input) {
+            bool evaluate(const llvm::Module &module, const boost::json::array &public_input) {
 
                 stack_frame<var> base_frame;
                 auto &variables = base_frame.scalars;
@@ -704,14 +703,13 @@ namespace nil {
                 }
                 auto &function = *entry_point_it;
 
-                auto public_input_reader =
-                    PublicInputReader<BlueprintFieldType, var, assignment<ArithmetizationType>,
-                                      PublicInputContainerType>(base_frame, assignmnt, public_input);
-                if (!public_input_reader.fill_public_input(function)) {
+                auto public_input_reader = PublicInputReader<BlueprintFieldType, var, assignment<ArithmetizationType>>(
+                    base_frame, assignmnt);
+                if (!public_input_reader.fill_public_input(function, public_input)) {
                     std::cerr << "Public input must match the size of arguments" << std::endl;
                     return false;
                 }
-                public_input_idx = public_input.size();
+                public_input_idx = public_input_reader.get_idx();
                 call_stack.emplace(std::move(base_frame));
 
                 for (const llvm::GlobalVariable &global : module.getGlobalList()) {
