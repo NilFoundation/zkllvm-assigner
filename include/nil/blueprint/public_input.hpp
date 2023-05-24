@@ -34,6 +34,7 @@
 #include <nil/blueprint/stack.hpp>
 
 #include <iostream>
+#include <boost/json/src.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -183,39 +184,86 @@ namespace nil {
             }
         }
 
-        template<typename BlueprintFieldType, typename var, typename Assignment, typename PublicInputContainerType>
+        template<typename BlueprintFieldType, typename var, typename Assignment>
         class PublicInputReader {
         public:
-            PublicInputReader(stack_frame<var> &frame, Assignment &assignmnt,
-                              const PublicInputContainerType &public_input) :
+            PublicInputReader(stack_frame<var> &frame, Assignment &assignmnt) :
                 frame(frame),
-                assignmnt(assignmnt), public_input(public_input), public_input_idx(0) {}
+                assignmnt(assignmnt), public_input_idx(0) {}
 
-            std::vector<var> take_values(size_t len) {
-                if (len + public_input_idx > public_input.size()) {
-                    return {};
+            bool parse_scalar(const boost::json::value &value, typename BlueprintFieldType::value_type &out) {
+                switch (value.kind()) {
+                case boost::json::kind::int64:
+                    out = value.as_int64();
+                    return true;
+                case boost::json::kind::uint64:
+                    out = value.as_uint64();
+                    return true;
+                case boost::json::kind::string: {
+                    char buf[256];
+                    if (value.as_string().size() >= sizeof(buf)) {
+                        std::cerr << "Input does not fit into BlueprintFieldType" << std::endl;
+                        return false;
+                    }
+                    value.as_string().copy(buf, sizeof(buf));
+                    typename BlueprintFieldType::extended_integral_type number(buf);
+                    if (number >= BlueprintFieldType::modulus) {
+                        std::cerr << "Input does not fit into BlueprintFieldType" << std::endl;
+                        return false;
+                    }
+                    out = number;
+                    return true;
                 }
+                default:
+                    return false;
+
+                }
+            }
+
+            std::vector<var> take_values(const boost::json::value &value, size_t len) {
                 std::vector<var> res(len);
-                for (size_t i = 0; i < len; ++i) {
-                    assignmnt.public_input(0, public_input_idx) = public_input[public_input_idx];
-                    auto input_var = var(0, public_input_idx++, false, var::column_type::public_input);
-                    res[i] = input_var;
+                switch (value.kind()) {
+                case boost::json::kind::array:
+                    if (len != value.as_array().size()) {
+                        return {};
+                    }
+                    for (size_t i = 0; i < len; ++i) {
+                        if (!parse_scalar(value.as_array()[i], assignmnt.public_input(0, public_input_idx)))
+                            return {};
+                        auto input_var = var(0, public_input_idx++, false, var::column_type::public_input);
+                        res[i] = input_var;
+                    }
+                    break;
+                case boost::json::kind::int64:
+                case boost::json::kind::uint64:
+                case boost::json::kind::string:
+                    if (len != 1 || !parse_scalar(value, assignmnt.public_input(0, public_input_idx))) {
+                        return {};
+                    }
+                    res[0] = var(0, public_input_idx++, false, var::column_type::public_input);
+                    break;
+                default:
+                    return {};
                 }
                 return res;
             }
 
-            bool take_curve(llvm::Value *curve_arg, llvm::Type *curve_type) {
+            bool take_curve(llvm::Value *curve_arg, llvm::Type *curve_type, const boost::json::object &value) {
                 size_t arg_len = curve_arg_num<BlueprintFieldType>(curve_type);
                 assert(arg_len >= 2 && "arg_len of curveTy cannot be less than two");
-                frame.vectors[curve_arg] = take_values(arg_len);
+                if (value.size() != 1 || !value.contains("curve"))
+                    return false;
+                frame.vectors[curve_arg] = take_values(value.at("curve"), arg_len);
                 return frame.vectors[curve_arg].size() == arg_len;
             }
 
-            bool take_field(llvm::Value *field_arg, llvm::Type *field_type) {
+            bool take_field(llvm::Value *field_arg, llvm::Type *field_type, const boost::json::object &value) {
                 assert(llvm::isa<llvm::GaloisFieldType>(field_type));
+                if (value.size() != 1 || !value.contains("field"))
+                    return false;
                 size_t arg_len = field_arg_num<BlueprintFieldType>(field_type);
                 assert(arg_len != 0 && "wrong input size");
-                auto values = take_values(arg_len);
+                auto values = take_values(value.at("field"), arg_len);
                 if (values.size() != arg_len)
                     return false;
                 if (arg_len == 1) {
@@ -226,9 +274,12 @@ namespace nil {
                 return true;
             }
 
-            bool take_vector(llvm::Value *vector_arg, llvm::Type *vector_type) {
+            bool take_vector(llvm::Value *vector_arg, llvm::Type *vector_type, const boost::json::object &value) {
                 size_t arg_len = llvm::cast<llvm::FixedVectorType>(vector_type)->getNumElements();
-                frame.vectors[vector_arg] = take_values(arg_len);
+                if (value.size() != 1 && !value.contains("vector")) {
+                    return false;
+                }
+                frame.vectors[vector_arg] = take_values(value.at("vector"), arg_len);
                 return frame.vectors[vector_arg].size() == arg_len;
             }
 
@@ -247,14 +298,25 @@ namespace nil {
                 return 0;
             }
 
-            bool take_array(llvm::Value *array_arg, llvm::Type *array_type, size_t array_len) {
+            bool take_array(llvm::Value *array_arg, llvm::Type *array_type, size_t array_len, const boost::json::object &value) {
                 auto elem_type = llvm::cast<llvm::ArrayType>(llvm::cast<llvm::PointerType>(array_type)
                                                                  ->getNonOpaquePointerElementType()
                                                                  ->getContainedType(0))
                                      ->getElementType();
                 size_t elem_len = get_array_elem_len(elem_type);
+                if (value.size() != 1 && !value.contains("array")) {
+                    return false;
+                }
+                if (!value.at("array").is_array()) {
+                    return false;
+                }
+                const auto &json_arr = value.at("array").as_array();
+                if (json_arr.size() != array_len) {
+                    return false;
+                }
+
                 for (int i = 0; i < array_len; ++i) {
-                    std::vector<var> elem_value = take_values(elem_len);
+                    std::vector<var> elem_value = take_values(json_arr[i], elem_len);
                     if (elem_value.size() != elem_len)
                         return false;
                     if (elem_len == 1) {
@@ -266,12 +328,15 @@ namespace nil {
                 return true;
             }
 
-            bool fill_public_input(const llvm::Function &function) {
+            bool fill_public_input(const llvm::Function &function, const boost::json::array &public_input) {
+                size_t ret_gap = 0;
                 for (size_t i = 0; i < function.arg_size(); ++i) {
-                    if (public_input_idx >= public_input.size()) {
+                    if (!public_input[i - ret_gap].is_object()) {
                         return false;
                     }
+
                     llvm::Argument *current_arg = function.getArg(i);
+                    const boost::json::object &current_value = public_input[i - ret_gap].as_object();
                     llvm::Type *arg_type = current_arg->getType();
                     bool is_array = false;
                     unsigned arg_len = 0;
@@ -286,35 +351,40 @@ namespace nil {
                         is_array = true;
                         if (current_arg->hasStructRetAttr()) {
                             // No need to fill in a return argument
+                            ret_gap += 1;
                             continue;
                         }
 
-                        if (!take_array(current_arg, arg_type, arg_len))
+                        if (!take_array(current_arg, arg_type, arg_len, current_value))
                             return false;
                     } else if (llvm::isa<llvm::FixedVectorType>(arg_type)) {
-                        if (!take_vector(current_arg, arg_type))
+                        if (!take_vector(current_arg, arg_type, current_value))
                             return false;
                     } else if (llvm::isa<llvm::EllipticCurveType>(arg_type)) {
-                        if (!take_curve(current_arg, arg_type))
+                        if (!take_curve(current_arg, arg_type, current_value))
                             return false;
                     } else if (llvm::isa<llvm::GaloisFieldType>(arg_type)) {
-                        if (!take_field(current_arg, arg_type))
+                        if (!take_field(current_arg, arg_type, current_value))
                             return false;
                     }
                     else {
                         assert(1==0 && "unsupported input type");
                     }
                 }
-                if (public_input_idx != public_input.size()) {
+
+                // Check if there are remaining elements of public input
+                if (function.arg_size() - ret_gap != public_input.size()) {
                     return false;
                 }
                 return true;
+            }
+            size_t get_idx() const {
+                return public_input_idx;
             }
 
         private:
             stack_frame<var> &frame;
             Assignment &assignmnt;
-            const PublicInputContainerType &public_input;
             size_t public_input_idx;
         };
     }    // namespace blueprint
