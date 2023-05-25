@@ -406,6 +406,7 @@ namespace nil {
                             assert (1==0 && "cmul opcode is defined only for curveTy * fieldTy");
                         }
                     }
+                    case llvm::Instruction::UDiv:
                     case llvm::Instruction::SDiv: {
 
                         handle_field_division_component<BlueprintFieldType, ArithmetizationParams>(
