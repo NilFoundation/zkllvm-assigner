@@ -449,7 +449,8 @@ namespace nil {
                     }
                     case llvm::Instruction::ICmp: {
                         auto cmp_inst = llvm::cast<const llvm::ICmpInst>(inst);
-                        if (cmp_inst->getOperand(0)->getType()->isIntegerTy())
+                        if (cmp_inst->getOperand(0)->getType()->isIntegerTy()
+                            || cmp_inst->getOperand(0)->getType()->isFieldTy())
                             handle_int_cmp(cmp_inst, variables);
                         else if (cmp_inst->getOperand(0)->getType()->isPointerTy())
                             handle_ptr_cmp(cmp_inst, frame);
