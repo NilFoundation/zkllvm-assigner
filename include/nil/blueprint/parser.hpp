@@ -609,6 +609,12 @@ namespace nil {
                         frame.pointers[inst] = resolve_pointer(frame, inst->getOperand(0));
                         return inst->getNextNonDebugInstruction();
                     }
+                    case llvm::Instruction::Trunc: {
+                        // FIXME: Handle trunc properly. For now just leave value as it is.
+                        var x = frame.scalars[inst->getOperand(0)];
+                        frame.scalars[inst] = x;
+                        return inst->getNextNonDebugInstruction();
+                    }
                     case llvm::Instruction::Ret: {
                         auto extracted_frame = std::move(call_stack.top());
                         call_stack.pop();
