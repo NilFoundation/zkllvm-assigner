@@ -314,6 +314,14 @@ namespace nil {
                         assert(false && "zkml_batch_norm intrinsic is not implemented yet");
                         return false;
                     }
+                    case llvm::Intrinsic::expect: {
+                        var x = frame.scalars[inst->getOperand(0)];
+                        var y = frame.scalars[inst->getOperand(1)];
+                        bool res = var_value(assignmnt, x) == var_value(assignmnt, y);
+                        assignmnt.public_input(0, public_input_idx) = res;
+                        frame.scalars[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
+                        return true;
+                    }
                     case llvm::Intrinsic::lifetime_start:
                     case llvm::Intrinsic::lifetime_end:
                         // Nothing to do
