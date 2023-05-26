@@ -316,11 +316,6 @@ namespace nil {
                     }
                     case llvm::Intrinsic::expect: {
                         var x = frame.scalars[inst->getOperand(0)];
-                        var y = frame.scalars[inst->getOperand(1)];
-                        if (var_value(assignmnt, x) != var_value(assignmnt, y)) {
-                            std::cerr << "`expect` failed" << std::endl;
-                            return false;
-                        }
                         frame.scalars[inst] = x;
                         return true;
                     }
