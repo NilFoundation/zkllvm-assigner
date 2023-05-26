@@ -317,9 +317,11 @@ namespace nil {
                     case llvm::Intrinsic::expect: {
                         var x = frame.scalars[inst->getOperand(0)];
                         var y = frame.scalars[inst->getOperand(1)];
-                        bool res = var_value(assignmnt, x) == var_value(assignmnt, y);
-                        assignmnt.public_input(0, public_input_idx) = res;
-                        frame.scalars[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
+                        if (var_value(assignmnt, x) != var_value(assignmnt, y)) {
+                            std::cerr << "`expect` failed" << std::endl;
+                            return false;
+                        }
+                        frame.scalars[inst] = x;
                         return true;
                     }
                     case llvm::Intrinsic::lifetime_start:
