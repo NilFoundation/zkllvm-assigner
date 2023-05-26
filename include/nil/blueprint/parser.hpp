@@ -99,7 +99,7 @@ namespace nil {
 
             // TODO(maksenov): handle it properly and move to another file
             template<typename map_type>
-            void handle_int_cmp(const llvm::ICmpInst *inst, map_type &variables) {
+            void handle_scalar_cmp(const llvm::ICmpInst *inst, map_type &variables) {
                 var x = variables[inst->getOperand(0)];
                 var y = variables[inst->getOperand(1)];
                 bool res = false;
@@ -460,7 +460,7 @@ namespace nil {
                         auto cmp_inst = llvm::cast<const llvm::ICmpInst>(inst);
                         if (cmp_inst->getOperand(0)->getType()->isIntegerTy()
                             || cmp_inst->getOperand(0)->getType()->isFieldTy())
-                            handle_int_cmp(cmp_inst, variables);
+                            handle_scalar_cmp(cmp_inst, variables);
                         else if (cmp_inst->getOperand(0)->getType()->isPointerTy())
                             handle_ptr_cmp(cmp_inst, frame);
                         return inst->getNextNonDebugInstruction();
