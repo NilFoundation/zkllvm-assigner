@@ -463,6 +463,9 @@ namespace nil {
                             handle_scalar_cmp(cmp_inst, variables);
                         else if (cmp_inst->getOperand(0)->getType()->isPointerTy())
                             handle_ptr_cmp(cmp_inst, frame);
+                        else {
+                            assert(false && "Unsupported icmp operand type");
+                        }
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Select: {
