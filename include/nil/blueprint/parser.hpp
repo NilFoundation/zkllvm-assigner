@@ -164,7 +164,7 @@ namespace nil {
                 unsigned words = int_val.getNumWords();
                 typename BlueprintFieldType::value_type field_constant;
                 if (words == 1) {
-                    field_constant = int_val.getZExtValue();
+                    field_constant = int_val.getSExtValue();
                 } else {
                     // TODO(maksenov): avoid copying here
                     const char *APIntData = reinterpret_cast<const char *>(int_val.getRawData());
@@ -569,17 +569,30 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     case llvm::Instruction::GetElementPtr: {
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(inst);
-                        llvm::Value *idx1 = gep->getOperand(1);
-                        if (!llvm::isa<llvm::ConstantInt>(idx1) || !llvm::cast<llvm::ConstantInt>(idx1)->isZero()) {
-                            std::cerr << "Unsupported gep inst" << std::endl;
-                            return nullptr;
+                        // Collect GEP indices
+                        std::vector<int> gep_indices;
+                        for (unsigned i = 0; i < gep->getNumIndices(); ++i) {
+                            var idx_var = variables[gep->getOperand(i + 1)];
+                            auto idx_vv = var_value(assignmnt, idx_var);
+                            int gep_index = (int)static_cast<typename BlueprintFieldType::integral_type>(idx_vv.data);
+                            gep_indices.push_back(gep_index);
                         }
-                        llvm::Value *idx2 = gep->getOperand(2);
-                        var x = variables[idx2];
-                        auto v = var_value(assignmnt, x);
-                        int gep_index = (int)static_cast<typename BlueprintFieldType::integral_type>(v.data);
-                        int resolved_index = gep_resolver.get_flat_index(gep->getSourceElementType(), gep_index);
-                        Pointer<var> ptr = frame.pointers[gep->getPointerOperand()].adjust(resolved_index);
+                        const llvm::Type *gep_ty = gep->getSourceElementType();
+                        Pointer<var> ptr = frame.pointers[gep->getPointerOperand()];
+
+                        int initial_ptr_adjustment = gep_resolver.get_type_size(gep_ty) * gep_indices[0];
+                        ptr.adjust(initial_ptr_adjustment);
+                        gep_indices.erase(gep_indices.begin());
+
+                        if (!gep_indices.empty()) {
+                            if (!gep_ty->isAggregateType()) {
+                                std::cerr << "GEP instruction with > 1 indices must operate on aggregate type!"
+                                          << std::endl;
+                                return nullptr;
+                            }
+                            int resolved_index = gep_resolver.get_flat_index(gep_ty, gep_indices);
+                            ptr.adjust(resolved_index);
+                        }
                         frame.pointers[gep] = ptr;
                         return inst->getNextNonDebugInstruction();
                     }
