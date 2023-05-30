@@ -103,7 +103,7 @@ namespace nil {
 
             // TODO(maksenov): handle it properly and move to another file
             template<typename map_type>
-            void handle_int_cmp(const llvm::ICmpInst *inst, map_type &variables) {
+            void handle_scalar_cmp(const llvm::ICmpInst *inst, map_type &variables) {
                 var x = variables[inst->getOperand(0)];
                 var y = variables[inst->getOperand(1)];
                 bool res = false;
@@ -287,6 +287,27 @@ namespace nil {
                         }
                         return true;
                     }
+                    case llvm::Intrinsic::assigner_zkml_convolution: {
+                        assert(false && "zkml_convolution intrinsic is not implemented yet");
+                        return false;
+                    }
+                    case llvm::Intrinsic::assigner_zkml_pooling: {
+                        assert(false && "zkml_pooling intrinsic is not implemented yet");
+                        return false;
+                    }
+                    case llvm::Intrinsic::assigner_zkml_ReLU: {
+                        assert(false && "zkml_ReLU intrinsic is not implemented yet");
+                        return false;
+                    }
+                    case llvm::Intrinsic::assigner_zkml_batch_norm: {
+                        assert(false && "zkml_batch_norm intrinsic is not implemented yet");
+                        return false;
+                    }
+                    case llvm::Intrinsic::expect: {
+                        var x = frame.scalars[inst->getOperand(0)];
+                        frame.scalars[inst] = x;
+                        return true;
+                    }
                     case llvm::Intrinsic::lifetime_start:
                     case llvm::Intrinsic::lifetime_end:
                         // Nothing to do
@@ -379,6 +400,7 @@ namespace nil {
                             assert (1==0 && "cmul opcode is defined only for curveTy * fieldTy");
                         }
                     }
+                    case llvm::Instruction::UDiv:
                     case llvm::Instruction::SDiv: {
 
                         handle_field_division_component<BlueprintFieldType, ArithmetizationParams>(
@@ -422,10 +444,14 @@ namespace nil {
                     }
                     case llvm::Instruction::ICmp: {
                         auto cmp_inst = llvm::cast<const llvm::ICmpInst>(inst);
-                        if (cmp_inst->getOperand(0)->getType()->isIntegerTy())
-                            handle_int_cmp(cmp_inst, variables);
+                        if (cmp_inst->getOperand(0)->getType()->isIntegerTy()
+                            || cmp_inst->getOperand(0)->getType()->isFieldTy())
+                            handle_scalar_cmp(cmp_inst, variables);
                         else if (cmp_inst->getOperand(0)->getType()->isPointerTy())
                             handle_ptr_cmp(cmp_inst, frame);
+                        else {
+                            assert(false && "Unsupported icmp operand type");
+                        }
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Select: {
@@ -578,6 +604,12 @@ namespace nil {
                     case llvm::Instruction::BitCast: {
                         // just return pointer argument as is
                         frame.pointers[inst] = resolve_pointer(frame, inst->getOperand(0));
+                        return inst->getNextNonDebugInstruction();
+                    }
+                    case llvm::Instruction::Trunc: {
+                        // FIXME: Handle trunc properly. For now just leave value as it is.
+                        var x = frame.scalars[inst->getOperand(0)];
+                        frame.scalars[inst] = x;
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Ret: {

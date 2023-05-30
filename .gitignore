@@ -300,6 +300,9 @@ cmake-build-debug/
 # Mongo Explorer plugin:
 .idea/**/mongoSettings.xml
 
+# VSCode
+.vscode/
+
 ## File-based project format:
 *.iws
 
