@@ -43,18 +43,38 @@ namespace nil {
         // and the GEP instruction retrieves a pointer element (with index 2 inside the struct),
         // the answer must be 3, because we have a complex field with size 2 at the index 1
         class GepResolver {
+            struct Element {
+                const llvm::Type *type;
+                unsigned idx;
+            };
             struct IndexMapping {
-                std::vector<unsigned> indices;
+                std::vector<Element> indices;
                 unsigned size;
             };
+
         public:
-            int get_flat_index(const llvm::Type *type, unsigned idx) {
-                if (!type->isAggregateType())
-                    return idx;
+            GepResolver() = default;
+            int get_flat_index(const llvm::Type *type, const std::vector<int> &gep_indices) {
+                assert(type->isAggregateType());
                 if (type_cache.find(type) == type_cache.end())
                     resolve_type(type);
-                return type_cache[type].indices[idx];
+                auto *type_record = &type_cache[type];
+                for (unsigned i = 0; i < gep_indices.size() - 1; ++i) {
+                    type_record = &type_cache[type_record->indices[i].type];
+                }
+                return type_record->indices[gep_indices.size() - 1].idx;
             }
+
+            unsigned get_type_size(const llvm::Type *type) {
+                if (!type->isAggregateType())
+                    return 1;
+                if (type_cache.find(type) == type_cache.end())
+                    return resolve_type(type);
+                return type_cache[type].size;
+            }
+
+            GepResolver(const GepResolver &) = delete;
+            GepResolver(GepResolver &&) = delete;
 
         private:
             unsigned resolve_type(const llvm::Type *type) {
@@ -67,11 +87,13 @@ namespace nil {
                 }
                 IndexMapping cache_data {{}, 0};
                 if (auto *array_ty = llvm::dyn_cast<llvm::ArrayType>(type)) {
-                    unsigned elem_size = resolve_type(array_ty->getElementType());
+                    const llvm::Type *elem_ty = array_ty->getElementType();
+                    unsigned elem_size = resolve_type(elem_ty);
                     cache_data.size = array_ty->getNumElements() * elem_size;
                     cache_data.indices.resize(array_ty->getNumElements());
                     for (unsigned i = 0; i < array_ty->getNumElements(); ++i) {
-                        cache_data.indices[i] = i * elem_size;
+                        cache_data.indices[i].idx = i * elem_size;
+                        cache_data.indices[i].type = elem_ty;
                     }
                     type_cache[type] = cache_data;
                     return cache_data.size;
@@ -81,8 +103,9 @@ namespace nil {
                 unsigned prev = 0;
                 cache_data.indices.resize(struct_ty->getNumElements());
                 for (unsigned i = 0; i < struct_ty->getNumElements(); ++i) {
-                    cache_data.indices[i] = prev;
-                    cache_data.size += resolve_type(struct_ty->getElementType(i));;
+                    auto elem_ty = struct_ty->getElementType(i);
+                    cache_data.size += resolve_type(elem_ty);;
+                    cache_data.indices[i] = {elem_ty,prev};
                     prev = cache_data.size;
                 }
                 type_cache[type] = cache_data;
