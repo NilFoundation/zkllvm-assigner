@@ -275,6 +275,22 @@ namespace nil {
                         handle_sha2_512_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
                         return true;
                     }
+                    case llvm::Intrinsic::assigner_curve25519_affine_addition: {
+                        assert(false&&"intrinsic is not implemented yet");
+                        return false;
+                    }
+                    case llvm::Intrinsic::assigner_curve25519_affine_subtraction: {
+                        assert(false&&"intrinsic is not implemented yet");
+                        return false;
+                    }
+                    case llvm::Intrinsic::assigner_curve25519_affine_double: {
+                        assert(false&&"intrinsic is not implemented yet");
+                        return false;
+                    }
+                    case llvm::Intrinsic::assigner_curve25519_affine_scalar_mul: {
+                        assert(false&&"intrinsic is not implemented yet");
+                        return false;
+                    }
                     case llvm::Intrinsic::memcpy: {
                         Pointer<var> dst = resolve_pointer(frame, inst->getOperand(0));
                         llvm::Value *src_val = inst->getOperand(1);

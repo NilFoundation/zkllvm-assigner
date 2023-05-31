@@ -281,6 +281,7 @@ namespace nil {
                         arg_len = getStdArrayLen(arg_type);
                         if (arg_len == 0) {
                             std::cerr << "Got pointer argument, only pointers to std::array are supported" << std::endl;
+                            assert(false && "Got pointer argument, only pointers to std::array are supported");
                             return false;
                         }
                         is_array = true;

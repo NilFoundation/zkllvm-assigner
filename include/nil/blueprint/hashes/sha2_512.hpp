@@ -82,7 +82,8 @@ namespace nil {
                 components::generate_assignments(sha2_512_component_instance, assignmnt, sha2_512_instance_input, start_row);
 
             using reduction_component_type = components::reduction<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType, 9>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType, 9,
+                basic_non_native_policy<BlueprintFieldType>>;
 
             reduction_component_type reduction_component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
 
