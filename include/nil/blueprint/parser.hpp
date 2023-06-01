@@ -161,6 +161,10 @@ namespace nil {
                 assert(llvm::isa<llvm::ConstantField>(val) || llvm::isa<llvm::ConstantInt>(val));
                 llvm::APInt int_val;
                 if (llvm::isa<llvm::ConstantField>(val)) {
+                    if (field_arg_num<BlueprintFieldType>(val->getType()) != 1) {
+                        // TODO: Support marshalling of non-native fields
+                        std::cerr << "Marshalling of non-native field values is not supported yet" << std::endl;
+                    }
                     int_val = llvm::cast<llvm::ConstantField>(val)->getValue();
                 } else {
                     int_val = llvm::cast<llvm::ConstantInt>(val)->getValue();
@@ -186,6 +190,60 @@ namespace nil {
                 }
                 assert(frame.pointers.find(ptr_value) != frame.pointers.end());
                 return frame.pointers[ptr_value];
+            }
+            bool insert_vector_element(const llvm::InsertElementInst *inst, stack_frame<var> &frame,
+                                       std::vector<var> &&vec_to_insert, uint64_t index) {
+                uint64_t elem_size = 1;
+                llvm::Value *new_value = inst->getOperand(1);
+                llvm::Type *elem_ty = new_value->getType();
+                switch (elem_ty->getTypeID()) {
+                case llvm::Type::GaloisFieldTyID:
+                    elem_size = field_arg_num<BlueprintFieldType>(elem_ty);
+                    break;
+                case llvm::Type::EllipticCurveTyID:
+                    elem_size = curve_arg_num<BlueprintFieldType>(elem_ty);
+                    break;
+                case llvm::Type::IntegerTyID:
+                    elem_size = 1;
+                    break;
+                default:
+                    return false;
+                }
+                if (elem_size == 1) {
+                    vec_to_insert[index] = frame.scalars[new_value];
+                } else {
+                    auto vec_val = frame.vectors[new_value];
+                    assert(vec_val.size() == elem_size);
+                    std::copy(vec_val.begin(), vec_val.end(), vec_to_insert.begin() + index * elem_size);
+                }
+                frame.vectors[inst] = vec_to_insert;
+                return true;
+            }
+
+            bool extract_vector_element(const llvm::ExtractElementInst *inst, stack_frame<var> &frame, uint64_t index) {
+                uint64_t elem_size = 1;
+                llvm::Type *elem_ty = inst->getType();
+                switch (elem_ty->getTypeID()) {
+                case llvm::Type::GaloisFieldTyID:
+                    elem_size = field_arg_num<BlueprintFieldType>(elem_ty);
+                    break;
+                case llvm::Type::EllipticCurveTyID:
+                    elem_size = curve_arg_num<BlueprintFieldType>(elem_ty);
+                    break;
+                case llvm::Type::IntegerTyID:
+                    elem_size = 1;
+                    break;
+                default:
+                    return false;
+                }
+                if (elem_size == 1) {
+                    frame.scalars[inst] = frame.vectors[inst->getVectorOperand()][index];
+                } else {
+                    auto vec_val = frame.vectors[inst->getVectorOperand()];
+                    frame.vectors[inst] = std::vector<var>(vec_val.begin() + index * elem_size,
+                                                           vec_val.begin() + (index + 1) * elem_size);
+                }
+                return true;
             }
 
             template<typename VarType>
@@ -345,6 +403,15 @@ namespace nil {
                     if ((llvm::isa<llvm::ConstantField>(op) || llvm::isa<llvm::ConstantInt>(op)) &&
                         variables.find(op) == variables.end()) {
                         assignmnt.public_input(0, public_input_idx) = marshal_int_val(op);
+                        if (llvm::isa<llvm::ConstantField>(op)) {
+                            size_t field_size = field_arg_num<BlueprintFieldType>(op->getType());
+                            if (field_size != 1) {
+                                // TODO: fix non-native constants
+                                auto component = var(0, public_input_idx++, false, var::column_type::public_input);
+                                frame.vectors[op] = std::vector<var>(field_size, component);
+                                continue;
+                            }
+                        }
                         variables[op] = var(0, public_input_idx++, false, var::column_type::public_input);
                     }
                 }
@@ -531,7 +598,7 @@ namespace nil {
                             return nullptr;
                         }
 
-                        int index = llvm::cast<llvm::ConstantInt>(index_value)->getZExtValue();
+                        uint64_t index = llvm::cast<llvm::ConstantInt>(index_value)->getZExtValue();
                         std::vector<var> result_vector;
                         if (llvm::isa<llvm::Constant>(vec)) {
                             auto *vector_type = llvm::cast<llvm::FixedVectorType>(vec->getType());
@@ -552,20 +619,24 @@ namespace nil {
                         } else {
                             result_vector = frame.vectors[vec];
                         }
-                        result_vector[index] = variables[inst->getOperand(1)];
-                        frame.vectors[inst] = result_vector;
+                        if (!insert_vector_element(insert_inst, frame, std::move(result_vector), index)) {
+                            std::cerr << "Unsupported insertelement instruction" << std::endl;
+                            return nullptr;
+                        }
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::ExtractElement: {
                         auto extract_inst = llvm::cast<llvm::ExtractElementInst>(inst);
-                        llvm::Value *vec = extract_inst->getOperand(0);
                         llvm::Value *index_value = extract_inst->getOperand(1);
                         if (!llvm::isa<llvm::ConstantInt>(index_value)) {
                             std::cerr << "Only constant indices for a vector are supported" << std::endl;
                             return nullptr;
                         }
-                        int index = llvm::cast<llvm::ConstantInt>(index_value)->getZExtValue();
-                        variables[inst] = frame.vectors[vec][index];
+                        uint64_t index = llvm::cast<llvm::ConstantInt>(index_value)->getZExtValue();
+                        if (!extract_vector_element(extract_inst, frame, index)) {
+                            std::cout << "Unsupported extractelement instruction" << std::endl;
+                            return nullptr;
+                        }
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Alloca:
@@ -590,7 +661,7 @@ namespace nil {
                         gep_indices.erase(gep_indices.begin());
 
                         if (!gep_indices.empty()) {
-                            if (!gep_ty->isAggregateType()) {
+                            if (!gep_ty->isAggregateType() && !gep_ty->isVectorTy()) {
                                 std::cerr << "GEP instruction with > 1 indices must operate on aggregate type!"
                                           << std::endl;
                                 return nullptr;

@@ -227,7 +227,20 @@ namespace nil {
             }
 
             bool take_vector(llvm::Value *vector_arg, llvm::Type *vector_type) {
-                size_t arg_len = llvm::cast<llvm::FixedVectorType>(vector_type)->getNumElements();
+                auto *vec_ty = llvm::cast<llvm::FixedVectorType>(vector_type);
+                size_t arg_len = vec_ty->getNumElements();
+                llvm::Type *elem_ty = vec_ty->getElementType();
+                switch (elem_ty->getTypeID()) {
+                case llvm::Type::GaloisFieldTyID:
+                    arg_len *= field_arg_num<BlueprintFieldType>(elem_ty);
+                    break;
+                case llvm::Type::EllipticCurveTyID:
+                    arg_len *= curve_arg_num<BlueprintFieldType>(elem_ty);
+                    break;
+                default:
+                    std::cerr << "Unsupported vector element type!" << std::endl;
+                    return false;
+                }
                 frame.vectors[vector_arg] = take_values(arg_len);
                 return frame.vectors[vector_arg].size() == arg_len;
             }

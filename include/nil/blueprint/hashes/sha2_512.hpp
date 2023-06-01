@@ -62,9 +62,13 @@ namespace nil {
             constexpr const std::int32_t ec_point_size = 2*4;
             constexpr const std::int32_t input_size = 2*ec_point_size + 4;
 
-            auto &args = frame.vectors[inst->getOperand(0)];
+            const auto &arg0 = frame.vectors[inst->getOperand(0)];
             std::array<var, input_size> input_vars;
-            std::copy(args.begin(), args.end(), input_vars.begin());
+            std::copy(arg0.begin(), arg0.end(), input_vars.begin());
+            const auto &arg1 = frame.vectors[inst->getOperand(1)];
+            std::copy(arg1.begin(), arg1.end(), input_vars.begin() + arg0.size());
+            const auto &arg2 = frame.vectors[inst->getOperand(2)];
+            std::copy(arg2.begin(), arg2.end(), input_vars.begin() + arg0.size() + arg1.size());
 
             typename sha2_512_component_type::var_ec_point R = {{{input_vars[0], input_vars[1], input_vars[2], input_vars[3]}},
                                                         {{input_vars[4], input_vars[5], input_vars[6], input_vars[7]}}};

@@ -55,7 +55,7 @@ namespace nil {
         public:
             GepResolver() = default;
             int get_flat_index(const llvm::Type *type, const std::vector<int> &gep_indices) {
-                assert(type->isAggregateType());
+                assert(type->isAggregateType() || type->isVectorTy());
                 if (type_cache.find(type) == type_cache.end())
                     resolve_type(type);
                 auto *type_record = &type_cache[type];
@@ -66,7 +66,7 @@ namespace nil {
             }
 
             unsigned get_type_size(const llvm::Type *type) {
-                if (!type->isAggregateType())
+                if (!type->isAggregateType() && !type->isVectorTy())
                     return 1;
                 if (type_cache.find(type) == type_cache.end())
                     return resolve_type(type);
@@ -78,7 +78,7 @@ namespace nil {
 
         private:
             unsigned resolve_type(const llvm::Type *type) {
-                if (!type->isAggregateType()) {
+                if (!type->isAggregateType() && !type->isVectorTy()) {
                     // End of recursion
                     return 1;
                 }
@@ -86,12 +86,21 @@ namespace nil {
                     return type_cache[type].size;
                 }
                 IndexMapping cache_data {{}, 0};
-                if (auto *array_ty = llvm::dyn_cast<llvm::ArrayType>(type)) {
-                    const llvm::Type *elem_ty = array_ty->getElementType();
+                if (llvm::isa<llvm::ArrayType>(type) || llvm::isa<llvm::FixedVectorType>(type)) {
+                    uint64_t num_elements = 0;
+                    llvm::Type *elem_ty = nullptr;
+                    if (auto *vector_ty = llvm::dyn_cast<llvm::FixedVectorType>(type)) {
+                        num_elements = vector_ty->getNumElements();
+                        elem_ty = vector_ty->getElementType();
+                    } else {
+                        auto *array_ty = llvm::cast<llvm::ArrayType>(type);
+                        num_elements = array_ty->getNumElements();
+                        elem_ty = array_ty->getElementType();
+                    }
                     unsigned elem_size = resolve_type(elem_ty);
-                    cache_data.size = array_ty->getNumElements() * elem_size;
-                    cache_data.indices.resize(array_ty->getNumElements());
-                    for (unsigned i = 0; i < array_ty->getNumElements(); ++i) {
+                    cache_data.size = num_elements * elem_size;
+                    cache_data.indices.resize(num_elements);
+                    for (unsigned i = 0; i < num_elements; ++i) {
                         cache_data.indices[i].idx = i * elem_size;
                         cache_data.indices[i].type = elem_ty;
                     }
