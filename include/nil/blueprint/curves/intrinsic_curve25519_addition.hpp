@@ -56,6 +56,7 @@ namespace nil {
                 &assignmnt,
             std::uint32_t start_row) {
 
+                // P = T * R
                 // t0 = T_x * Ry;
                 // t1 = T_y * R_x
                 // t2 = T_x * R_x
@@ -109,17 +110,6 @@ namespace nil {
                 {input_vars[12], input_vars[13], input_vars[14], input_vars[15]};
 
 
-            ///// remove
-            typename non_native_policy_type::template field<operating_field_type>::value_type P_x = 
-                {input_vars[ 8], input_vars[ 8], input_vars[ 9], input_vars[10]};
-            typename non_native_policy_type::template field<operating_field_type>::value_type P_y = 
-                {input_vars[12], input_vars[13], input_vars[14], input_vars[15]};
-            typename non_native_policy_type::template field<operating_field_type>::value_type d = 
-                {input_vars[12], input_vars[13], input_vars[14], input_vars[15]};
-
-            ///// remove
-
-
             mul_component mul_instance({0, 1, 2, 3, 4, 5, 6, 7, 8},{},{});
             add_component add_instance({0, 1, 2, 3, 4, 5, 6, 7, 8},{},{});
             sub_component sub_instance({0, 1, 2, 3, 4, 5, 6, 7, 8},{},{});
@@ -169,19 +159,103 @@ namespace nil {
                 components::generate_assignments(mul_instance, assignmnt, z2_inp, start_row);
             start_row = assignmnt.allocated_rows();
 
-            // TODO 1:
-            // need to somehow put d = 0x52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3_cppui256
-            // into assignmnt table
 
 
-            typename mul_component::input_type k0_inp = {d, z2_res.output};
+            typename BlueprintFieldType::extended_integral_type d_value = 0x52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3_cppui256;
+            typename BlueprintFieldType::integral_type base = 1;
+            typename BlueprintFieldType::integral_type mask = (base << 66) - 1;
+
+            std::array<typename BlueprintFieldType::integral_type, 4> d_chunk;
+            d_chunk[0] = typename BlueprintFieldType::integral_type((d_value       ) & (mask));
+            d_chunk[1] = typename BlueprintFieldType::integral_type((d_value >>  66) & (mask));
+            d_chunk[2] = typename BlueprintFieldType::integral_type((d_value >> 132) & (mask));
+            d_chunk[3] = typename BlueprintFieldType::integral_type((d_value >> 198) & (mask));
+
+            assignmnt.witness(mul_instance.W(0), start_row) = d_chunk[0];
+            assignmnt.witness(mul_instance.W(1), start_row) = d_chunk[1];
+            assignmnt.witness(mul_instance.W(2), start_row) = d_chunk[2];
+            assignmnt.witness(mul_instance.W(3), start_row) = d_chunk[3];
+
+            std::array <var, 4> d_vars = {var(mul_instance.W(0), start_row, false), var(mul_instance.W(1), start_row, false),
+                                          var(mul_instance.W(2), start_row, false), var(mul_instance.W(3), start_row, false)};
+            
+
+
+            std::array<typename BlueprintFieldType::value_type, 4> T_x_array = {
+                var_value(assignmnt, T_x[0]), var_value(assignmnt, T_x[1]),
+                var_value(assignmnt, T_x[2]), var_value(assignmnt, T_x[3])};
+            std::array<typename BlueprintFieldType::value_type, 4> T_y_array = {
+                var_value(assignmnt, T_y[0]), var_value(assignmnt, T_y[1]),
+                var_value(assignmnt, T_y[2]), var_value(assignmnt, T_y[3])};
+
+            std::array<typename BlueprintFieldType::value_type, 4> R_x_array = {
+                var_value(assignmnt, R_x[0]), var_value(assignmnt, R_x[1]),
+                var_value(assignmnt, R_x[2]), var_value(assignmnt, R_x[3])};
+            std::array<typename BlueprintFieldType::value_type, 4> R_y_array = {
+                var_value(assignmnt, R_y[0]), var_value(assignmnt, R_y[1]),
+                var_value(assignmnt, R_y[2]), var_value(assignmnt, R_y[3])};
+
+            typename crypto3::algebra::curves::ed25519::template g1_type<crypto3::algebra::curves::coordinates::affine>::value_type T(
+                (typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(T_x_array[0].data) +
+                 typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(T_x_array[1].data) * (base << 66) +
+                 typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(T_x_array[2].data) * (base << 132) +
+                 typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(T_x_array[3].data) * (base << 198)),
+                (typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(T_y_array[0].data) +
+                 typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(T_y_array[1].data) * (base << 66) +
+                 typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(T_y_array[2].data) * (base << 132) +
+                 typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(T_y_array[3].data) * (base << 198)));
+            typename crypto3::algebra::curves::ed25519::template g1_type<crypto3::algebra::curves::coordinates::affine>::value_type R(
+                (typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(R_x_array[0].data) +
+                 typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(R_x_array[1].data) * (base << 66) +
+                 typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(R_x_array[2].data) * (base << 132) +
+                 typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(R_x_array[3].data) * (base << 198)),
+                (typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(R_y_array[0].data) +
+                 typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(R_y_array[1].data) * (base << 66) +
+                 typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(R_y_array[2].data) * (base << 132) +
+                 typename crypto3::algebra::curves::ed25519::base_field_type::integral_type(R_y_array[3].data) * (base << 198)));
+
+            typename crypto3::algebra::curves::ed25519::template g1_type<crypto3::algebra::curves::coordinates::affine>::value_type P = T + R;
+
+            typename BlueprintFieldType::extended_integral_type P_x_value = typename BlueprintFieldType::extended_integral_type(P.X.data);
+            typename BlueprintFieldType::extended_integral_type P_y_value = typename BlueprintFieldType::extended_integral_type(P.Y.data);
+
+            std::array<typename BlueprintFieldType::integral_type, 4> P_x_chunk;
+            P_x_chunk[0] = typename BlueprintFieldType::integral_type((P_x_value       ) & (mask));
+            P_x_chunk[1] = typename BlueprintFieldType::integral_type((P_x_value >>  66) & (mask));
+            P_x_chunk[2] = typename BlueprintFieldType::integral_type((P_x_value >> 132) & (mask));
+            P_x_chunk[3] = typename BlueprintFieldType::integral_type((P_x_value >> 198) & (mask));
+
+            std::array<typename BlueprintFieldType::integral_type, 4> P_y_chunk;
+            P_y_chunk[0] = typename BlueprintFieldType::integral_type((P_y_value       ) & (mask));
+            P_y_chunk[1] = typename BlueprintFieldType::integral_type((P_y_value >>  66) & (mask));
+            P_y_chunk[2] = typename BlueprintFieldType::integral_type((P_y_value >> 132) & (mask));
+            P_y_chunk[3] = typename BlueprintFieldType::integral_type((P_y_value >> 198) & (mask));
+
+            
+            assignmnt.witness(mul_instance.W(0), start_row + 1) = P_x_chunk[0];
+            assignmnt.witness(mul_instance.W(1), start_row + 1) = P_x_chunk[1];
+            assignmnt.witness(mul_instance.W(2), start_row + 1) = P_x_chunk[2];
+            assignmnt.witness(mul_instance.W(3), start_row + 1) = P_x_chunk[3];
+
+            assignmnt.witness(mul_instance.W(0), start_row + 2) = P_y_chunk[0];
+            assignmnt.witness(mul_instance.W(1), start_row + 2) = P_y_chunk[1];
+            assignmnt.witness(mul_instance.W(2), start_row + 2) = P_y_chunk[2];
+            assignmnt.witness(mul_instance.W(3), start_row + 2) = P_y_chunk[3];
+
+            std::array <var, 4> P_x = {var(mul_instance.W(0), start_row + 1, false), var(mul_instance.W(1), start_row + 1, false),
+                                       var(mul_instance.W(2), start_row + 1, false), var(mul_instance.W(3), start_row + 1, false)};
+            
+
+            std::array <var, 4> P_y = {var(mul_instance.W(0), start_row + 2, false), var(mul_instance.W(1), start_row + 2, false),
+                                       var(mul_instance.W(2), start_row + 2, false), var(mul_instance.W(3), start_row + 2, false)};
+            
+            start_row = assignmnt.allocated_rows();
+
+            typename mul_component::input_type k0_inp = {d_vars, z2_res.output};
             components::generate_circuit(mul_instance, bp, assignmnt, k0_inp, start_row);
             typename mul_component::result_type k0_res = 
                 components::generate_assignments(mul_instance, assignmnt, k0_inp, start_row);
             start_row = assignmnt.allocated_rows();
-
-            // TODO 2:
-            // need to evaluate P = T * R and put into assingmnt table
 
             typename mul_component::input_type k1_inp = {P_x, k0_res.output};
             components::generate_circuit(mul_instance, bp, assignmnt, k1_inp, start_row);
@@ -211,10 +285,16 @@ namespace nil {
             // TODO3:
             // wee need copy constraint component for ed25519 base field elements
 
-            // copy_constraint(k3, z0); // Px * (1 + Tx*Ty*Rx*Ry) == Tx*Ry + Ty*Rx 
-            // copy_constraint(k4, z1); // py * (1 - Tx*Ty*Rx*Ry) == Tx*Rx + Ty*Ry
+            for (std::size_t i = 0; i < 4; i++) {
+                bp.add_copy_constraint({{k3_res.output[i].index, k3_res.output[i].rotation, false},
+                                        {z0_res.output[i].index, z0_res.output[i].rotation, false}});
+                
+                bp.add_copy_constraint({{k4_res.output[i].index, k4_res.output[i].rotation, false},
+                                        {z1_res.output[i].index, z1_res.output[i].rotation, false}});
+            }
 
-            // frame.scalars[inst] = reduction_component_result.output;
+            frame.vectors[inst] = {P_x[0], P_x[1], P_x[2], P_x[3],
+                                   P_y[0], P_y[1], P_y[2], P_y[3]};
 
         }
     }    // namespace blueprint
