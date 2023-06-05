@@ -64,6 +64,7 @@
 #include <nil/blueprint/hashes/sha2_512.hpp>
 
 #include <nil/blueprint/curves/intrinsic_curve25519_addition.hpp>
+#include <nil/blueprint/curves/intrinsic_curve25519_doubling.hpp>
 namespace nil {
     namespace blueprint {
 
@@ -336,7 +337,6 @@ namespace nil {
                     }
                     case llvm::Intrinsic::assigner_curve25519_affine_addition: {
                         handle_assigner_curve25519_affine_addition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
-                        assert(false&&"intrinsic is not implemented yet");
                         return false;
                     }
                     case llvm::Intrinsic::assigner_curve25519_affine_subtraction: {
@@ -344,7 +344,7 @@ namespace nil {
                         return false;
                     }
                     case llvm::Intrinsic::assigner_curve25519_affine_double: {
-                        assert(false&&"intrinsic is not implemented yet");
+                        handle_assigner_curve25519_affine_double_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
                         return false;
                     }
                     case llvm::Intrinsic::assigner_curve25519_affine_scalar_mul: {
