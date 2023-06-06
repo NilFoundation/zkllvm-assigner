@@ -30,6 +30,11 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
 
+#include <nil/blueprint/basic_non_native_policy.hpp>
+
+#include <nil/crypto3/algebra/curves/pallas.hpp>
+#include <nil/crypto3/algebra/curves/ed25519.hpp>
+
 #include "nil/crypto3/algebra/fields/pallas/base_field.hpp"
 #include <nil/blueprint/stack.hpp>
 
@@ -153,7 +158,7 @@ namespace nil {
                     return size;
                 }
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
-                    size = blueprint_element_size<BlueprintFieldType>::ed25519_base_size;
+                    size = nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::base_field_type>::ratio;
                     if (size == 0) {
                         UNREACHABLE("ed25519 base field is not supported for used native field yet");
                     }
@@ -169,6 +174,27 @@ namespace nil {
 
                 default:
                     UNREACHABLE("unsupported field operand type");
+            }
+        }
+
+        template<typename BlueprintFieldType>
+        std::vector<typename BlueprintFieldType::value_type> extended_integral_into_vector (llvm::Type *arg_type, typename BlueprintFieldType::extended_integral_type glued_non_native) {
+
+            switch (llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind()) {
+
+                case llvm::GALOIS_FIELD_CURVE25519_BASE: {
+                    using non_native_field = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
+                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field>;
+                    auto res = non_native_policy::chop_non_native(glued_non_native);
+                    std::vector<typename BlueprintFieldType::value_type> result;
+                    for (std::size_t i = 0; i < res.size(); i++) {
+                        result.push_back(res[i]);
+                    }
+                    return result;
+                }
+            
+                default:
+                    assert(1 == 0 && "unsupported field operand type");
             }
         }
 
@@ -245,13 +271,41 @@ namespace nil {
                 return frame.vectors[curve_arg].size() == arg_len;
             }
 
+            std::vector<var> put_field_into_assignmnt (std::vector<typename BlueprintFieldType::value_type> input) {
+
+                std::vector<var> res; 
+
+                for (std::size_t i = 0; i < input.size(); i++) {
+                    res.push_back(var(0, public_input_idx++, false, var::column_type::public_input));
+                }
+
+                return res;
+            }
+
+            std::vector<var> process_non_native_field (const boost::json::value &value, size_t len, llvm::Type *field_type) {
+
+                char buf[256];
+                if (value.as_string().size() >= sizeof(buf)) {
+                    std::cerr << "Input does not fit into BlueprintFieldType" << std::endl;
+                    assert(false);
+                }
+                value.as_string().copy(buf, sizeof(buf));
+                typename BlueprintFieldType::extended_integral_type non_native_number(buf);
+
+                std::vector<typename BlueprintFieldType::value_type> chunked_non_native_field_element = extended_integral_into_vector<BlueprintFieldType> (field_type, non_native_number);
+
+                std::vector<var> res = put_field_into_assignmnt(chunked_non_native_field_element);
+                return res;
+            }
+
+
             bool take_field(llvm::Value *field_arg, llvm::Type *field_type, const boost::json::object &value) {
                 ASSERT(llvm::isa<llvm::GaloisFieldType>(field_type));
                 if (value.size() != 1 || !value.contains("field"))
                     return false;
                 size_t arg_len = field_arg_num<BlueprintFieldType>(field_type);
                 ASSERT_MSG(arg_len != 0, "wrong input size");
-                auto values = take_values(value.at("field"), arg_len);
+                auto values = process_non_native_field(value.at("field"), arg_len, field_type);
                 if (values.size() != arg_len)
                     return false;
                 if (arg_len == 1) {
