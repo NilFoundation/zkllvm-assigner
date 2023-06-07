@@ -267,8 +267,27 @@ namespace nil {
                 ASSERT_MSG(arg_len >= 2, "arg_len of curveTy cannot be less than two");
                 if (value.size() != 1 || !value.contains("curve"))
                     return false;
-                frame.vectors[curve_arg] = take_values(value.at("curve"), arg_len);
-                return frame.vectors[curve_arg].size() == arg_len;
+                assert(value.at("curve").is_array() && "curve element must be array!");
+                assert((value.at("curve").as_array().size() == 2) && "curve element consists of two field elements!");
+                assert(arg_len >= 2 && "arg_len of curveTy cannot be less than two");
+
+                std::vector<var> vector1;
+                std::vector<var> vector2;
+
+                switch (llvm::cast<llvm::EllipticCurveType>(curve_type)->getCurveKind()) {
+                    case llvm::ELLIPTIC_CURVE_CURVE25519: 
+                        vector1 = process_non_native_field (value.at("curve").as_array()[0], arg_len / 2, llvm::Type(llvm::GALOIS_FIELD_PALLAS_BASE)/*does not work, this is illustration of the idea*/);
+                        vector2 = process_non_native_field (value.at("curve").as_array()[1], arg_len / 2, llvm::Type(llvm::GALOIS_FIELD_PALLAS_BASE)/*does not work, this is illustration of the idea*/);
+                        vector1.insert(vector1.end(), vector2.begin(), vector2.end());
+                        frame.vectors[curve_arg] = vector1;
+                        return (frame.vectors[curve_arg].size() == arg_len);
+                        break;
+                    
+                    default:
+                        assert(1 == 0 && "unsupported curve type");
+                        return false;
+                    }
+                return false;
             }
 
             std::vector<var> put_field_into_assignmnt (std::vector<typename BlueprintFieldType::value_type> input) {
