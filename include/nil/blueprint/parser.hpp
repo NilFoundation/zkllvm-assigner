@@ -76,8 +76,8 @@ namespace nil {
             // TODO(maksenov): handle it properly and move to another file
             template <typename map_type>
             void handle_int_binop(const llvm::Instruction *inst, map_type &variables) {
-                assert(inst->getOperand(0)->getType()->isIntegerTy());
-                assert(inst->getOperand(1)->getType()->isIntegerTy());
+                ASSERT(inst->getOperand(0)->getType()->isIntegerTy());
+                ASSERT(inst->getOperand(1)->getType()->isIntegerTy());
 
                 var x = variables[inst->getOperand(0)];
                 var y = variables[inst->getOperand(1)];
@@ -90,7 +90,7 @@ namespace nil {
                         res = var_value(assignmnt, x) * var_value(assignmnt, y);
                         break;
                     default:
-                        assert(1 == 0 && "Unsupported operation!");
+                        UNREACHABLE("Unsupported operation!");
                         break;
                 }
                 assignmnt.public_input(0, public_input_idx) = res;
@@ -127,7 +127,7 @@ namespace nil {
                         res = var_value(assignmnt, x) < var_value(assignmnt, y);
                         break;
                     default:
-                        assert(false && "Unsupported predicate");
+                        UNREACHABLE("Unsupported predicate");
                         break;
                 }
                 assignmnt.public_input(0, public_input_idx) = res;
@@ -146,7 +146,7 @@ namespace nil {
                         res = !(lhs == rhs);
                         break;
                     default:
-                        assert(false && "Unsupported predicate");
+                        UNREACHABLE("Unsupported predicate");
                         break;
                 }
                 assignmnt.public_input(0, public_input_idx) = res;
@@ -154,7 +154,7 @@ namespace nil {
             }
 
             typename BlueprintFieldType::value_type marshal_int_val(const llvm::Value *val) {
-                assert(llvm::isa<llvm::ConstantField>(val) || llvm::isa<llvm::ConstantInt>(val));
+                ASSERT(llvm::isa<llvm::ConstantField>(val) || llvm::isa<llvm::ConstantInt>(val));
                 llvm::APInt int_val;
                 if (llvm::isa<llvm::ConstantField>(val)) {
                     int_val = llvm::cast<llvm::ConstantField>(val)->getValue();
@@ -171,7 +171,7 @@ namespace nil {
                     std::vector<char> bytes(APIntData, APIntData + words * 8);
                     nil::marshalling::status_type status;
                     field_constant = nil::marshalling::pack<nil::marshalling::option::little_endian>(bytes, status);
-                    assert(status == nil::marshalling::status_type::success);
+                    ASSERT(status == nil::marshalling::status_type::success);
                 }
                 return field_constant;
             }
@@ -180,18 +180,18 @@ namespace nil {
                 if (llvm::isa<llvm::GlobalVariable>(ptr_value)) {
                     return globals[ptr_value];
                 }
-                assert(frame.pointers.find(ptr_value) != frame.pointers.end());
+                ASSERT(frame.pointers.find(ptr_value) != frame.pointers.end());
                 return frame.pointers[ptr_value];
             }
 
             template<typename VarType>
             Chunk<VarType> store_constant(llvm::Constant *constant_init) {
                 if (auto operation = llvm::dyn_cast<llvm::ConstantExpr>(constant_init)) {
-                    assert(operation->isCast());
+                    ASSERT(operation->isCast());
                     constant_init = operation->getOperand(0);
                 }
                 if (auto CS = llvm::cast<llvm::GlobalVariable>(constant_init)) {
-                    assert(CS->isConstant());
+                    ASSERT(CS->isConstant());
                     constant_init = CS->getInitializer();
                 }
 
@@ -299,19 +299,19 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_zkml_convolution: {
-                        assert(false && "zkml_convolution intrinsic is not implemented yet");
+                        UNREACHABLE("zkml_convolution intrinsic is not implemented yet");
                         return false;
                     }
                     case llvm::Intrinsic::assigner_zkml_pooling: {
-                        assert(false && "zkml_pooling intrinsic is not implemented yet");
+                        UNREACHABLE("zkml_pooling intrinsic is not implemented yet");
                         return false;
                     }
                     case llvm::Intrinsic::assigner_zkml_ReLU: {
-                        assert(false && "zkml_ReLU intrinsic is not implemented yet");
+                        UNREACHABLE("zkml_ReLU intrinsic is not implemented yet");
                         return false;
                     }
                     case llvm::Intrinsic::assigner_zkml_batch_norm: {
-                        assert(false && "zkml_batch_norm intrinsic is not implemented yet");
+                        UNREACHABLE("zkml_batch_norm intrinsic is not implemented yet");
                         return false;
                     }
                     case llvm::Intrinsic::expect: {
@@ -324,7 +324,7 @@ namespace nil {
                         // Nothing to do
                         return true;
                     default:
-                        assert(false && "Unexpected intrinsic!");
+                        UNREACHABLE("Unexpected intrinsic!");
                 }
                 return false;
             }
@@ -361,7 +361,7 @@ namespace nil {
                                         inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         } else {
-                            assert (1==0 && "curve + scalar is undefined");
+                            UNREACHABLE("curve + scalar is undefined");
                         }
 
                         return inst->getNextNonDebugInstruction();
@@ -377,7 +377,7 @@ namespace nil {
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         } else {
-                            assert (1==0 && "curve - scalar is undefined");
+                            UNREACHABLE("curve - scalar is undefined");
                         }
 
                         return inst->getNextNonDebugInstruction();
@@ -394,7 +394,7 @@ namespace nil {
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         } else {
-                            assert(1==0 && "Mul opcode is defined only for fieldTy * fieldTy");
+                            UNREACHABLE("Mul opcode is defined only for fieldTy * fieldTy");
                         }
 
                         return inst->getNextNonDebugInstruction();
@@ -408,7 +408,7 @@ namespace nil {
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         } else {
-                            assert (1==0 && "cmul opcode is defined only for curveTy * fieldTy");
+                            UNREACHABLE("cmul opcode is defined only for curveTy * fieldTy");
                         }
                     }
                     case llvm::Instruction::UDiv:
@@ -427,7 +427,7 @@ namespace nil {
                             return nullptr;
                         }
                         llvm::StringRef fun_name = fun->getName();
-                        assert(fun->arg_size() == call_inst->getNumOperands() - 1);
+                        ASSERT(fun->arg_size() == call_inst->getNumOperands() - 1);
                         if (fun->isIntrinsic()) {
                             if (!handle_intrinsic(call_inst, fun->getIntrinsicID(), frame, start_row))
                                 return nullptr;
@@ -461,7 +461,7 @@ namespace nil {
                         else if (cmp_inst->getOperand(0)->getType()->isPointerTy())
                             handle_ptr_cmp(cmp_inst, frame);
                         else {
-                            assert(false && "Unsupported icmp operand type");
+                            UNREACHABLE("Unsupported icmp operand type");
                         }
                         return inst->getNextNonDebugInstruction();
                     }
@@ -483,7 +483,7 @@ namespace nil {
                         predecessor = inst->getParent();
 
                         if (inst->getNumOperands() != 1) {
-                            assert(inst->getNumOperands() == 3);
+                            ASSERT(inst->getNumOperands() == 3);
                             auto false_bb = llvm::cast<llvm::BasicBlock>(inst->getOperand(1));
                             auto true_bb = llvm::cast<llvm::BasicBlock>(inst->getOperand(2));
                             var cond = variables[inst->getOperand(0)];
@@ -501,20 +501,20 @@ namespace nil {
                                 llvm::Value *incoming_value = phi_node->getIncomingValue(i);
                                 llvm::Type *value_type = incoming_value->getType();
                                 if (value_type->isPointerTy()) {
-                                    assert(frame.pointers.find(incoming_value) != frame.pointers.end());
+                                    ASSERT(frame.pointers.find(incoming_value) != frame.pointers.end());
                                     frame.pointers[phi_node] = frame.pointers[incoming_value];
                                 } else if (value_type->isIntegerTy() ||
                                            (value_type->isFieldTy() && field_arg_num<BlueprintFieldType>(value_type) == 1)) {
-                                    assert(variables.find(incoming_value) != variables.end());
+                                    ASSERT(variables.find(incoming_value) != variables.end());
                                     variables[phi_node] = variables[incoming_value];
                                 } else {
-                                    assert(frame.vectors.find(incoming_value) != frame.vectors.end());
+                                    ASSERT(frame.vectors.find(incoming_value) != frame.vectors.end());
                                     frame.vectors[phi_node] = frame.vectors[incoming_value];
                                 }
                                 return phi_node->getNextNonDebugInstruction();
                             }
                         }
-                        assert(false && "Incoming value for phi was not found");
+                        UNREACHABLE("Incoming value for phi was not found");
                         break;
                     }
                     case llvm::Instruction::InsertElement: {
@@ -530,7 +530,7 @@ namespace nil {
                         std::vector<var> result_vector;
                         if (llvm::isa<llvm::Constant>(vec)) {
                             auto *vector_type = llvm::cast<llvm::FixedVectorType>(vec->getType());
-                            assert(vector_type->getElementType()->isFieldTy());
+                            ASSERT(vector_type->getElementType()->isFieldTy());
                             unsigned size = vector_type->getNumElements();
                             result_vector = std::vector<var>(size);
                             if (auto *cv = llvm::dyn_cast<llvm::ConstantVector>(vec)) {
@@ -542,7 +542,7 @@ namespace nil {
                                     result_vector[i] = var(0, public_input_idx++, false, var::column_type::public_input);
                                 }
                             } else {
-                                assert(llvm::isa<llvm::UndefValue>(vec) && "Unexpected constant value!");
+                                ASSERT_MSG(llvm::isa<llvm::UndefValue>(vec), "Unexpected constant value!");
                             }
                         } else {
                             result_vector = frame.vectors[vec];
@@ -641,7 +641,7 @@ namespace nil {
                         call_stack.pop();
                         if (extracted_frame.caller == nullptr) {
                             // Final return
-                            assert(call_stack.size() == 0);
+                            ASSERT(call_stack.size() == 0);
                             finished = true;
                             return nullptr;
                         }
@@ -665,7 +665,7 @@ namespace nil {
 
                     default:
                         std::cerr << inst->getOpcodeName() << std::endl;
-                        assert(1 == 0 && "unsupported opcode type");
+                        UNREACHABLE("unsupported opcode type");
                 }
                 return nullptr;
             }

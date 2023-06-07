@@ -43,6 +43,7 @@
 #include <nil/blueprint/components/algebra/curves/pasta/plonk/variable_base_scalar_mul_15_wires.hpp>
 #include <nil/blueprint/components/algebra/curves/pasta/plonk/decomposed_variable_base_scalar_mul_15_wires.hpp>
 
+#include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
 
 namespace nil {
@@ -81,7 +82,7 @@ namespace nil {
                 components::generate_circuit(component_instance, bp, assignment, addition_input, start_row);
                 return components::generate_assignments(component_instance, assignment, addition_input, start_row);
             }
-            
+
         }    // namespace detail
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
@@ -116,19 +117,19 @@ namespace nil {
                     using operating_curve_type = crypto3::algebra::curves::vesta;
                     using operating_field_type = operating_curve_type::base_field_type;
 
-                    assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_VESTA_SCALAR);
+                    ASSERT(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_VESTA_SCALAR);
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        assert(1==0 && "native vesta multiplication is not implemented");
+                        UNREACHABLE("native vesta multiplication is not implemented");
                     } else {
-                        assert(1==0 && "non-native vesta multiplication is not implemented");
+                        UNREACHABLE("non-native vesta multiplication is not implemented");
                     }
 
                     break;
                 }
 
                 case llvm::ELLIPTIC_CURVE_PALLAS: {
-                    assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_PALLAS_SCALAR);
+                    ASSERT(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_PALLAS_SCALAR);
 
                     using operating_curve_type = crypto3::algebra::curves::pallas;
                     using operating_field_type = operating_curve_type::base_field_type;
@@ -137,27 +138,27 @@ namespace nil {
                         using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
                         using component_type = components::curve_element_decomposed_variable_base_scalar_mul<
                                 ArithmetizationType, operating_curve_type, 15>;
-                        typename component_type::result_type res = 
+                        typename component_type::result_type res =
                             detail::handle_native_curve_non_native_scalar_multiplication_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
                                 operand_curve, operand_field, frame.vectors, bp, assignment, start_row);
                         std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>> res_vector = {res.X, res.Y};
                         frame.vectors[inst] = res_vector;
                     } else {
-                        assert(1==0 && "non-native pallas multiplication is not implemented");
+                        UNREACHABLE("non-native pallas multiplication is not implemented");
                     }
 
                     break;
                 }
 
                 case llvm::ELLIPTIC_CURVE_CURVE25519: {
-                    assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_CURVE25519_SCALAR);
+                    ASSERT(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_CURVE25519_SCALAR);
 
                     using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        assert(1==0 && "native curve25519 multiplication is not implemented");
+                        UNREACHABLE("native curve25519 multiplication is not implemented");
                     } else {
-                        assert(1==0 && "non-native curve25519 multiplication is not implemented");
+                        UNREACHABLE("non-native curve25519 multiplication is not implemented");
 
                     }
 
@@ -165,21 +166,21 @@ namespace nil {
                 }
 
                 case llvm::ELLIPTIC_CURVE_BLS12381: {
-                    assert(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_BLS12381_SCALAR);
+                    ASSERT(llvm::cast<llvm::GaloisFieldType>(op_field_type)->getFieldKind() == llvm::GALOIS_FIELD_BLS12381_SCALAR);
 
                     using operating_field_type = typename crypto3::algebra::curves::bls12<381>::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        assert(1==0 && "native bls12381 multiplication is not implemented");
+                        UNREACHABLE("native bls12381 multiplication is not implemented");
                     } else {
-                        assert(1==0 && "non-native bls12381 multiplication is not implemented");
+                        UNREACHABLE("non-native bls12381 multiplication is not implemented");
                     }
 
                     break;
                 }
 
                 default:
-                    assert(1 == 0 && "unsupported field operand type");
+                    UNREACHABLE("unsupported field operand type");
             };
         }
 

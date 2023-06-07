@@ -41,6 +41,7 @@
 #include <nil/blueprint/component.hpp>
 #include <nil/blueprint/basic_non_native_policy.hpp>
 
+#include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
 
 namespace nil {
@@ -65,7 +66,7 @@ namespace nil {
             llvm::Type *op0_type = operand0->getType();
             llvm::Type *op1_type = operand1->getType();
 
-            assert(llvm::cast<llvm::EllipticCurveType>(op0_type)->getCurveKind() ==
+            ASSERT(llvm::cast<llvm::EllipticCurveType>(op0_type)->getCurveKind() ==
                    llvm::cast<llvm::EllipticCurveType>(op1_type)->getCurveKind());
 
             switch (llvm::cast<llvm::EllipticCurveType>(op0_type)->getCurveKind()) {
@@ -73,9 +74,9 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::pallas::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        assert(1==0 && "native pallas subtraction is not implemented");
+                        UNREACHABLE("native pallas subtraction is not implemented");
                     } else {
-                        assert(1==0 && "non-native pallas subtraction is not implemented");
+                        UNREACHABLE("non-native pallas subtraction is not implemented");
                     }
 
                     break;
@@ -85,9 +86,9 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::vesta::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        assert(1==0 && "native vesta subtraction is not implemented");
+                        UNREACHABLE("native vesta subtraction is not implemented");
                     } else {
-                        assert(1==0 && "non-native vesta subtraction is not implemented");
+                        UNREACHABLE("non-native vesta subtraction is not implemented");
                     }
 
                     break;
@@ -97,9 +98,9 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::curve25519::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        assert(1==0 && "native curve25519 subtraction is not implemented");
+                        UNREACHABLE("native curve25519 subtraction is not implemented");
                     } else {
-                        assert(1==0 && "non-native curve25519 subtraction is not implemented");
+                        UNREACHABLE("non-native curve25519 subtraction is not implemented");
 
                     }
 
@@ -110,16 +111,16 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::bls12<381>::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        assert(1==0 && "native bls12381 subtraction is not implemented");
+                        UNREACHABLE("native bls12381 subtraction is not implemented");
                     } else {
-                        assert(1==0 && "non-native bls12381 subtraction is not implemented");
+                        UNREACHABLE("non-native bls12381 subtraction is not implemented");
                     }
 
                     break;
                 }
 
                 default:
-                    assert(1 == 0 && "unsupported field operand type");
+                    UNREACHABLE("unsupported field operand type");
             };
         }
 
