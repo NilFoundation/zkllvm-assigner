@@ -30,6 +30,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <nil/blueprint/asserts.hpp>
+
 namespace nil {
     namespace blueprint {
 
@@ -133,12 +135,12 @@ namespace nil {
         }
         template<typename VarType>
         inline void Pointer<VarType>::memcpy(Chunk<VarType> *mem) {
-            assert(index == 0);
+            ASSERT(index == 0);
             base->memcpy(mem);
         }
         template<typename VarType>
         inline void Pointer<VarType>::memcpy(Pointer<VarType> mem) {
-            assert(mem.index == 0);
+            ASSERT(mem.index == 0);
             base->memcpy(mem.base);
         }
 

@@ -35,6 +35,8 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/GlobalVariable.h"
 
+#include <nil/blueprint/asserts.hpp>
+
 namespace nil {
     namespace blueprint {
         // This class is intended to compute flat offsets for GEP instruction
@@ -55,7 +57,7 @@ namespace nil {
         public:
             GepResolver() = default;
             int get_flat_index(const llvm::Type *type, const std::vector<int> &gep_indices) {
-                assert(type->isAggregateType());
+                ASSERT(type->isAggregateType());
                 if (type_cache.find(type) == type_cache.end())
                     resolve_type(type);
                 auto *type_record = &type_cache[type];

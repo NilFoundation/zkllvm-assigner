@@ -42,6 +42,7 @@
 #include <nil/blueprint/basic_non_native_policy.hpp>
 #include <nil/blueprint/components/algebra/curves/pasta/plonk/unified_addition.hpp>
 
+#include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
 
 namespace nil {
@@ -99,7 +100,7 @@ namespace nil {
             llvm::Type *op0_type = operand0->getType();
             llvm::Type *op1_type = operand1->getType();
 
-            assert(llvm::cast<llvm::EllipticCurveType>(op0_type)->getCurveKind() ==
+            ASSERT(llvm::cast<llvm::EllipticCurveType>(op0_type)->getCurveKind() ==
                    llvm::cast<llvm::EllipticCurveType>(op1_type)->getCurveKind());
 
             switch (llvm::cast<llvm::EllipticCurveType>(op0_type)->getCurveKind()) {
@@ -110,13 +111,13 @@ namespace nil {
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
                         using component_type = components::unified_addition<ArithmetizationType, operating_curve_type, 11>;
-                        typename component_type::result_type res = 
+                        typename component_type::result_type res =
                             detail::handle_native_curve_unified_addition_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
                                 operand0, operand1, frame.vectors, bp, assignment, start_row);
                         std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>> res_vector = {res.X, res.Y};
                         frame.vectors[inst] = res_vector;
                     } else {
-                        assert(1 == 0 && "non-native pallas is undefined");
+                        UNREACHABLE("non-native pallas is undefined");
                     }
 
                     break;
@@ -127,9 +128,9 @@ namespace nil {
                     using operating_field_type = operating_curve_type::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        assert(1 == 0 && "native vesta is not implemented");
+                        UNREACHABLE("native vesta is not implemented");
                     } else {
-                         assert(1 == 0 && "non-native vesta is undefined");
+                         UNREACHABLE("non-native vesta is undefined");
                     }
 
                     break;
@@ -139,9 +140,9 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        assert(1==0 && "native curve25519 addition is not implemented");
+                        UNREACHABLE("native curve25519 addition is not implemented");
                     } else {
-                        assert(1==0 && "non-native curve25519 addition is not implemented");
+                        UNREACHABLE("non-native curve25519 addition is not implemented");
 
                     }
 
@@ -152,9 +153,9 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::bls12<381>::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        assert(1==0 && "native bls12381 addition is not implemented");
+                        UNREACHABLE("native bls12381 addition is not implemented");
                     } else {
-                        assert(1==0 && "non-native bls12381 addition is not implemented");
+                        UNREACHABLE("non-native bls12381 addition is not implemented");
                     }
 
                     break;
@@ -162,7 +163,7 @@ namespace nil {
 
 
                 default:
-                    assert(1 == 0 && "unsupported field operand type");
+                    UNREACHABLE("unsupported field operand type");
             };
         }
 

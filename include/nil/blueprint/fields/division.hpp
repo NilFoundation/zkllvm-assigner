@@ -41,8 +41,8 @@
 #include <nil/blueprint/component.hpp>
 #include <nil/blueprint/basic_non_native_policy.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/division.hpp>
-// #include <nil/blueprint/components/algebra/fields/plonk/non_native/division.hpp>
 
+#include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
 
 namespace nil {
@@ -94,7 +94,7 @@ namespace nil {
             llvm::Type *op0_type = operand0->getType();
             llvm::Type *op1_type = operand1->getType();
 
-            assert(llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind() ==
+            ASSERT(llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind() ==
                    llvm::cast<llvm::GaloisFieldType>(op1_type)->getFieldKind());
 
             switch (llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind()) {
@@ -157,7 +157,7 @@ namespace nil {
                     break;
                 }
                 default:
-                    assert(1 == 0 && "unsupported field operand type");
+                    UNREACHABLE("unsupported field operand type");
             };
         }
 
