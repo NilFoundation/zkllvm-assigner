@@ -180,8 +180,16 @@ namespace nil {
         template<typename BlueprintFieldType>
         std::vector<typename BlueprintFieldType::value_type> extended_integral_into_vector (llvm::Type *arg_type, typename BlueprintFieldType::extended_integral_type glued_non_native) {
 
-            switch (llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind()) {
+            llvm::GaloisFieldKind arg_field_type;
+            if (llvm::isa<llvm::GaloisFieldType>(arg_type)) {
+                arg_field_type = llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind();
+            } 
+            else if (llvm::isa<llvm::EllipticCurveType>(arg_type)) {
+                arg_field_type  = llvm::cast<llvm::EllipticCurveType>(arg_type)->GetFieldFromCurve();
+            }
+            else (assert(false));
 
+            switch (arg_field_type) {
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
                     using non_native_field = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
                     using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field>;
@@ -269,25 +277,12 @@ namespace nil {
                     return false;
                 assert(value.at("curve").is_array() && "curve element must be array!");
                 assert((value.at("curve").as_array().size() == 2) && "curve element consists of two field elements!");
-                assert(arg_len >= 2 && "arg_len of curveTy cannot be less than two");
 
-                std::vector<var> vector1;
-                std::vector<var> vector2;
-
-                switch (llvm::cast<llvm::EllipticCurveType>(curve_type)->getCurveKind()) {
-                    case llvm::ELLIPTIC_CURVE_CURVE25519: 
-                        vector1 = process_non_native_field (value.at("curve").as_array()[0], arg_len / 2, llvm::Type(llvm::GALOIS_FIELD_PALLAS_BASE)/*does not work, this is illustration of the idea*/);
-                        vector2 = process_non_native_field (value.at("curve").as_array()[1], arg_len / 2, llvm::Type(llvm::GALOIS_FIELD_PALLAS_BASE)/*does not work, this is illustration of the idea*/);
-                        vector1.insert(vector1.end(), vector2.begin(), vector2.end());
-                        frame.vectors[curve_arg] = vector1;
-                        return (frame.vectors[curve_arg].size() == arg_len);
-                        break;
-                    
-                    default:
-                        assert(1 == 0 && "unsupported curve type");
-                        return false;
-                    }
-                return false;
+                std::vector<var> vector1 = process_non_native_field (value.at("curve").as_array()[0], curve_type);
+                std::vector<var> vector2 = process_non_native_field (value.at("curve").as_array()[1], curve_type);
+                vector1.insert(vector1.end(), vector2.begin(), vector2.end());
+                frame.vectors[curve_arg] = vector1;
+                return true;
             }
 
             std::vector<var> put_field_into_assignmnt (std::vector<typename BlueprintFieldType::value_type> input) {
@@ -301,8 +296,7 @@ namespace nil {
                 return res;
             }
 
-            std::vector<var> process_non_native_field (const boost::json::value &value, size_t len, llvm::Type *field_type) {
-
+            std::vector<var> process_non_native_field (const boost::json::value &value, llvm::Type *field_type) {
                 char buf[256];
                 if (value.as_string().size() >= sizeof(buf)) {
                     std::cerr << "Input does not fit into BlueprintFieldType" << std::endl;
@@ -311,7 +305,8 @@ namespace nil {
                 value.as_string().copy(buf, sizeof(buf));
                 typename BlueprintFieldType::extended_integral_type non_native_number(buf);
 
-                std::vector<typename BlueprintFieldType::value_type> chunked_non_native_field_element = extended_integral_into_vector<BlueprintFieldType> (field_type, non_native_number);
+                std::vector<typename BlueprintFieldType::value_type> chunked_non_native_field_element 
+                    = extended_integral_into_vector<BlueprintFieldType> (field_type, non_native_number);
 
                 std::vector<var> res = put_field_into_assignmnt(chunked_non_native_field_element);
                 return res;
@@ -324,7 +319,7 @@ namespace nil {
                     return false;
                 size_t arg_len = field_arg_num<BlueprintFieldType>(field_type);
                 ASSERT_MSG(arg_len != 0, "wrong input size");
-                auto values = process_non_native_field(value.at("field"), arg_len, field_type);
+                auto values = process_non_native_field(value.at("field"), field_type);
                 if (values.size() != arg_len)
                     return false;
                 if (arg_len == 1) {

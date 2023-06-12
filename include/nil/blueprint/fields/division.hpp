@@ -144,7 +144,7 @@ namespace nil {
                                 .output;
                     } else {
                         // Non-native ed25519 is undefined yet
-                        // typename non_native_policy_type::template field<operating_field_type>::value_type
+                        // typename non_native_policy_type::template field<operating_field_type>::non_native_var_type
                         //     component_result = detail::handle_non_native_field_division_component<
                         //                            BlueprintFieldType, ArithmetizationParams, operating_field_type>(
                         //                            operand0, operand1, frame.vectors, bp, assignment, start_row)

@@ -99,12 +99,12 @@ namespace nil {
                 std::vector<var> operand0_vars = vectors[operand0];
                 std::vector<var> operand1_vars = vectors[operand1];
 
-                typename non_native_policy_type::template field<OperatingFieldType>::value_type x;
+                typename non_native_policy_type::template field<OperatingFieldType>::non_native_var_type x;
                 std::copy_n(operand0_vars.begin(),
                             non_native_policy_type::template field<OperatingFieldType>::ratio,
                             x.begin());
 
-                typename non_native_policy_type::template field<OperatingFieldType>::value_type y;
+                typename non_native_policy_type::template field<OperatingFieldType>::non_native_var_type y;
                 std::copy_n(operand1_vars.begin(),
                             non_native_policy_type::template field<OperatingFieldType>::ratio,
                             y.begin());
@@ -181,7 +181,7 @@ namespace nil {
                                               operand0, operand1, frame.scalars, bp, assignment, start_row)
                                               .output;
                     } else {
-                        typename non_native_policy_type::template field<operating_field_type>::value_type
+                        typename non_native_policy_type::template field<operating_field_type>::non_native_var_type
                             component_result = detail::handle_non_native_field_multiplication_component<
                                                    BlueprintFieldType, ArithmetizationParams, operating_field_type>(
                                                    operand0, operand1, frame.vectors, bp, assignment, start_row)
