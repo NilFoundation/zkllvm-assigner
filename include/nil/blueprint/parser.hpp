@@ -86,6 +86,9 @@ namespace nil {
                     case llvm::Instruction::Add:
                         res = var_value(assignmnt, x) + var_value(assignmnt, y);
                         break;
+                     case llvm::Instruction::Sub:
+                        res = var_value(assignmnt, x) - var_value(assignmnt, y);
+                        break;
                     case llvm::Instruction::Mul:
                         res = var_value(assignmnt, x) * var_value(assignmnt, y);
                         break;
@@ -367,6 +370,10 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Sub: {
+                        if (inst->getOperand(0)->getType()->isIntegerTy()) {
+                            handle_int_binop(inst, variables);
+                            return inst->getNextNonDebugInstruction();
+                        }
 
                         if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
@@ -434,8 +441,7 @@ namespace nil {
                             return inst->getNextNonDebugInstruction();
                         }
                         if (fun->empty()) {
-                            std::cerr << "Function " << fun_name.str() << " has no implementation." << std::endl;
-                            return inst->getNextNonDebugInstruction();
+                            UNREACHABLE(("Function " + fun_name.str() + " has no implementation.").c_str());
                         }
                         stack_frame<var> new_frame;
                         auto &new_variables = new_frame.scalars;
@@ -581,7 +587,7 @@ namespace nil {
                         Pointer<var> ptr = frame.pointers[gep->getPointerOperand()];
 
                         int initial_ptr_adjustment = gep_resolver.get_type_size(gep_ty) * gep_indices[0];
-                        ptr.adjust(initial_ptr_adjustment);
+                        ptr = ptr.adjust(initial_ptr_adjustment);
                         gep_indices.erase(gep_indices.begin());
 
                         if (!gep_indices.empty()) {
@@ -591,7 +597,7 @@ namespace nil {
                                 return nullptr;
                             }
                             int resolved_index = gep_resolver.get_flat_index(gep_ty, gep_indices);
-                            ptr.adjust(resolved_index);
+                            ptr = ptr.adjust(resolved_index);
                         }
                         frame.pointers[gep] = ptr;
                         return inst->getNextNonDebugInstruction();
@@ -632,6 +638,12 @@ namespace nil {
                     }
                     case llvm::Instruction::Trunc: {
                         // FIXME: Handle trunc properly. For now just leave value as it is.
+                        var x = frame.scalars[inst->getOperand(0)];
+                        frame.scalars[inst] = x;
+                        return inst->getNextNonDebugInstruction();
+                    }
+                        case llvm::Instruction::SExt: {
+                        // FIXME: Handle sext properly. For now just leave value as it is.
                         var x = frame.scalars[inst->getOperand(0)];
                         frame.scalars[inst] = x;
                         return inst->getNextNonDebugInstruction();

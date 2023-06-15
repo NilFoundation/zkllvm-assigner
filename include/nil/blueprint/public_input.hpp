@@ -286,11 +286,17 @@ namespace nil {
                 return 0;
             }
 
-            bool take_array(llvm::Value *array_arg, llvm::Type *array_type, size_t array_len, const boost::json::object &value) {
-                auto elem_type = llvm::cast<llvm::ArrayType>(llvm::cast<llvm::PointerType>(array_type)
-                                                                 ->getNonOpaquePointerElementType()
-                                                                 ->getContainedType(0))
-                                     ->getElementType();
+            bool try_array(llvm::Value *array_arg, llvm::Type *arg_type, const boost::json::object &value) {
+                auto pointee = llvm::cast<llvm::PointerType>(arg_type)->getNonOpaquePointerElementType();
+                if (pointee->getNumContainedTypes() != 1 || !pointee->getContainedType(0)->isArrayTy()) {
+                    return false;
+                }
+                auto *array_type = llvm::cast<llvm::ArrayType>(pointee->getContainedType(0));
+                size_t array_len = array_type->getNumElements();
+                if (array_len == 0) {
+                    return false;
+                }
+                auto elem_type = array_type->getElementType();
                 size_t elem_len = get_array_elem_len(elem_type);
                 if (value.size() != 1 && !value.contains("array")) {
                     return false;
@@ -316,6 +322,31 @@ namespace nil {
                 return true;
             }
 
+            bool try_string(llvm::Value *arg, llvm::Type *arg_type, const boost::json::object &value) {
+                auto pointee = llvm::cast<llvm::PointerType>(arg_type)->getNonOpaquePointerElementType();
+                if (!pointee->isIntegerTy(8)) {
+                    return false;
+                }
+                if (value.size() != 1 && !value.contains("string")) {
+                    return false;
+                }
+                if (!value.at("string").is_string()) {
+                    return false;
+                }
+                const auto &json_str = value.at("string").as_string();
+                unsigned idx = 0;
+                for (char c : json_str) {
+                    assignmnt.public_input(0, public_input_idx) = c;
+                    auto variable = var(0, public_input_idx++, false, var::column_type::public_input);
+                    frame.memory.back().store_var(variable, idx++);
+                }
+                // Put '\0' at the end
+                assignmnt.public_input(0, public_input_idx) = 0;
+                auto variable = var(0, public_input_idx++, false, var::column_type::public_input);
+                frame.memory.back().store_var(variable, idx++);
+                return true;
+            }
+
             bool fill_public_input(const llvm::Function &function, const boost::json::array &public_input) {
                 size_t ret_gap = 0;
                 for (size_t i = 0; i < function.arg_size(); ++i) {
@@ -326,25 +357,19 @@ namespace nil {
                     llvm::Argument *current_arg = function.getArg(i);
                     const boost::json::object &current_value = public_input[i - ret_gap].as_object();
                     llvm::Type *arg_type = current_arg->getType();
-                    bool is_array = false;
-                    unsigned arg_len = 0;
                     if (llvm::isa<llvm::PointerType>(arg_type)) {
                         frame.memory.emplace_back();
                         frame.pointers[current_arg] = Pointer<var>(&frame.memory.back(), 0);
-                        arg_len = getStdArrayLen(arg_type);
-                        if (arg_len == 0) {
-                            std::cerr << "Got pointer argument, only pointers to std::array are supported" << std::endl;
-                            return false;
-                        }
-                        is_array = true;
                         if (current_arg->hasStructRetAttr()) {
                             // No need to fill in a return argument
                             ret_gap += 1;
                             continue;
                         }
-
-                        if (!take_array(current_arg, arg_type, arg_len, current_value))
+                        if (!try_array(current_arg, arg_type, current_value) &&
+                            !try_string(current_arg, arg_type, current_value)) {
+                            std::cerr << "Got pointer argument, only pointers to std::array or char are supported" << std::endl;
                             return false;
+                        }
                     } else if (llvm::isa<llvm::FixedVectorType>(arg_type)) {
                         if (!take_vector(current_arg, arg_type, current_value))
                             return false;
