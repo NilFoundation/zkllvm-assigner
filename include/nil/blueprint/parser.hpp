@@ -50,6 +50,11 @@
 #include <nil/blueprint/gep_resolver.hpp>
 #include <nil/blueprint/public_input.hpp>
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/integrals/addition.hpp>
+#include <nil/blueprint/integrals/subtraction.hpp>
+#include <nil/blueprint/integrals/multiplication.hpp>
+#include <nil/blueprint/integrals/division.hpp>
+
 #include <nil/blueprint/fields/addition.hpp>
 #include <nil/blueprint/fields/subtraction.hpp>
 #include <nil/blueprint/fields/multiplication.hpp>
@@ -73,33 +78,6 @@ namespace nil {
             assignment<ArithmetizationType> assignmnt;
 
         private:
-            // TODO(maksenov): handle it properly and move to another file
-            template <typename map_type>
-            void handle_int_binop(const llvm::Instruction *inst, map_type &variables) {
-                ASSERT(inst->getOperand(0)->getType()->isIntegerTy());
-                ASSERT(inst->getOperand(1)->getType()->isIntegerTy());
-
-                var x = variables[inst->getOperand(0)];
-                var y = variables[inst->getOperand(1)];
-                typename BlueprintFieldType::value_type res;
-                switch (inst->getOpcode()) {
-                    case llvm::Instruction::Add:
-                        res = var_value(assignmnt, x) + var_value(assignmnt, y);
-                        break;
-                     case llvm::Instruction::Sub:
-                        res = var_value(assignmnt, x) - var_value(assignmnt, y);
-                        break;
-                    case llvm::Instruction::Mul:
-                        res = var_value(assignmnt, x) * var_value(assignmnt, y);
-                        break;
-                    default:
-                        UNREACHABLE("Unsupported operation!");
-                        break;
-                }
-                assignmnt.public_input(0, public_input_idx) = res;
-                variables[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
-            }
-
             // TODO(maksenov): handle it properly and move to another file
             template<typename map_type>
             void handle_scalar_cmp(const llvm::ICmpInst *inst, map_type &variables) {
@@ -351,7 +329,8 @@ namespace nil {
                     case llvm::Instruction::Add: {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
-                            handle_int_binop(inst, variables);
+                            handle_integral_addition_component<BlueprintFieldType, ArithmetizationParams>(
+                                        inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         }
 
@@ -371,7 +350,8 @@ namespace nil {
                     }
                     case llvm::Instruction::Sub: {
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
-                            handle_int_binop(inst, variables);
+                            handle_field_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         }
 
@@ -392,7 +372,8 @@ namespace nil {
                     case llvm::Instruction::Mul: {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
-                            handle_int_binop(inst, variables);
+                            handle_integral_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         }
 
@@ -400,9 +381,9 @@ namespace nil {
                             handle_field_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
-                        } else {
-                            UNREACHABLE("Mul opcode is defined only for fieldTy * fieldTy");
                         }
+                        
+                        UNREACHABLE("Mul opcode is defined only for fieldTy and integerTy");
 
                         return inst->getNextNonDebugInstruction();
                     }
@@ -421,8 +402,17 @@ namespace nil {
                     case llvm::Instruction::UDiv:
                     case llvm::Instruction::SDiv: {
 
-                        handle_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                            inst, frame, bp, assignmnt, start_row);
+                        if (inst->getOperand(0)->getType()->isIntegerTy()) {
+                            handle_integral_division_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        }
+
+                        if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
+                            handle_field_division_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        }
 
                         return inst->getNextNonDebugInstruction();
                     }
