@@ -23,8 +23,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_INTEGRAL_DIVISION_HPP
-#define CRYPTO3_ASSIGNER_INTEGRAL_DIVISION_HPP
+#ifndef CRYPTO3_ASSIGNER_INTEGER_DIVISION_HPP
+#define CRYPTO3_ASSIGNER_INTEGER_DIVISION_HPP
 
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeFinder.h"
@@ -43,7 +43,7 @@ namespace nil {
     namespace blueprint {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
-        void handle_integral_division_component(
+        void handle_integer_division_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<BlueprintFieldType>> &frame,
             circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
@@ -62,4 +62,4 @@ namespace nil {
     }    // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_ASSIGNER_INTEGRAL_DIVISION_HPP
+#endif    // CRYPTO3_ASSIGNER_INTEGER_DIVISION_HPP
