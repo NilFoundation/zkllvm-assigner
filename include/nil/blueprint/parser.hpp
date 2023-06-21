@@ -350,7 +350,7 @@ namespace nil {
                     }
                     case llvm::Instruction::Sub: {
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
-                            handle_field_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
+                            handle_integral_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         }
@@ -382,7 +382,7 @@ namespace nil {
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         }
-                        
+
                         UNREACHABLE("Mul opcode is defined only for fieldTy and integerTy");
 
                         return inst->getNextNonDebugInstruction();
