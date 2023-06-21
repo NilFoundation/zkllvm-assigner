@@ -262,6 +262,16 @@ namespace nil {
                 return true;
             }
 
+            bool take_int(llvm::Value *int_arg, const boost::json::object &value) {
+                if (value.size() != 1 || !value.contains("int"))
+                    return false;
+                auto values = take_values(value.at("int"), 1);
+                if (values.size() != 1)
+                    return false;
+                frame.scalars[int_arg] = values[0];
+                return true;
+            }
+
             bool take_vector(llvm::Value *vector_arg, llvm::Type *vector_type, const boost::json::object &value) {
                 size_t arg_len = llvm::cast<llvm::FixedVectorType>(vector_type)->getNumElements();
                 if (value.size() != 1 && !value.contains("vector")) {
@@ -350,7 +360,7 @@ namespace nil {
             bool fill_public_input(const llvm::Function &function, const boost::json::array &public_input) {
                 size_t ret_gap = 0;
                 for (size_t i = 0; i < function.arg_size(); ++i) {
-                    if (!public_input[i - ret_gap].is_object()) {
+                    if (public_input.size() <= i - ret_gap || !public_input[i - ret_gap].is_object()) {
                         return false;
                     }
 
@@ -378,6 +388,9 @@ namespace nil {
                             return false;
                     } else if (llvm::isa<llvm::GaloisFieldType>(arg_type)) {
                         if (!take_field(current_arg, arg_type, current_value))
+                            return false;
+                    } else if (llvm::isa<llvm::IntegerType>(arg_type)) {
+                        if (!take_int(current_arg, current_value))
                             return false;
                     }
                     else {
