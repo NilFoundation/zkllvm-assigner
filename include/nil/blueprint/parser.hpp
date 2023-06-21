@@ -50,10 +50,10 @@
 #include <nil/blueprint/gep_resolver.hpp>
 #include <nil/blueprint/public_input.hpp>
 #include <nil/blueprint/stack.hpp>
-#include <nil/blueprint/integrals/addition.hpp>
-#include <nil/blueprint/integrals/subtraction.hpp>
-#include <nil/blueprint/integrals/multiplication.hpp>
-#include <nil/blueprint/integrals/division.hpp>
+#include <nil/blueprint/integers/addition.hpp>
+#include <nil/blueprint/integers/subtraction.hpp>
+#include <nil/blueprint/integers/multiplication.hpp>
+#include <nil/blueprint/integers/division.hpp>
 
 #include <nil/blueprint/fields/addition.hpp>
 #include <nil/blueprint/fields/subtraction.hpp>
@@ -329,7 +329,7 @@ namespace nil {
                     case llvm::Instruction::Add: {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
-                            handle_integral_addition_component<BlueprintFieldType, ArithmetizationParams>(
+                            handle_integer_addition_component<BlueprintFieldType, ArithmetizationParams>(
                                         inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         }
@@ -350,7 +350,7 @@ namespace nil {
                     }
                     case llvm::Instruction::Sub: {
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
-                            handle_integral_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
+                            handle_integer_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         }
@@ -372,7 +372,7 @@ namespace nil {
                     case llvm::Instruction::Mul: {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
-                            handle_integral_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
+                            handle_integer_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         }
@@ -403,7 +403,7 @@ namespace nil {
                     case llvm::Instruction::SDiv: {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
-                            handle_integral_division_component<BlueprintFieldType, ArithmetizationParams>(
+                            handle_integer_division_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         }
