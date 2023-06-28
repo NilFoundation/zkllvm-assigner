@@ -200,6 +200,21 @@ namespace nil {
                     }
                     return result;
                 }
+                case llvm::GALOIS_FIELD_PALLAS_BASE: {
+                    std::vector<typename BlueprintFieldType::value_type> result;
+                    result.push_back(glued_non_native);
+                    return result;
+                }
+                case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
+                    using non_native_field = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
+                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field>;
+                    auto res = non_native_policy::chop_non_native(glued_non_native);
+                    std::vector<typename BlueprintFieldType::value_type> result;
+                    for (std::size_t i = 0; i < res.size(); i++) {
+                        result.push_back(res[i]);
+                    }
+                    return result;
+                }
             
                 default:
                     assert(1 == 0 && "unsupported field operand type");
@@ -224,13 +239,13 @@ namespace nil {
                 case boost::json::kind::string: {
                     char buf[256];
                     if (value.as_string().size() >= sizeof(buf)) {
-                        std::cerr << "Input does not fit into BlueprintFieldType" << std::endl;
+                        std::cerr << "Input does not fit into buffer" << std::endl;
                         return false;
                     }
                     value.as_string().copy(buf, sizeof(buf));
                     typename BlueprintFieldType::extended_integral_type number(buf);
                     if (number >= BlueprintFieldType::modulus) {
-                        std::cerr << "Input does not fit into BlueprintFieldType" << std::endl;
+                        std::cerr << "Input does not fit into buffer" << std::endl;
                         return false;
                     }
                     out = number;
@@ -290,6 +305,7 @@ namespace nil {
                 std::vector<var> res; 
 
                 for (std::size_t i = 0; i < input.size(); i++) {
+                    assignmnt.public_input(0, public_input_idx) = input[i];
                     res.push_back(var(0, public_input_idx++, false, var::column_type::public_input));
                 }
 
@@ -297,31 +313,59 @@ namespace nil {
             }
 
             std::vector<var> process_non_native_field (const boost::json::value &value, llvm::Type *field_type) {
+                std::vector<var> res;
+                std::vector<typename BlueprintFieldType::value_type> chunked_non_native_field_element;
                 char buf[256];
-                if (value.as_string().size() >= sizeof(buf)) {
-                    std::cerr << "Input does not fit into BlueprintFieldType" << std::endl;
-                    assert(false);
+                typename BlueprintFieldType::extended_integral_type non_native_number;
+
+
+                switch (value.kind()) {
+                case boost::json::kind::int64:
+                    non_native_number = typename BlueprintFieldType::extended_integral_type(value.as_int64());
+                    chunked_non_native_field_element = extended_integral_into_vector<BlueprintFieldType> (field_type, non_native_number);
+                    res = put_field_into_assignmnt(chunked_non_native_field_element);
+                    return res;
+                    break;
+
+                case boost::json::kind::uint64:
+                    non_native_number = typename BlueprintFieldType::extended_integral_type(value.as_uint64());
+                    chunked_non_native_field_element = extended_integral_into_vector<BlueprintFieldType> (field_type, non_native_number);
+                    res = put_field_into_assignmnt(chunked_non_native_field_element);
+                    return res;
+                    break;
+
+                case boost::json::kind::string:
+                    if (value.as_string().size() >= sizeof(buf)) {
+                        std::cerr << "Input does not fit into buffer" << std::endl;
+                        assert(false);
+                    }
+                    value.as_string().copy(buf, sizeof(buf));
+                    non_native_number = typename BlueprintFieldType::extended_integral_type(buf);
+
+                    chunked_non_native_field_element = extended_integral_into_vector<BlueprintFieldType> (field_type, non_native_number);
+
+                    res = put_field_into_assignmnt(chunked_non_native_field_element);
+                    return res;
+                    break;
+                default:
+                    return {};
                 }
-                value.as_string().copy(buf, sizeof(buf));
-                typename BlueprintFieldType::extended_integral_type non_native_number(buf);
-
-                std::vector<typename BlueprintFieldType::value_type> chunked_non_native_field_element 
-                    = extended_integral_into_vector<BlueprintFieldType> (field_type, non_native_number);
-
-                std::vector<var> res = put_field_into_assignmnt(chunked_non_native_field_element);
-                return res;
             }
 
 
             bool take_field(llvm::Value *field_arg, llvm::Type *field_type, const boost::json::object &value) {
                 ASSERT(llvm::isa<llvm::GaloisFieldType>(field_type));
-                if (value.size() != 1 || !value.contains("field"))
+                if (value.size() != 1 || !value.contains("field")){
+                    std::cerr << "value.size() != 1 || !value.contains(\"field\")\n";
                     return false;
+                }
                 size_t arg_len = field_arg_num<BlueprintFieldType>(field_type);
                 ASSERT_MSG(arg_len != 0, "wrong input size");
                 auto values = process_non_native_field(value.at("field"), field_type);
-                if (values.size() != arg_len)
+                if (values.size() != arg_len) {
+                    std::cerr << "values.size() != arg_len\nvalues.size() = "  << values.size() << ", arg_len = " << arg_len<< "\n";
                     return false;
+                }
                 if (arg_len == 1) {
                     frame.scalars[field_arg] = values[0];
                 } else {

@@ -32,7 +32,7 @@
 #include <nil/blueprint/blueprint/plonk/assignment.hpp>
 #include <nil/blueprint/blueprint/plonk/circuit.hpp>
 #include <nil/blueprint/components/hashes/poseidon/plonk/poseidon_15_wires.hpp>
-#include <nil/blueprint/components/hashes/sha256/plonk/sha256.hpp>
+#include <nil/blueprint/components/hashes/sha2/plonk/sha256.hpp>
 
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/IR/LLVMContext.h>
