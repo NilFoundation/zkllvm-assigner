@@ -677,7 +677,7 @@ namespace nil {
                 llvm::SMDiagnostic diagnostic;
                 std::unique_ptr<llvm::Module> module = llvm::parseIRFile(ir_file, diagnostic, context);
                 if (module == nullptr) {
-                    std::cout << "Unable to parse IR file: " + diagnostic.getMessage().str() << std::endl;
+                    diagnostic.print("assigner", llvm::errs());
                 }
                 return module;
             }
