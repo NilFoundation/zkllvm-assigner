@@ -178,16 +178,7 @@ namespace nil {
         }
 
         template<typename BlueprintFieldType>
-        std::vector<typename BlueprintFieldType::value_type> extended_integral_into_vector (llvm::Type *arg_type, typename BlueprintFieldType::extended_integral_type glued_non_native) {
-
-            llvm::GaloisFieldKind arg_field_type;
-            if (llvm::isa<llvm::GaloisFieldType>(arg_type)) {
-                arg_field_type = llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind();
-            } 
-            else if (llvm::isa<llvm::EllipticCurveType>(arg_type)) {
-                arg_field_type  = llvm::cast<llvm::EllipticCurveType>(arg_type)->GetFieldFromCurve();
-            }
-            else (assert(false));
+        std::vector<typename BlueprintFieldType::value_type> extended_integral_into_vector (llvm::GaloisFieldKind arg_field_type, typename BlueprintFieldType::extended_integral_type glued_non_native) {
 
             switch (arg_field_type) {
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
@@ -217,7 +208,7 @@ namespace nil {
                 }
             
                 default:
-                    assert(1 == 0 && "unsupported field operand type");
+                    UNREACHABLE("unsupported field operand type");
             }
         }
 
@@ -290,11 +281,17 @@ namespace nil {
                 ASSERT_MSG(arg_len >= 2, "arg_len of curveTy cannot be less than two");
                 if (value.size() != 1 || !value.contains("curve"))
                     return false;
-                assert(value.at("curve").is_array() && "curve element must be array!");
-                assert((value.at("curve").as_array().size() == 2) && "curve element consists of two field elements!");
+                ASSERT_MSG(value.at("curve").is_array(), "curve element must be array!");
+                ASSERT_MSG((value.at("curve").as_array().size() == 2), "curve element consists of two field elements!");
 
-                std::vector<var> vector1 = process_non_native_field (value.at("curve").as_array()[0], curve_type);
-                std::vector<var> vector2 = process_non_native_field (value.at("curve").as_array()[1], curve_type);
+                llvm::GaloisFieldKind arg_field_type;
+                if (llvm::isa<llvm::EllipticCurveType>(curve_type)) {
+                    arg_field_type  = llvm::cast<llvm::EllipticCurveType>(curve_type)->GetBaseFieldKind();
+                }
+                else (UNREACHABLE("public input reader take_curve can handle only curves"));
+
+                std::vector<var> vector1 = process_non_native_field (value.at("curve").as_array()[0], arg_field_type);
+                std::vector<var> vector2 = process_non_native_field (value.at("curve").as_array()[1], arg_field_type);
                 vector1.insert(vector1.end(), vector2.begin(), vector2.end());
                 frame.vectors[curve_arg] = vector1;
                 return true;
@@ -312,7 +309,7 @@ namespace nil {
                 return res;
             }
 
-            std::vector<var> process_non_native_field (const boost::json::value &value, llvm::Type *field_type) {
+            std::vector<var> process_non_native_field (const boost::json::value &value, llvm::GaloisFieldKind arg_field_type) {
                 std::vector<var> res;
                 std::vector<typename BlueprintFieldType::value_type> chunked_non_native_field_element;
                 char buf[256];
@@ -322,14 +319,14 @@ namespace nil {
                 switch (value.kind()) {
                 case boost::json::kind::int64:
                     non_native_number = typename BlueprintFieldType::extended_integral_type(value.as_int64());
-                    chunked_non_native_field_element = extended_integral_into_vector<BlueprintFieldType> (field_type, non_native_number);
+                    chunked_non_native_field_element = extended_integral_into_vector<BlueprintFieldType> (arg_field_type, non_native_number);
                     res = put_field_into_assignmnt(chunked_non_native_field_element);
                     return res;
                     break;
 
                 case boost::json::kind::uint64:
                     non_native_number = typename BlueprintFieldType::extended_integral_type(value.as_uint64());
-                    chunked_non_native_field_element = extended_integral_into_vector<BlueprintFieldType> (field_type, non_native_number);
+                    chunked_non_native_field_element = extended_integral_into_vector<BlueprintFieldType> (arg_field_type, non_native_number);
                     res = put_field_into_assignmnt(chunked_non_native_field_element);
                     return res;
                     break;
@@ -342,7 +339,7 @@ namespace nil {
                     value.as_string().copy(buf, sizeof(buf));
                     non_native_number = typename BlueprintFieldType::extended_integral_type(buf);
 
-                    chunked_non_native_field_element = extended_integral_into_vector<BlueprintFieldType> (field_type, non_native_number);
+                    chunked_non_native_field_element = extended_integral_into_vector<BlueprintFieldType> (arg_field_type, non_native_number);
 
                     res = put_field_into_assignmnt(chunked_non_native_field_element);
                     return res;
@@ -361,9 +358,17 @@ namespace nil {
                 }
                 size_t arg_len = field_arg_num<BlueprintFieldType>(field_type);
                 ASSERT_MSG(arg_len != 0, "wrong input size");
-                auto values = process_non_native_field(value.at("field"), field_type);
+
+                llvm::GaloisFieldKind arg_field_type;
+                if (llvm::isa<llvm::GaloisFieldType>(field_type)) {
+                    arg_field_type = llvm::cast<llvm::GaloisFieldType>(field_type)->getFieldKind();
+                } 
+                else (UNREACHABLE("public input reader take_field can handle only fields"));
+
+                auto values = process_non_native_field(value.at("field"), arg_field_type);
                 if (values.size() != arg_len) {
-                    std::cerr << "values.size() != arg_len\nvalues.size() = "  << values.size() << ", arg_len = " << arg_len<< "\n";
+                    std::cerr << "values.size() != arg_len\n";
+                    std::cerr << "values.size() = "  << values.size() << ", arg_len = " << arg_len<< std::endl;
                     return false;
                 }
                 if (arg_len == 1) {

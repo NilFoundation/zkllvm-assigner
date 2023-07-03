@@ -107,11 +107,7 @@ namespace nil {
                                 operand0, operand1, frame.scalars, bp, assignment, start_row)
                                 .output;
                     } else {
-                        // Non-native bls12-381 is undefined yet
-                        // variables[inst] = detail::handle_non_native_field_division_component<
-                        //                       BlueprintFieldType, ArithmetizationParams, operating_field_type>(
-                        //                       operand0, operand1, frame.vectors, bp, assignment, start_row)
-                        //                       .output;
+                        UNREACHABLE("Non-native bls12-381 is undefined yet");
                     }
 
                     break;
@@ -125,11 +121,7 @@ namespace nil {
                                 operand0, operand1, frame.scalars, bp, assignment, start_row)
                                 .output;
                     } else {
-                        // Non-native pallas is undefined yet
-                        // variables[inst] = detail::handle_non_native_field_division_component<
-                        //                       BlueprintFieldType, ArithmetizationParams, operating_field_type>(
-                        //                       operand0, operand1, frame.vectors, bp, assignment, start_row)
-                        //                       .output;
+                        UNREACHABLE("Non-native pallas is undefined yet");
                     }
 
                     break;
@@ -143,15 +135,7 @@ namespace nil {
                                 operand0, operand1, frame.scalars, bp, assignment, start_row)
                                 .output;
                     } else {
-                        // Non-native ed25519 is undefined yet
-                        // typename non_native_policy_type::template field<operating_field_type>::non_native_var_type
-                        //     component_result = detail::handle_non_native_field_division_component<
-                        //                            BlueprintFieldType, ArithmetizationParams, operating_field_type>(
-                        //                            operand0, operand1, frame.vectors, bp, assignment, start_row)
-                        //                            .output;
-
-                        // frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>>(
-                        //     std::begin(component_result), std::end(component_result));
+                        UNREACHABLE("Non-native ed25519 division is not implemented yet");
                     }
 
                     break;
