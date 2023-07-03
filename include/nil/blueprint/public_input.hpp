@@ -288,7 +288,7 @@ namespace nil {
                 if (llvm::isa<llvm::EllipticCurveType>(curve_type)) {
                     arg_field_type  = llvm::cast<llvm::EllipticCurveType>(curve_type)->GetBaseFieldKind();
                 }
-                else (UNREACHABLE("public input reader take_curve can handle only curves"));
+                else {UNREACHABLE("public input reader take_curve can handle only curves")};
 
                 std::vector<var> vector1 = process_non_native_field (value.at("curve").as_array()[0], arg_field_type);
                 std::vector<var> vector2 = process_non_native_field (value.at("curve").as_array()[1], arg_field_type);
@@ -363,7 +363,7 @@ namespace nil {
                 if (llvm::isa<llvm::GaloisFieldType>(field_type)) {
                     arg_field_type = llvm::cast<llvm::GaloisFieldType>(field_type)->getFieldKind();
                 } 
-                else (UNREACHABLE("public input reader take_field can handle only fields"));
+                else {UNREACHABLE("public input reader take_field can handle only fields")};
 
                 auto values = process_non_native_field(value.at("field"), arg_field_type);
                 if (values.size() != arg_len) {
