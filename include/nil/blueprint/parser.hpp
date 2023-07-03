@@ -708,7 +708,12 @@ namespace nil {
                 auto public_input_reader = PublicInputReader<BlueprintFieldType, var, assignment<ArithmetizationType>>(
                     base_frame, assignmnt);
                 if (!public_input_reader.fill_public_input(function, public_input)) {
-                    std::cerr << "Public input must match the size of arguments" << std::endl;
+                    std::cerr << "Public input does not match the circuit signature";
+                    const std::string &error = public_input_reader.get_error();
+                    if (!error.empty()) {
+                        std::cout << ": " << error;
+                    }
+                    std::cout << std::endl;
                     return false;
                 }
                 public_input_idx = public_input_reader.get_idx();

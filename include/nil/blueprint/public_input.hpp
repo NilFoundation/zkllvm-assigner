@@ -251,6 +251,11 @@ namespace nil {
                     return false;
                 size_t arg_len = field_arg_num<BlueprintFieldType>(field_type);
                 ASSERT_MSG(arg_len != 0, "wrong input size");
+                if (value.at("field").is_double()) {
+                    error =
+                        "got double value for field argument. Probably the value is too big to be represented as "
+                        "integer. You can put it in \"\" to avoid JSON parser restrictions.";
+                }
                 auto values = take_values(value.at("field"), arg_len);
                 if (values.size() != arg_len)
                     return false;
@@ -361,6 +366,7 @@ namespace nil {
                 size_t ret_gap = 0;
                 for (size_t i = 0; i < function.arg_size(); ++i) {
                     if (public_input.size() <= i - ret_gap || !public_input[i - ret_gap].is_object()) {
+                        error = "not enough values in the input file.";
                         return false;
                     }
 
@@ -400,6 +406,7 @@ namespace nil {
 
                 // Check if there are remaining elements of public input
                 if (function.arg_size() - ret_gap != public_input.size()) {
+                    error = "too many values in the input file";
                     return false;
                 }
                 return true;
@@ -408,10 +415,15 @@ namespace nil {
                 return public_input_idx;
             }
 
+            const std::string &get_error() const {
+                return error;
+            }
+
         private:
             stack_frame<var> &frame;
             Assignment &assignmnt;
             size_t public_input_idx;
+            std::string error;
         };
     }    // namespace blueprint
 }    // namespace nil
