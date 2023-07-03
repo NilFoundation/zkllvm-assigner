@@ -79,40 +79,57 @@ namespace nil {
 
         private:
             // TODO(maksenov): handle it properly and move to another file
-            template<typename map_type>
-            void handle_scalar_cmp(const llvm::ICmpInst *inst, map_type &variables) {
-                var x = variables[inst->getOperand(0)];
-                var y = variables[inst->getOperand(1)];
-                bool res = false;
-                switch (inst->getPredicate()) {
+            bool compare(llvm::CmpInst::Predicate p, const var &x, const var &y) {
+                switch (p) {
                     case llvm::CmpInst::ICMP_EQ:
-                        res = var_value(assignmnt, x) == var_value(assignmnt, y);
+                        return var_value(assignmnt, x) == var_value(assignmnt, y);
                         break;
                     case llvm::CmpInst::ICMP_NE:
-                        res = var_value(assignmnt, x) != var_value(assignmnt, y);
+                        return var_value(assignmnt, x) != var_value(assignmnt, y);
                         break;
                     case llvm::CmpInst::ICMP_SGE:
                     case llvm::CmpInst::ICMP_UGE:
-                        res = var_value(assignmnt, x) >= var_value(assignmnt, y);
+                        return var_value(assignmnt, x) >= var_value(assignmnt, y);
                         break;
                     case llvm::CmpInst::ICMP_SGT:
                     case llvm::CmpInst::ICMP_UGT:
-                        res = var_value(assignmnt, x) > var_value(assignmnt, y);
+                        return var_value(assignmnt, x) > var_value(assignmnt, y);
                         break;
                     case llvm::CmpInst::ICMP_SLE:
                     case llvm::CmpInst::ICMP_ULE:
-                        res = var_value(assignmnt, x) <= var_value(assignmnt, y);
+                        return var_value(assignmnt, x) <= var_value(assignmnt, y);
                         break;
                     case llvm::CmpInst::ICMP_SLT:
                     case llvm::CmpInst::ICMP_ULT:
-                        res = var_value(assignmnt, x) < var_value(assignmnt, y);
+                        return var_value(assignmnt, x) < var_value(assignmnt, y);
                         break;
                     default:
                         UNREACHABLE("Unsupported predicate");
                         break;
                 }
+                return false;
+            }
+
+            template<typename map_type>
+            void handle_scalar_cmp(const llvm::ICmpInst *inst, map_type &variables) {
+                const var &lhs = variables[inst->getOperand(0)];
+                const var &rhs = variables[inst->getOperand(1)];
+                bool res = compare(inst->getPredicate(), lhs, rhs);
+
                 assignmnt.public_input(0, public_input_idx) = res;
                 variables[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
+            }
+
+            void handle_vector_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
+                const std::vector<var> &lhs = frame.vectors[inst->getOperand(0)];
+                const std::vector<var> &rhs = frame.vectors[inst->getOperand(1)];
+                ASSERT(lhs.size() == rhs.size());
+                std::vector<var> res;
+                for (size_t i = 0; i < lhs.size(); ++i) {
+                    assignmnt.public_input(0, public_input_idx) = compare(inst->getPredicate(), lhs[i], rhs[i]);
+                    res.emplace_back(0, public_input_idx++, false, var::column_type::public_input);
+                }
+                frame.vectors[inst] = res;
             }
 
             void handle_ptr_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
@@ -451,11 +468,14 @@ namespace nil {
                     }
                     case llvm::Instruction::ICmp: {
                         auto cmp_inst = llvm::cast<const llvm::ICmpInst>(inst);
-                        if (cmp_inst->getOperand(0)->getType()->isIntegerTy()
-                            || cmp_inst->getOperand(0)->getType()->isFieldTy())
+                        llvm::Type *cmp_type = cmp_inst->getOperand(0)->getType();
+                        if (cmp_type->isIntegerTy()|| cmp_type->isFieldTy())
                             handle_scalar_cmp(cmp_inst, variables);
-                        else if (cmp_inst->getOperand(0)->getType()->isPointerTy())
+                        else if (cmp_type->isPointerTy())
                             handle_ptr_cmp(cmp_inst, frame);
+                        else if (cmp_type->isVectorTy()) {
+                            handle_vector_cmp(cmp_inst, frame);
+                        }
                         else {
                             UNREACHABLE("Unsupported icmp operand type");
                         }
@@ -632,8 +652,9 @@ namespace nil {
                         frame.scalars[inst] = x;
                         return inst->getNextNonDebugInstruction();
                     }
-                        case llvm::Instruction::SExt: {
-                        // FIXME: Handle sext properly. For now just leave value as it is.
+                    case llvm::Instruction::SExt:
+                    case llvm::Instruction::ZExt: {
+                        // FIXME: Handle extensions properly. For now just leave value as it is.
                         var x = frame.scalars[inst->getOperand(0)];
                         frame.scalars[inst] = x;
                         return inst->getNextNonDebugInstruction();
