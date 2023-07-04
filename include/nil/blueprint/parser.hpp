@@ -335,10 +335,22 @@ namespace nil {
                 // Put constant operands to public input
                 for (int i = 0; i < inst->getNumOperands(); ++i) {
                     llvm::Value *op = inst->getOperand(i);
-                    if ((llvm::isa<llvm::ConstantField>(op) || llvm::isa<llvm::ConstantInt>(op)) &&
-                        variables.find(op) == variables.end()) {
+                    if (variables.find(op) != variables.end()) {
+                        continue;
+                    }
+                    if (llvm::isa<llvm::ConstantField>(op) || llvm::isa<llvm::ConstantInt>(op)) {
                         assignmnt.public_input(0, public_input_idx) = marshal_int_val(op);
                         variables[op] = var(0, public_input_idx++, false, var::column_type::public_input);
+                    }
+                    if (llvm::isa<llvm::UndefValue>(op)) {
+                        llvm::Type *undef_type = op->getType();
+                        if (undef_type->isIntegerTy() || undef_type->isFieldTy()) {
+                            variables[op] = undef_var;
+                        } else if (auto vector_type = llvm::dyn_cast<llvm::FixedVectorType>(undef_type)) {
+                            frame.vectors[op] = std::vector<var>(vector_type->getNumElements(), undef_var);
+                        } else {
+                            UNREACHABLE("Unhandled undef type");
+                        }
                     }
                 }
 
@@ -752,6 +764,11 @@ namespace nil {
                     assignmnt.public_input(0, public_input_idx) = marshal_int_val(global.getInitializer());
                     ptr.store_var(var(0, public_input_idx++, false, var::column_type::public_input));
                 }
+
+                // Initialize undef var once
+                assignmnt.public_input(0, public_input_idx) = typename BlueprintFieldType::value_type();
+                undef_var = var(0, public_input_idx++, false, var::column_type::public_input);
+
                 const llvm::Instruction *next_inst = &function.begin()->front();
                 while (true) {
                     next_inst = handle_instruction(next_inst);
@@ -773,6 +790,7 @@ namespace nil {
             bool finished = false;
             size_t public_input_idx = 0;
             GepResolver gep_resolver;
+            var undef_var;
         };
 
     }    // namespace blueprint
