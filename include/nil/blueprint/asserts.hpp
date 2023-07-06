@@ -37,11 +37,11 @@
 
 namespace nil {
     namespace blueprint {
-        void abort_process() {
+        [[noreturn]] void abort_process() {
             std::abort();
         }
 
-        void unreachable(const char *msg, const char *filename, unsigned line) {
+        [[noreturn]] void unreachable(const char *msg, const char *filename, unsigned line) {
             std::cerr << "UNREACHABLE at " << filename << ":" << line << std::endl;
             std::cerr <<'\t' << msg << std::endl;
             abort_process();

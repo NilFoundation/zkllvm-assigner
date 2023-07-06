@@ -185,8 +185,17 @@ namespace nil {
             template<typename VarType>
             Chunk<VarType> store_constant(llvm::Constant *constant_init) {
                 if (auto operation = llvm::dyn_cast<llvm::ConstantExpr>(constant_init)) {
-                    ASSERT(operation->isCast());
-                    constant_init = operation->getOperand(0);
+                    if (operation->isCast())
+                        constant_init = operation->getOperand(0);
+                    else if (operation->getOpcode() == llvm::Instruction::GetElementPtr) {
+                        for (int i = 1; i < operation->getNumOperands(); ++i) {
+                            int64_t idx = llvm::cast<llvm::ConstantInt>(operation->getOperand(i))->getSExtValue();
+                            ASSERT_MSG(idx == 0, "Only trivial GEP constant expressions are supported");
+                        }
+                        constant_init = operation->getOperand(0);
+                    } else {
+                        UNREACHABLE("Unsupported constant expression");
+                    }
                 }
                 if (auto CS = llvm::cast<llvm::GlobalVariable>(constant_init)) {
                     ASSERT(CS->isConstant());
