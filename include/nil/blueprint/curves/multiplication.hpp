@@ -41,7 +41,6 @@
 #include <nil/blueprint/component.hpp>
 #include <nil/blueprint/basic_non_native_policy.hpp>
 #include <nil/blueprint/components/algebra/curves/pasta/plonk/variable_base_scalar_mul_15_wires.hpp>
-#include <nil/blueprint/components/algebra/curves/pasta/plonk/decomposed_variable_base_scalar_mul_15_wires.hpp>
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
@@ -51,7 +50,7 @@ namespace nil {
         namespace detail {
 
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename CurveType>
-            typename components::curve_element_decomposed_variable_base_scalar_mul<
+            typename components::curve_element_variable_base_scalar_mul<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
                 CurveType, 15>::result_type
                 handle_native_curve_non_native_scalar_multiplication_component(
@@ -65,7 +64,7 @@ namespace nil {
                 using var = crypto3::zk::snark::plonk_variable<BlueprintFieldType>;
 
                 using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
-                using component_type = components::curve_element_decomposed_variable_base_scalar_mul<
+                using component_type = components::curve_element_variable_base_scalar_mul<
                     ArithmetizationType,CurveType, 15>;
                 component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {0}, {});
 
@@ -136,7 +135,7 @@ namespace nil {
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
-                        using component_type = components::curve_element_decomposed_variable_base_scalar_mul<
+                        using component_type = components::curve_element_variable_base_scalar_mul<
                                 ArithmetizationType, operating_curve_type, 15>;
                         typename component_type::result_type res =
                             detail::handle_native_curve_non_native_scalar_multiplication_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
