@@ -336,6 +336,29 @@ namespace nil {
                 return false;
             }
 
+            void handle_store(Pointer<var> ptr, const llvm::Value *val, stack_frame<var> & frame) {
+                llvm::Type *store_type = val->getType();
+                if (store_type->isPointerTy()) {
+                    ptr.store_pointer(frame.pointers[val]);
+                } else if (store_type->isIntegerTy() ||
+                            (store_type->isFieldTy() && field_arg_num<BlueprintFieldType>(store_type) == 1)) {
+                    ptr.store_var(frame.scalars[val]);
+                } else {
+                    ptr.store_vector(frame.vectors[val]);
+                }
+            }
+            void handle_load(Pointer<var> ptr, const llvm::Value *dest, stack_frame<var> & frame) {
+                llvm::Type *load_type = dest->getType();
+                if (load_type->isPointerTy()) {
+                    frame.pointers[dest] = ptr.load_pointer();
+                } else if (load_type->isIntegerTy() ||
+                            (load_type->isFieldTy() && field_arg_num<BlueprintFieldType>(load_type) == 1)) {
+                    frame.scalars[dest] = ptr.load_var();
+                } else {
+                    frame.vectors[dest] = ptr.load_vector();
+                }
+            }
+
             const llvm::Instruction *handle_instruction(const llvm::Instruction *inst) {
                 stack_frame<var> &frame = call_stack.top();
                 auto &variables = frame.scalars;
@@ -358,7 +381,9 @@ namespace nil {
                         } else if (auto vector_type = llvm::dyn_cast<llvm::FixedVectorType>(undef_type)) {
                             frame.vectors[op] = std::vector<var>(vector_type->getNumElements(), undef_var);
                         } else {
-                            UNREACHABLE("Unhandled undef type");
+                            ASSERT(undef_type->isAggregateType());
+                            frame.memory.emplace_back();
+                            frame.pointers[op] = Pointer<var>{&frame.memory.back(), 0};
                         }
                     }
                 }
@@ -469,7 +494,7 @@ namespace nil {
                             return inst->getNextNonDebugInstruction();
                         }
                         if (fun->empty()) {
-                            UNREACHABLE(("Function " + fun_name.str() + " has no implementation.").c_str());
+                            UNREACHABLE("Function " + fun_name.str() + " has no implementation.");
                         }
                         stack_frame<var> new_frame;
                         auto &new_variables = new_frame.scalars;
@@ -602,7 +627,7 @@ namespace nil {
                     }
                     case llvm::Instruction::Alloca:
                         frame.memory.emplace_back();
-                        call_stack.top().pointers[inst] = Pointer<var>{&frame.memory.back(), 0};
+                        frame.pointers[inst] = Pointer<var>{&frame.memory.back(), 0};
                         return inst->getNextNonDebugInstruction();
                     case llvm::Instruction::GetElementPtr: {
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(inst);
@@ -636,30 +661,33 @@ namespace nil {
                     case llvm::Instruction::Load: {
                         auto *load_inst = llvm::cast<llvm::LoadInst>(inst);
                         Pointer<var> ptr = resolve_pointer(frame, load_inst->getPointerOperand());
-                        llvm::Type *load_type = load_inst->getType();
-                        if (load_type->isPointerTy()) {
-                            frame.pointers[load_inst] = ptr.load_pointer();
-                        } else if (load_type->isIntegerTy() ||
-                                   (load_type->isFieldTy() && field_arg_num<BlueprintFieldType>(load_type) == 1)) {
-                            variables[load_inst] = ptr.load_var();
-                        } else {
-                            frame.vectors[load_inst] = ptr.load_vector();
-                        }
+                        handle_load(ptr, load_inst, frame);
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Store: {
                         auto *store_inst = llvm::cast<llvm::StoreInst>(inst);
                         Pointer<var> ptr = resolve_pointer(frame, store_inst->getPointerOperand());
                         const llvm::Value *val = store_inst->getValueOperand();
-                        llvm::Type *store_type = val->getType();
-                        if (store_type->isPointerTy()) {
-                            ptr.store_pointer(frame.pointers[val]);
-                        } else if (store_type->isIntegerTy() ||
-                                   (store_type->isFieldTy() && field_arg_num<BlueprintFieldType>(store_type) == 1)) {
-                            ptr.store_var(variables[val]);
-                        } else {
-                            ptr.store_vector(frame.vectors[val]);
-                        }
+                        handle_store(ptr, val, frame);
+                        return inst->getNextNonDebugInstruction();
+                    }
+                    case llvm::Instruction::InsertValue: {
+                        auto *insert_val_inst = llvm::cast<llvm::InsertValueInst>(inst);
+                        frame.memory.emplace_back();
+                        auto res = Pointer<var>{&frame.memory.back(), 0};
+                        frame.pointers[inst] = res;
+                        Pointer<var> src = frame.pointers[inst->getOperand(0)];
+                        res.memcpy(src);
+                        int idx = gep_resolver.get_flat_index(inst->getType(), insert_val_inst->getIndices());
+                        handle_store(res.adjust(idx), inst->getOperand(1), frame);
+                        return inst->getNextNonDebugInstruction();
+                    }
+                    case llvm::Instruction::ExtractValue: {
+                        auto *extract_val_inst = llvm::cast<llvm::ExtractValueInst>(inst);
+                        const llvm::Value *aggregate = extract_val_inst->getAggregateOperand();
+                        Pointer<var> ptr = frame.pointers[aggregate];
+                        int idx = gep_resolver.get_flat_index(aggregate->getType(), extract_val_inst->getIndices());
+                        handle_load(ptr.adjust(idx), extract_val_inst, frame);
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::BitCast: {
@@ -699,6 +727,12 @@ namespace nil {
                                 auto &upper_frame_vectors = call_stack.top().vectors;
                                 auto res = extracted_frame.vectors[ret_val];
                                 upper_frame_vectors[extracted_frame.caller] = res;
+                            } else if (ret_val->getType()->isAggregateType()) {
+                                auto &upper_frame_pointers = call_stack.top().pointers;
+                                call_stack.top().memory.emplace_back();
+                                Pointer<var> new_ptr = Pointer<var> {&call_stack.top().memory.back(), 0};
+                                new_ptr.memcpy(extracted_frame.pointers[ret_val]);
+                                upper_frame_pointers[extracted_frame.caller] = new_ptr;
                             } else {
                                 auto &upper_frame_variables = call_stack.top().scalars;
                                 upper_frame_variables[extracted_frame.caller] = extracted_frame.scalars[ret_val];
@@ -708,8 +742,7 @@ namespace nil {
                     }
 
                     default:
-                        std::cerr << inst->getOpcodeName() << std::endl;
-                        UNREACHABLE("unsupported opcode type");
+                        UNREACHABLE(std::string("Unsupported opcode type: ") + inst->getOpcodeName());
                 }
                 return nullptr;
             }

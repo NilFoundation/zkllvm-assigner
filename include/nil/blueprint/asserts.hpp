@@ -47,6 +47,10 @@ namespace nil {
             abort_process();
         }
 
+        [[noreturn]] void unreachable(const std::string &msg, const char *filename, unsigned line) {
+            unreachable(msg.c_str(),filename, line);
+        }
+
         void assert_check(bool expr, const char *expr_str, const char *filename, unsigned line, const char *msg = "") {
             if (!expr) {
                 std::cerr << "Assertion failed at " << filename << ":" << line << ":" << std::endl;

@@ -56,15 +56,16 @@ namespace nil {
 
         public:
             GepResolver() = default;
-            int get_flat_index(const llvm::Type *type, const std::vector<int> &gep_indices) {
+            template <typename Array>
+            int get_flat_index(const llvm::Type *type, const Array &gep_indices) {
                 ASSERT(type->isAggregateType());
                 if (type_cache.find(type) == type_cache.end())
                     resolve_type(type);
                 auto *type_record = &type_cache[type];
                 for (unsigned i = 0; i < gep_indices.size() - 1; ++i) {
-                    type_record = &type_cache[type_record->indices[i].type];
+                    type_record = &type_cache[type_record->indices[gep_indices[i]].type];
                 }
-                return type_record->indices[gep_indices.size() - 1].idx;
+                return type_record->indices[gep_indices.back()].idx;
             }
 
             unsigned get_type_size(const llvm::Type *type) {
