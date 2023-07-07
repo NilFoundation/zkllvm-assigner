@@ -803,6 +803,22 @@ namespace nil {
                             // Final return
                             ASSERT(call_stack.size() == 0);
                             finished = true;
+
+                            if (inst->getNumOperands() != 0) {
+                                llvm::Value *ret_val = inst->getOperand(0);
+                                if (ret_val->getType()->isPointerTy()) {
+                                    auto res = extracted_frame.pointers[ret_val];
+                                } else if (ret_val->getType()->isVectorTy()) {
+                                    std::vector<var> res = extracted_frame.vectors[ret_val];
+                                    for (var x : res) {
+                                        std::cout << var_value(assignmnt, x).data << " ";
+                                    }
+                                    std::cout << std::endl;
+                                } else {
+                                    std::cout << var_value(assignmnt, extracted_frame.scalars[ret_val]).data << std::endl;
+                                }
+                            }
+
                             return nullptr;
                         }
                         if (inst->getNumOperands() != 0) {
