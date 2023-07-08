@@ -277,9 +277,12 @@ namespace nil {
                         constexpr const std::int32_t block_size = 2;
                         constexpr const std::int32_t input_blocks_amount = 2;
 
-                        auto &block_arg = frame.vectors[inst->getOperand(0)];
+                        auto &block_arg0 = frame.vectors[inst->getOperand(0)];
+                        auto &block_arg1 = frame.vectors[inst->getOperand(1)];
                         std::array<var, input_blocks_amount * block_size> input_block_vars;
-                        std::copy(block_arg.begin(), block_arg.end(), input_block_vars.begin());
+
+                        std::copy(block_arg0.begin(), block_arg0.end(), input_block_vars.begin());
+                        std::copy(block_arg1.begin(), block_arg1.end(), input_block_vars.begin() + block_size);
 
                         typename component_type::input_type instance_input = {input_block_vars};
 
