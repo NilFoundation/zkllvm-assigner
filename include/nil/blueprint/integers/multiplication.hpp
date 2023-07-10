@@ -45,7 +45,7 @@ namespace nil {
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         void handle_integer_multiplication_component(
             const llvm::Instruction *inst,
-            stack_frame<crypto3::zk::snark::plonk_variable<BlueprintFieldType>> &frame,
+            stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,

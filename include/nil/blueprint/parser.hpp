@@ -80,7 +80,7 @@ namespace nil {
 
             using ArithmetizationType =
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
-            using var = crypto3::zk::snark::plonk_variable<BlueprintFieldType>;
+            using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
             circuit<ArithmetizationType> bp;
             assignment<ArithmetizationType> assignmnt;
