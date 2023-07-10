@@ -63,6 +63,7 @@
 #include <nil/blueprint/curves/addition.hpp>
 #include <nil/blueprint/curves/subtraction.hpp>
 #include <nil/blueprint/curves/multiplication.hpp>
+#include <nil/blueprint/curves/init.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -330,6 +331,10 @@ namespace nil {
                     case llvm::Intrinsic::lifetime_end:
                         // Nothing to do
                         return true;
+                    case llvm::Intrinsic::assigner_curve_init: {
+                        handle_curve_init(inst, frame);
+                        return true;
+                    }
                     default:
                         UNREACHABLE("Unexpected intrinsic!");
                 }
