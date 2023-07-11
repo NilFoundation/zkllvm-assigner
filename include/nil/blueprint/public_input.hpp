@@ -114,8 +114,14 @@ namespace nil {
 
             switch (arg_field_type) {
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
-                    using non_native_field = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
-                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field>;
+                    using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
+                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
+                    if(glued_non_native > non_native_field_type::modulus) {
+                        std::cerr << std::hex;
+                        std::cerr << "0x" << glued_non_native << " >\n";
+                        std::cerr << "0x" << non_native_field_type::modulus << "\n";
+                        UNREACHABLE("value does not fit into ed25519 base field!");
+                    }
                     auto res = non_native_policy::chop_non_native(glued_non_native);
                     std::vector<typename BlueprintFieldType::value_type> result;
                     for (std::size_t i = 0; i < res.size(); i++) {
@@ -124,13 +130,25 @@ namespace nil {
                     return result;
                 }
                 case llvm::GALOIS_FIELD_PALLAS_BASE: {
+                    if(glued_non_native > BlueprintFieldType::modulus) {
+                        std::cerr << std::hex;
+                        std::cerr << "0x" << glued_non_native << " >\n";
+                        std::cerr << "0x" << BlueprintFieldType::modulus << "\n";
+                        UNREACHABLE("value does not fit into pallas base field!");
+                    }
                     std::vector<typename BlueprintFieldType::value_type> result;
                     result.push_back(glued_non_native);
                     return result;
                 }
                 case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
-                    using non_native_field = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
-                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field>;
+                    using non_native_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
+                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
+                    if(glued_non_native > non_native_field_type::modulus) {
+                        std::cerr << std::hex;
+                        std::cerr << "0x" << glued_non_native << " >\n";
+                        std::cerr << "0x" << non_native_field_type::modulus << "\n";
+                        UNREACHABLE("value does not fit into pallas scalar field!");
+                    }
                     auto res = non_native_policy::chop_non_native(glued_non_native);
                     std::vector<typename BlueprintFieldType::value_type> result;
                     for (std::size_t i = 0; i < res.size(); i++) {
@@ -152,6 +170,10 @@ namespace nil {
                 assignmnt(assignmnt), public_input_idx(0) {}
 
             bool parse_scalar(const boost::json::value &value, typename BlueprintFieldType::value_type &out) {
+                const std::size_t buflen = 256;
+                char buf[buflen];
+                std::size_t numlen = 0;
+
                 switch (value.kind()) {
                 case boost::json::kind::int64:
                     out = value.as_int64();
@@ -160,15 +182,16 @@ namespace nil {
                     out = value.as_uint64();
                     return true;
                 case boost::json::kind::string: {
-                    char buf[256];
-                    if (value.as_string().size() >= sizeof(buf)) {
-                        std::cerr << "Input does not fit into buffer" << std::endl;
-                        return false;
+                    numlen = value.as_string().size();
+                    if (numlen > buflen - 1) {
+                        std::cerr << "value " << value.as_string() << " exceeds buffer size (" << buflen - 1 << ")\n";
+                        UNREACHABLE("value size exceeds buffer size"); 
                     }
-                    value.as_string().copy(buf, sizeof(buf));
+                    value.as_string().copy(buf, numlen);
+                    buf[numlen] = '\0';
                     typename BlueprintFieldType::extended_integral_type number(buf);
                     if (number >= BlueprintFieldType::modulus) {
-                        std::cerr << "Input does not fit into buffer" << std::endl;
+                        std::cerr << "Input does not fit into BlueprintFieldType" << std::endl;
                         return false;
                     }
                     out = number;
@@ -244,9 +267,11 @@ namespace nil {
             std::vector<var> process_non_native_field (const boost::json::value &value, llvm::GaloisFieldKind arg_field_type) {
                 std::vector<var> res;
                 std::vector<typename BlueprintFieldType::value_type> chunked_non_native_field_element;
-                char buf[256];
                 typename BlueprintFieldType::extended_integral_type non_native_number;
 
+                const std::size_t buflen = 256;
+                char buf[buflen];
+                std::size_t numlen = 0;
 
                 switch (value.kind()) {
                 case boost::json::kind::int64:
@@ -264,11 +289,13 @@ namespace nil {
                     break;
 
                 case boost::json::kind::string:
-                    if (value.as_string().size() >= sizeof(buf)) {
-                        std::cerr << "Input does not fit into buffer" << std::endl;
-                        assert(false);
+                    numlen = value.as_string().size();
+                    if (numlen > buflen - 1) {
+                        std::cerr << "value " << value.as_string() << " exceeds buffer size (" << buflen - 1 << ")\n";
+                        UNREACHABLE("value size exceeds buffer size"); 
                     }
-                    value.as_string().copy(buf, sizeof(buf));
+                    value.as_string().copy(buf, numlen);
+                    buf[numlen] = '\0';
                     non_native_number = typename BlueprintFieldType::extended_integral_type(buf);
 
                     chunked_non_native_field_element = extended_integral_into_vector<BlueprintFieldType> (arg_field_type, non_native_number);
