@@ -41,6 +41,7 @@
 #include <nil/blueprint/component.hpp>
 #include <nil/blueprint/basic_non_native_policy.hpp>
 #include <nil/blueprint/components/algebra/curves/pasta/plonk/unified_addition.hpp>
+#include <nil/blueprint/components/algebra/curves/edwards/plonk/non_native/complete_addition.hpp>
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
@@ -74,6 +75,66 @@ namespace nil {
 
                 var_ec_point P = {vectors[operand0][0], vectors[operand0][1]};
                 var_ec_point Q = {vectors[operand1][0], vectors[operand1][1]};
+
+                typename component_type::input_type addition_input = {{P.X, P.Y}, {Q.X, Q.Y}};
+
+                components::generate_circuit(component_instance, bp, assignment, addition_input, start_row);
+                return components::generate_assignments(
+                            component_instance, assignment, addition_input, start_row);
+            }
+
+            template<typename BlueprintFieldType, typename ArithmetizationParams, typename CurveType, typename Ed25519Type>
+            typename components::complete_addition<
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                CurveType,
+                Ed25519Type,
+                9,
+                basic_non_native_policy<BlueprintFieldType>>::result_type
+                handle_non_native_curve_addition_component(
+                    llvm::Value *operand0, llvm::Value *operand1,
+                    typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>>> &vectors,
+                    circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                        &assignment,
+                    std::uint32_t start_row) {
+
+                using var = crypto3::zk::snark::plonk_variable<BlueprintFieldType>;
+
+                using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
+                using component_type = components::complete_addition<ArithmetizationType, CurveType, 
+                            Ed25519Type, 9, basic_non_native_policy<BlueprintFieldType>>;
+                component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
+
+                using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
+
+                struct var_ec_point {
+                    typename non_native_policy_type::template field<typename Ed25519Type::base_field_type>::non_native_var_type X;
+                    typename non_native_policy_type::template field<typename Ed25519Type::base_field_type>::non_native_var_type Y;
+                };
+
+                var_ec_point P = {
+                    {
+                        vectors[operand0][0], 
+                        vectors[operand0][1], 
+                        vectors[operand0][2], 
+                        vectors[operand0][3]
+                    }, {
+                        vectors[operand0][4],
+                        vectors[operand0][5],
+                        vectors[operand0][6],
+                        vectors[operand0][7]}};
+                    
+                var_ec_point Q = {
+                    {
+                        vectors[operand1][0], 
+                        vectors[operand1][1], 
+                        vectors[operand1][2], 
+                        vectors[operand1][3]
+                    }, {
+                        vectors[operand1][4],
+                        vectors[operand1][5],
+                        vectors[operand1][6],
+                        vectors[operand1][7]}};
 
                 typename component_type::input_type addition_input = {{P.X, P.Y}, {Q.X, Q.Y}};
 
@@ -137,13 +198,32 @@ namespace nil {
                 }
 
                 case llvm::ELLIPTIC_CURVE_CURVE25519: {
-                    using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
+                    using operating_curve_type = typename crypto3::algebra::curves::ed25519;
+                    using operating_field_type = operating_curve_type::base_field_type;
+                    using pallas_curve_type = typename crypto3::algebra::curves::pallas;
+                    if (!std::is_same<BlueprintFieldType, pallas_curve_type::base_field_type>::value) {
+                        UNREACHABLE("pallas_curve_type is used as template parameter, if BlueprintFieldType is not pallas::base_field_type, then code must be re-written");
+                    }
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         UNREACHABLE("native curve25519 addition is not implemented");
                     } else {
-                        UNREACHABLE("non-native curve25519 addition is not implemented");
-
+                        using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
+                        using component_type = components::complete_addition<ArithmetizationType, pallas_curve_type, 
+                            operating_curve_type, 9, basic_non_native_policy<BlueprintFieldType>>;
+                        typename component_type::result_type res =
+                            detail::handle_non_native_curve_addition_component<BlueprintFieldType, ArithmetizationParams, pallas_curve_type, operating_curve_type>(
+                                operand0, operand1, frame.vectors, bp, assignment, start_row);
+                        std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>> res_vector = {
+                            res.output.x[0],
+                            res.output.x[1],
+                            res.output.x[2],
+                            res.output.x[3],
+                            res.output.y[0],
+                            res.output.y[1],
+                            res.output.y[2],
+                            res.output.y[3]};
+                        frame.vectors[inst] = res_vector;
                     }
 
                     break;

@@ -91,8 +91,10 @@ namespace nil {
                 9,
                 basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_non_native_curve_native_scalar_multiplication_component(
-                    llvm::Value *operand_curve, llvm::Value *operand_field,
+                    llvm::Value *operand_curve, 
+                    llvm::Value *operand_field,
                     typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>>> &vectors,
+                    typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<BlueprintFieldType>> &variables,
                     circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
@@ -103,7 +105,7 @@ namespace nil {
                 using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
                 using component_type = components::variable_base_multiplication<ArithmetizationType, CurveType, 
                             Ed25519Type, 9, basic_non_native_policy<BlueprintFieldType>>;
-                component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {}, {});
+                component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
 
                 using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
@@ -123,7 +125,7 @@ namespace nil {
                      vectors[operand_curve][6],
                      vectors[operand_curve][7]}};
 
-                var b = vectors[operand_field][0];
+                var b = variables[operand_field];
 
                 typename component_type::input_type addition_input = {{T.X, T.Y}, b};
 
@@ -217,7 +219,13 @@ namespace nil {
                             operating_curve_type, 9, basic_non_native_policy<BlueprintFieldType>>;
                         typename component_type::result_type res =
                             detail::handle_non_native_curve_native_scalar_multiplication_component<BlueprintFieldType, ArithmetizationParams, pallas_curve_type, operating_curve_type>(
-                                operand_curve, operand_field, frame.vectors, bp, assignment, start_row);
+                                operand_curve, 
+                                operand_field, 
+                                frame.vectors, 
+                                frame.scalars, 
+                                bp, 
+                                assignment, 
+                                start_row);
                         
                         std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>> res_vector = 
                         {
