@@ -129,12 +129,31 @@ namespace nil {
                     }
                     return result;
                 }
+                case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
+                    using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::scalar_field_type;
+                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
+                    if(glued_non_native > non_native_field_type::modulus) {
+                        std::cerr << std::hex;
+                        std::cerr << "0x" << glued_non_native << " >\n";
+                        std::cerr << "0x" << non_native_field_type::modulus << "\n";
+                        UNREACHABLE("value does not fit into ed25519 scalar field!");
+                    }
+                    if (nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::scalar_field_type>::ratio != 1) {
+                        UNREACHABLE("ed25519 scalar field size must be 1 for used BlueprintFieldType");
+                    }
+                    std::vector<typename BlueprintFieldType::value_type> result;
+                    result.push_back(glued_non_native);
+                    return result;
+                }
                 case llvm::GALOIS_FIELD_PALLAS_BASE: {
                     if(glued_non_native > BlueprintFieldType::modulus) {
                         std::cerr << std::hex;
                         std::cerr << "0x" << glued_non_native << " >\n";
                         std::cerr << "0x" << BlueprintFieldType::modulus << "\n";
                         UNREACHABLE("value does not fit into pallas base field!");
+                    }
+                    if (nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::pallas::base_field_type>::ratio != 1) {
+                        UNREACHABLE("pallas base field size must be 1 for used BlueprintFieldType");
                     }
                     std::vector<typename BlueprintFieldType::value_type> result;
                     result.push_back(glued_non_native);
