@@ -587,6 +587,27 @@ namespace nil {
                         UNREACHABLE("Incoming value for phi was not found");
                         break;
                     }
+                    case llvm::Instruction::Switch: {
+                        // Save current basic block to resolve PHI inst further
+                        predecessor = inst->getParent();
+
+                        auto switch_inst = llvm::cast<llvm::SwitchInst>(inst);
+                        llvm::Value *cond = switch_inst->getCondition();
+                        ASSERT(cond->getType()->isIntegerTy());
+                        unsigned bit_width = llvm::cast<llvm::IntegerType>(cond->getType())->getBitWidth();
+                        ASSERT(bit_width <= 64);
+                        auto cond_var = var_value(assignmnt, frame.scalars[cond]);
+                        auto cond_val = llvm::APInt(
+                            bit_width,
+                            (int64_t) static_cast<typename BlueprintFieldType::integral_type>(cond_var.data));
+                        for (auto Case : switch_inst->cases()) {
+                            if (Case.getCaseValue()->getValue().eq(cond_val)) {
+                                return &Case.getCaseSuccessor()->front();
+                            }
+                        }
+                        return &switch_inst->getDefaultDest()->front();
+                        break;
+                    }
                     case llvm::Instruction::InsertElement: {
                         auto insert_inst = llvm::cast<llvm::InsertElementInst>(inst);
                         llvm::Value *vec = insert_inst->getOperand(0);
