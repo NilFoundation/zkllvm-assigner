@@ -184,7 +184,7 @@ namespace nil {
             }
 
             template<typename VarType>
-            Chunk<VarType> store_constant(llvm::Constant *constant_init) {
+            Chunk<VarType> store_constant(const llvm::Constant *constant_init) {
                 if (auto operation = llvm::dyn_cast<llvm::ConstantExpr>(constant_init)) {
                     if (operation->isCast())
                         constant_init = operation->getOperand(0);
@@ -198,7 +198,7 @@ namespace nil {
                         UNREACHABLE("Unsupported constant expression");
                     }
                 }
-                if (auto CS = llvm::cast<llvm::GlobalVariable>(constant_init)) {
+                if (auto CS = llvm::dyn_cast<llvm::GlobalVariable>(constant_init)) {
                     ASSERT(CS->isConstant());
                     constant_init = CS->getInitializer();
                 }
@@ -207,10 +207,10 @@ namespace nil {
                 // So we use deep-first search for scalar elements of the struct (or array)
                 Chunk<var> chunk;
                 unsigned idx = 0;
-                std::stack<llvm::Constant *> component_stack;
+                std::stack<const llvm::Constant *> component_stack;
                 component_stack.push(constant_init);
                 while (!component_stack.empty()) {
-                    llvm::Constant *constant = component_stack.top();
+                    const llvm::Constant *constant = component_stack.top();
                     component_stack.pop();
                     llvm::Type *type = constant->getType();
                     if (!type->isAggregateType()) {
@@ -648,7 +648,7 @@ namespace nil {
                             gep_indices.push_back(gep_index);
                         }
                         const llvm::Type *gep_ty = gep->getSourceElementType();
-                        Pointer<var> ptr = frame.pointers[gep->getPointerOperand()];
+                        Pointer<var> ptr = resolve_pointer(frame, gep->getPointerOperand());
 
                         int initial_ptr_adjustment = gep_resolver.get_type_size(gep_ty) * gep_indices[0];
                         ptr = ptr.adjust(initial_ptr_adjustment);
@@ -803,16 +803,25 @@ namespace nil {
                 call_stack.emplace(std::move(base_frame));
 
                 for (const llvm::GlobalVariable &global : module.getGlobalList()) {
-                    global_data.emplace_back();
-                    auto ptr = Pointer<var>(&global_data.back(), 0);
-                    globals[&global] = ptr;
-                    if (!global.getInitializer()->getType()->isIntegerTy() &&
-                        !global.getInitializer()->getType()->isFieldTy()) {
-                        // Only int and field constants are supported for now
-                        continue;
+
+                    Pointer<var> ptr;
+                    const llvm::Constant *initializer = global.getInitializer();
+                    if (initializer->getType()->isAggregateType()) {
+                        auto r = store_constant<var>(initializer);
+                        global_data.push_back(r);
+                        ptr = Pointer<var>(&global_data.back(), 0);
+                    } else if (initializer->getType()->isIntegerTy() || initializer->getType()->isFieldTy()) {
+                        global_data.emplace_back();
+                        ptr = Pointer<var>(&global_data.back(), 0);
+                        assignmnt.public_input(0, public_input_idx) = marshal_int_val(initializer);
+                        ptr.store_var(var(0, public_input_idx++, false, var::column_type::public_input));
+                    } else {
+                        // Unhandled global variable type
+                        // We don't want to panic right here, because this value is likely unused
+                        // So just store null pointer to crash on its usage
+                        ptr = Pointer<var>(nullptr, 0);
                     }
-                    assignmnt.public_input(0, public_input_idx) = marshal_int_val(global.getInitializer());
-                    ptr.store_var(var(0, public_input_idx++, false, var::column_type::public_input));
+                    globals[&global] = ptr;
                 }
 
                 // Initialize undef var once
