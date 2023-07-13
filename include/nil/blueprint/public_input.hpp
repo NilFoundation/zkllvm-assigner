@@ -372,6 +372,9 @@ namespace nil {
                 if (elem_type->isCurveTy()) {
                     return curve_arg_num<BlueprintFieldType>(elem_type);
                 }
+                if (elem_type->isIntegerTy()) {
+                    return 1;
+                }
                 if (auto vector_type = llvm::dyn_cast<llvm::FixedVectorType>(elem_type)) {
                     ASSERT(vector_type->getElementType()->isFieldTy());
                     return vector_type->getNumElements();
