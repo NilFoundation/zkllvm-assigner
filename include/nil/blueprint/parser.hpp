@@ -297,6 +297,34 @@ namespace nil {
                         frame.vectors[inst] = output;
                         return true;
                     }
+                    case llvm::Intrinsic::assigner_bit_decomposition64: {
+                        var input_var = frame.scalars[inst->getOperand(0)];
+                        auto input_var_value = var_value(assignmnt, input_var);
+
+                        std::vector<var> component_result;
+
+                        for (std::size_t i = 0; i < 64; ++i) {
+                            assignmnt.public_input(0, public_input_idx) = 1;
+                            component_result.emplace_back( var(0, public_input_idx++, false, var::column_type::public_input) );
+                        }
+
+                        frame.vectors[inst] = component_result;
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_bit_composition128: {
+
+                        auto &block_arg0 = frame.vectors[inst->getOperand(0)];
+                        auto &block_arg1 = frame.vectors[inst->getOperand(1)];
+                        
+                        std::array<var, 128> input_block_vars;
+
+                        std::copy(block_arg0.begin(), block_arg0.end(), input_block_vars.begin());
+                        std::copy(block_arg1.begin(), block_arg1.end(), input_block_vars.begin() + 64);
+
+                        assignmnt.public_input(0, public_input_idx) = 1;
+                        frame.scalars[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
+                        return true;
+                    }
                     case llvm::Intrinsic::memcpy: {
                         Pointer<var> dst = resolve_pointer(frame, inst->getOperand(0));
                         llvm::Value *src_val = inst->getOperand(1);
