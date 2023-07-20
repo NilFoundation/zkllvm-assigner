@@ -47,6 +47,7 @@
 #include "llvm/IR/TypedPointerType.h"
 #include "llvm/IR/Intrinsics.h"
 
+#include <nil/blueprint/logger.hpp>
 #include <nil/blueprint/gep_resolver.hpp>
 #include <nil/blueprint/public_input.hpp>
 #include <nil/blueprint/stack.hpp>
@@ -70,6 +71,12 @@ namespace nil {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         struct parser {
+
+            parser(bool detailed_logging) {
+                if (detailed_logging) {
+                    log.set_level(logger::level::DEBUG);
+                }
+            }
 
             using ArithmetizationType =
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
@@ -396,6 +403,7 @@ namespace nil {
             }
 
             const llvm::Instruction *handle_instruction(const llvm::Instruction *inst) {
+                log.log_instruction(inst);
                 stack_frame<var> &frame = call_stack.top();
                 auto &variables = frame.scalars;
                 std::uint32_t start_row = assignmnt.allocated_rows();
@@ -899,6 +907,7 @@ namespace nil {
             size_t public_input_idx = 0;
             GepResolver gep_resolver;
             var undef_var;
+            logger log;
         };
 
     }    // namespace blueprint
