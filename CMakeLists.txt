@@ -31,6 +31,7 @@ endmacro()
 cm_project(assigner WORKSPACE_NAME ${CMAKE_WORKSPACE_NAME} LANGUAGES C CXX)
 
 cm_find_package(CM)
+find_package(spdlog REQUIRED)
 include(CMDeploy)
 include(FindPkgConfig)
 
@@ -93,7 +94,8 @@ target_link_libraries(${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME} INTERFACE
                       marshalling::core
                       marshalling::crypto3_algebra
                       marshalling::crypto3_multiprecision
-                      marshalling::crypto3_zk)
+                      marshalling::crypto3_zk
+                      spdlog::spdlog_header_only)
 
 cm_deploy(TARGETS ${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME}
           INCLUDE include
