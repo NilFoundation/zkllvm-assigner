@@ -442,7 +442,12 @@ namespace nil {
                     else if(elem_type->isFieldTy()){
                         if (json_arr[i].is_object()) {
                             elem_value = process_field(elem_type, json_arr[i].as_object());
-                            frame.memory.back().store_vector(elem_value, i);
+                            if (elem_value.size() == 1) {
+                                frame.memory.back().store_var(elem_value[0], i);
+                            } 
+                            else {
+                                frame.memory.back().store_vector(elem_value, i);
+                            }
                         } else {
                             UNREACHABLE("field in the array is not json object");
                         }
