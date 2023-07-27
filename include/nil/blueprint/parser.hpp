@@ -57,6 +57,8 @@
 #include <nil/blueprint/integers/multiplication.hpp>
 #include <nil/blueprint/integers/division.hpp>
 
+#include <nil/blueprint/comparison/comparison.hpp>
+
 #include <nil/blueprint/fields/addition.hpp>
 #include <nil/blueprint/fields/subtraction.hpp>
 #include <nil/blueprint/fields/multiplication.hpp>
@@ -90,46 +92,16 @@ namespace nil {
             assignment<ArithmetizationType> assignmnt;
 
         private:
-            // TODO(maksenov): handle it properly and move to another file
-            bool compare(llvm::CmpInst::Predicate p, const var &x, const var &y) {
-                switch (p) {
-                    case llvm::CmpInst::ICMP_EQ:
-                        return var_value(assignmnt, x) == var_value(assignmnt, y);
-                        break;
-                    case llvm::CmpInst::ICMP_NE:
-                        return var_value(assignmnt, x) != var_value(assignmnt, y);
-                        break;
-                    case llvm::CmpInst::ICMP_SGE:
-                    case llvm::CmpInst::ICMP_UGE:
-                        return var_value(assignmnt, x) >= var_value(assignmnt, y);
-                        break;
-                    case llvm::CmpInst::ICMP_SGT:
-                    case llvm::CmpInst::ICMP_UGT:
-                        return var_value(assignmnt, x) > var_value(assignmnt, y);
-                        break;
-                    case llvm::CmpInst::ICMP_SLE:
-                    case llvm::CmpInst::ICMP_ULE:
-                        return var_value(assignmnt, x) <= var_value(assignmnt, y);
-                        break;
-                    case llvm::CmpInst::ICMP_SLT:
-                    case llvm::CmpInst::ICMP_ULT:
-                        return var_value(assignmnt, x) < var_value(assignmnt, y);
-                        break;
-                    default:
-                        UNREACHABLE("Unsupported predicate");
-                        break;
-                }
-                return false;
-            }
 
             template<typename map_type>
             void handle_scalar_cmp(const llvm::ICmpInst *inst, map_type &variables) {
                 const var &lhs = variables[inst->getOperand(0)];
                 const var &rhs = variables[inst->getOperand(1)];
-                bool res = compare(inst->getPredicate(), lhs, rhs);
 
-                assignmnt.public_input(0, public_input_idx) = res;
-                variables[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
+                std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
+                variables[inst] = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
+                    inst->getPredicate(), lhs, rhs, bitness,
+                    bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
             }
 
             void handle_vector_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
@@ -137,9 +109,13 @@ namespace nil {
                 const std::vector<var> &rhs = frame.vectors[inst->getOperand(1)];
                 ASSERT(lhs.size() == rhs.size());
                 std::vector<var> res;
+                
+                // Todo: this either isn't a proper way to handle vector element size or it's not implemented correctly
+                std::size_t bitness = inst->getOperand(0)->getType()->getScalarType()->getPrimitiveSizeInBits();
                 for (size_t i = 0; i < lhs.size(); ++i) {
-                    assignmnt.public_input(0, public_input_idx) = compare(inst->getPredicate(), lhs[i], rhs[i]);
-                    res.emplace_back(0, public_input_idx++, false, var::column_type::public_input);
+                    res.emplace_back(handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
+                        inst->getPredicate(), lhs[i], rhs[i], bitness,
+                        bp, assignmnt, assignmnt.allocated_rows(), public_input_idx));
                 }
                 frame.vectors[inst] = res;
             }
