@@ -93,14 +93,14 @@ namespace nil {
                 handle_non_native_curve_native_scalar_multiplication_component(
                     llvm::Value *operand_curve, 
                     llvm::Value *operand_field,
-                    typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>>> &vectors,
-                    typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<BlueprintFieldType>> &variables,
+                    typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
+                    typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
                     circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
                     std::uint32_t start_row) {
 
-                using var = crypto3::zk::snark::plonk_variable<BlueprintFieldType>;
+                using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
                 using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
                 using component_type = components::variable_base_multiplication<ArithmetizationType, CurveType, 
@@ -227,7 +227,7 @@ namespace nil {
                                 assignment, 
                                 start_row);
                         
-                        std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>> res_vector = 
+                        std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = 
                         {
                             res.output.x[0],
                             res.output.x[1],
@@ -239,7 +239,7 @@ namespace nil {
                             res.output.y[3]
                         };
 
-                        frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<BlueprintFieldType>>(
+                        frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
                             std::begin(res_vector), std::end(res_vector));
                     }
 
