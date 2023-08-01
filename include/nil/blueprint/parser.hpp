@@ -186,6 +186,16 @@ namespace nil {
                 if (llvm::isa<llvm::GlobalVariable>(ptr_value)) {
                     return globals[ptr_value];
                 }
+                if (auto *operation = llvm::dyn_cast<llvm::ConstantExpr>(ptr_value)) {
+                    if (operation->isCast()) {
+                        return resolve_pointer(frame, operation->getOperand(0));
+                    }
+                    ASSERT(operation->getOpcode() == llvm::Instruction::GetElementPtr);
+                    llvm::Instruction *temp_inst = operation->getAsInstruction();
+                    auto res = handle_gep(llvm::cast<llvm::GetElementPtrInst>(temp_inst), frame);
+                    temp_inst->deleteValue();
+                    return res;
+                }
                 ASSERT(frame.pointers.find(ptr_value) != frame.pointers.end());
                 return frame.pointers[ptr_value];
             }
@@ -220,6 +230,11 @@ namespace nil {
                     const llvm::Constant *constant = component_stack.top();
                     component_stack.pop();
                     llvm::Type *type = constant->getType();
+                    if (type->isPointerTy()) {
+                        ASSERT_MSG(constant->isZeroValue(), "Only zero initializers are supported for pointers");
+                        chunk.store_pointer(Pointer<var>(), idx++);
+                        continue;
+                    }
                     if (!type->isAggregateType()) {
                         assignmnt.public_input(0, public_input_idx) = marshal_int_val(constant);
                         auto variable = var(0, public_input_idx++, false, var::column_type::public_input);
@@ -322,7 +337,7 @@ namespace nil {
 
                         auto &block_arg0 = frame.vectors[inst->getOperand(0)];
                         auto &block_arg1 = frame.vectors[inst->getOperand(1)];
-                        
+
                         std::array<var, 128> input_block_vars;
 
                         std::copy(block_arg0.begin(), block_arg0.end(), input_block_vars.begin());
@@ -400,6 +415,34 @@ namespace nil {
                 } else {
                     frame.vectors[dest] = ptr.load_vector();
                 }
+            }
+
+            Pointer<var> handle_gep(const llvm::GetElementPtrInst* gep, stack_frame<var> &frame) {
+                // Collect GEP indices
+                std::vector<int> gep_indices;
+                for (unsigned i = 0; i < gep->getNumIndices(); ++i) {
+                    var idx_var = frame.scalars[gep->getOperand(i + 1)];
+                    auto idx_vv = var_value(assignmnt, idx_var);
+                    int gep_index = (int)static_cast<typename BlueprintFieldType::integral_type>(idx_vv.data);
+                    gep_indices.push_back(gep_index);
+                }
+                const llvm::Type *gep_ty = gep->getSourceElementType();
+                Pointer<var> ptr = resolve_pointer(frame, gep->getPointerOperand());
+
+                int initial_ptr_adjustment = gep_resolver.get_type_size(gep_ty) * gep_indices[0];
+                ptr = ptr.adjust(initial_ptr_adjustment);
+                gep_indices.erase(gep_indices.begin());
+
+                if (!gep_indices.empty()) {
+                    if (!gep_ty->isAggregateType()) {
+                        std::cerr << "GEP instruction with > 1 indices must operate on aggregate type!"
+                                    << std::endl;
+                        return Pointer<var>();
+                    }
+                    int resolved_index = gep_resolver.get_flat_index(gep_ty, gep_indices);
+                    ptr = ptr.adjust(resolved_index);
+                }
+                return ptr;
             }
 
             const llvm::Instruction *handle_instruction(const llvm::Instruction *inst) {
@@ -696,31 +739,11 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     case llvm::Instruction::GetElementPtr: {
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(inst);
-                        // Collect GEP indices
-                        std::vector<int> gep_indices;
-                        for (unsigned i = 0; i < gep->getNumIndices(); ++i) {
-                            var idx_var = variables[gep->getOperand(i + 1)];
-                            auto idx_vv = var_value(assignmnt, idx_var);
-                            int gep_index = (int)static_cast<typename BlueprintFieldType::integral_type>(idx_vv.data);
-                            gep_indices.push_back(gep_index);
+                        Pointer<var> gep_res = handle_gep(gep, frame);
+                        if (gep_res.get_base() == nullptr) {
+                            return nullptr;
                         }
-                        const llvm::Type *gep_ty = gep->getSourceElementType();
-                        Pointer<var> ptr = resolve_pointer(frame, gep->getPointerOperand());
-
-                        int initial_ptr_adjustment = gep_resolver.get_type_size(gep_ty) * gep_indices[0];
-                        ptr = ptr.adjust(initial_ptr_adjustment);
-                        gep_indices.erase(gep_indices.begin());
-
-                        if (!gep_indices.empty()) {
-                            if (!gep_ty->isAggregateType()) {
-                                std::cerr << "GEP instruction with > 1 indices must operate on aggregate type!"
-                                          << std::endl;
-                                return nullptr;
-                            }
-                            int resolved_index = gep_resolver.get_flat_index(gep_ty, gep_indices);
-                            ptr = ptr.adjust(resolved_index);
-                        }
-                        frame.pointers[gep] = ptr;
+                        frame.pointers[gep] = gep_res;
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Load: {
