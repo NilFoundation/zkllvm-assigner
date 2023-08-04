@@ -55,13 +55,13 @@ namespace nil {
                 BlueprintFieldType, 4, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_native_field_division_component(
                     llvm::Value *operand0, llvm::Value *operand1,
-                    typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<BlueprintFieldType>> &variables,
+                    typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
                     circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
                     std::uint32_t start_row) {
 
-                using var = crypto3::zk::snark::plonk_variable<BlueprintFieldType>;
+                using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
                 using component_type = components::division<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
@@ -80,7 +80,7 @@ namespace nil {
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         void handle_field_division_component(
             const llvm::Instruction *inst,
-            stack_frame<crypto3::zk::snark::plonk_variable<BlueprintFieldType>> &frame,
+            stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,

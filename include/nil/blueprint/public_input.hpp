@@ -116,9 +116,9 @@ namespace nil {
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
                     using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
                     using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
-                    if(glued_non_native > non_native_field_type::modulus) {
+                    if(glued_non_native >= non_native_field_type::modulus) {
                         std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >\n";
+                        std::cerr << "0x" << glued_non_native << " >=\n";
                         std::cerr << "0x" << non_native_field_type::modulus << "\n";
                         UNREACHABLE("value does not fit into ed25519 base field!");
                     }
@@ -132,9 +132,9 @@ namespace nil {
                 case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
                     using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::scalar_field_type;
                     using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
-                    if(glued_non_native > non_native_field_type::modulus) {
+                    if(glued_non_native >= non_native_field_type::modulus) {
                         std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >\n";
+                        std::cerr << "0x" << glued_non_native << " >=\n";
                         std::cerr << "0x" << non_native_field_type::modulus << "\n";
                         UNREACHABLE("value does not fit into ed25519 scalar field!");
                     }
@@ -146,9 +146,9 @@ namespace nil {
                     return result;
                 }
                 case llvm::GALOIS_FIELD_PALLAS_BASE: {
-                    if(glued_non_native > BlueprintFieldType::modulus) {
+                    if(glued_non_native >= BlueprintFieldType::modulus) {
                         std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >\n";
+                        std::cerr << "0x" << glued_non_native << " >=\n";
                         std::cerr << "0x" << BlueprintFieldType::modulus << "\n";
                         UNREACHABLE("value does not fit into pallas base field!");
                     }
@@ -162,9 +162,9 @@ namespace nil {
                 case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
                     using non_native_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
                     using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
-                    if(glued_non_native > non_native_field_type::modulus) {
+                    if(glued_non_native >= non_native_field_type::modulus) {
                         std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >\n";
+                        std::cerr << "0x" << glued_non_native << " >=\n";
                         std::cerr << "0x" << non_native_field_type::modulus << "\n";
                         UNREACHABLE("value does not fit into pallas scalar field!");
                     }
@@ -250,11 +250,11 @@ namespace nil {
                 return res;
             }
 
-            bool take_curve(llvm::Value *curve_arg, llvm::Type *curve_type, const boost::json::object &value) {
+            std::vector<var> process_curve (llvm::Type *curve_type, const boost::json::object &value) {
                 size_t arg_len = curve_arg_num<BlueprintFieldType>(curve_type);
                 ASSERT_MSG(arg_len >= 2, "arg_len of curveTy cannot be less than two");
                 if (value.size() != 1 || !value.contains("curve"))
-                    return false;
+                    UNREACHABLE("value.size() != 1 || !value.contains(\"curve\")");
                 ASSERT_MSG(value.at("curve").is_array(), "curve element must be array!");
                 ASSERT_MSG((value.at("curve").as_array().size() == 2), "curve element consists of two field elements!");
 
@@ -267,7 +267,11 @@ namespace nil {
                 std::vector<var> vector1 = process_non_native_field (value.at("curve").as_array()[0], arg_field_type);
                 std::vector<var> vector2 = process_non_native_field (value.at("curve").as_array()[1], arg_field_type);
                 vector1.insert(vector1.end(), vector2.begin(), vector2.end());
-                frame.vectors[curve_arg] = vector1;
+                return vector1;
+            }
+
+            bool take_curve(llvm::Value *curve_arg, llvm::Type *curve_type, const boost::json::object &value) {
+                frame.vectors[curve_arg] = process_curve(curve_type, value);
                 return true;
             }
 
@@ -327,37 +331,35 @@ namespace nil {
                 }
             }
 
-
-            bool take_field(llvm::Value *field_arg, llvm::Type *field_type, const boost::json::object &value) {
+            std::vector<var> process_field (llvm::Type *field_type, const boost::json::object &value) {
                 ASSERT(llvm::isa<llvm::GaloisFieldType>(field_type));
                 if (value.size() != 1 || !value.contains("field")){
-                    std::cerr << "value.size() != 1 || !value.contains(\"field\")\n";
-                    return false;
+                    UNREACHABLE("value.size() != 1 || !value.contains(\"field\")");
                 }
                 size_t arg_len = field_arg_num<BlueprintFieldType>(field_type);
                 ASSERT_MSG(arg_len != 0, "wrong input size");
-
                 llvm::GaloisFieldKind arg_field_type;
                 if (llvm::isa<llvm::GaloisFieldType>(field_type)) {
                     arg_field_type = llvm::cast<llvm::GaloisFieldType>(field_type)->getFieldKind();
                 } 
                 else {UNREACHABLE("public input reader take_field can handle only fields");}
-
                 if (value.at("field").is_double()) {
                     error =
                         "got double value for field argument. Probably the value is too big to be represented as "
                         "integer. You can put it in \"\" to avoid JSON parser restrictions.";
                 }
-
                 auto values = process_non_native_field(value.at("field"), arg_field_type);
                 if (values.size() != arg_len) {
                     std::cerr << "values.size() != arg_len\n";
                     std::cerr << "values.size() = "  << values.size() << ", arg_len = " << arg_len<< std::endl;
-                auto values = take_values(value.at("field"), arg_len);
-                if (values.size() != arg_len)
-                    return false;
                 }
-                if (arg_len == 1) {
+                return values;
+            }
+
+
+            bool take_field(llvm::Value *field_arg, llvm::Type *field_type, const boost::json::object &value) {
+                std::vector<var> values = process_field(field_type, value);
+                if (values.size() == 1) {
                     frame.scalars[field_arg] = values[0];
                 } else {
                     frame.vectors[field_arg] = values;
@@ -391,6 +393,9 @@ namespace nil {
                 if (elem_type->isCurveTy()) {
                     return curve_arg_num<BlueprintFieldType>(elem_type);
                 }
+                if (elem_type->isIntegerTy()) {
+                    return 1;
+                }
                 if (auto vector_type = llvm::dyn_cast<llvm::FixedVectorType>(elem_type)) {
                     ASSERT(vector_type->getElementType()->isFieldTy());
                     return vector_type->getNumElements();
@@ -404,17 +409,20 @@ namespace nil {
                 if (pointee->getNumContainedTypes() != 1 || !pointee->getContainedType(0)->isArrayTy()) {
                     return false;
                 }
+
                 auto *array_type = llvm::cast<llvm::ArrayType>(pointee->getContainedType(0));
                 size_t array_len = array_type->getNumElements();
                 if (array_len == 0) {
                     return false;
                 }
                 auto elem_type = array_type->getElementType();
+
                 size_t elem_len = get_array_elem_len(elem_type);
                 if (value.size() != 1 && !value.contains("array")) {
                     return false;
                 }
                 if (!value.at("array").is_array()) {
+                    std::cerr << "json contains object with key \"array\", but value is not array \n";
                     return false;
                 }
                 const auto &json_arr = value.at("array").as_array();
@@ -422,14 +430,42 @@ namespace nil {
                     return false;
                 }
 
+
                 for (int i = 0; i < array_len; ++i) {
-                    std::vector<var> elem_value = take_values(json_arr[i], elem_len);
-                    if (elem_value.size() != elem_len)
-                        return false;
-                    if (elem_len == 1) {
-                        frame.memory.back().store_var(elem_value[0], i);
-                    } else {
-                        frame.memory.back().store_vector(elem_value, i);
+                    std::vector<var> elem_value;
+
+                    if (elem_type->isCurveTy()){
+                        if (json_arr[i].is_object()) {
+                            elem_value = process_curve(elem_type, json_arr[i].as_object());
+                            frame.memory.back().store_vector(elem_value, i);
+                        } else {
+                            UNREACHABLE("curve elemein in the array is not json object");
+                        }
+                    } 
+                    else if(elem_type->isFieldTy()){
+                        if (json_arr[i].is_object()) {
+                            elem_value = process_field(elem_type, json_arr[i].as_object());
+                            if (elem_value.size() == 1) {
+                                frame.memory.back().store_var(elem_value[0], i);
+                            } 
+                            else {
+                                frame.memory.back().store_vector(elem_value, i);
+                            }
+                        } else {
+                            UNREACHABLE("field in the array is not json object");
+                        }
+                    }
+                    else {
+                        elem_value = take_values(json_arr[i], elem_len);
+                        if (elem_value.size() != elem_len) {
+                            return false;
+                        }
+                        if (elem_len == 1) {
+                            frame.memory.back().store_var(elem_value[0], i);
+                        } 
+                        else {
+                            frame.memory.back().store_vector(elem_value, i);
+                        }
                     }
                 }
                 return true;
