@@ -56,6 +56,7 @@
 #include <nil/blueprint/integers/subtraction.hpp>
 #include <nil/blueprint/integers/multiplication.hpp>
 #include <nil/blueprint/integers/division.hpp>
+#include <nil/blueprint/integers/division_remainder.hpp>
 
 #include <nil/blueprint/comparison/comparison.hpp>
 
@@ -109,7 +110,7 @@ namespace nil {
                 const std::vector<var> &rhs = frame.vectors[inst->getOperand(1)];
                 ASSERT(lhs.size() == rhs.size());
                 std::vector<var> res;
-                
+
                 // Todo: this either isn't a proper way to handle vector element size or it's not implemented correctly
                 std::size_t bitness = inst->getOperand(0)->getType()->getScalarType()->getPrimitiveSizeInBits();
                 for (size_t i = 0; i < lhs.size(); ++i) {
@@ -284,7 +285,7 @@ namespace nil {
 
                         auto &block_arg0 = frame.vectors[inst->getOperand(0)];
                         auto &block_arg1 = frame.vectors[inst->getOperand(1)];
-                        
+
                         std::array<var, 128> input_block_vars;
 
                         std::copy(block_arg0.begin(), block_arg0.end(), input_block_vars.begin());
@@ -468,7 +469,24 @@ namespace nil {
                             UNREACHABLE("cmul opcode is defined only for curveTy * fieldTy");
                         }
                     }
-                    case llvm::Instruction::UDiv:
+                    case llvm::Instruction::UDiv: {
+                        if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
+                            handle_integer_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row, true);
+                            return inst->getNextNonDebugInstruction();
+                        } else {
+                            UNREACHABLE("UDiv opcode is defined only for integerTy");
+                        }
+                    }
+                    case llvm::Instruction::URem: {
+                        if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
+                            handle_integer_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row, false);
+                            return inst->getNextNonDebugInstruction();
+                        } else {
+                            UNREACHABLE("URem opcode is defined only for integerTy");
+                        }
+                    }
                     case llvm::Instruction::SDiv: {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
