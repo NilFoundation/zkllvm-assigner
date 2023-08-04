@@ -33,6 +33,7 @@
 #include <nil/blueprint/blueprint/plonk/circuit.hpp>
 #include <nil/blueprint/components/hashes/poseidon/plonk/poseidon_15_wires.hpp>
 #include <nil/blueprint/components/hashes/sha2/plonk/sha256.hpp>
+#include <nil/blueprint/components/hashes/sha2/plonk/sha512.hpp>
 
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/IR/LLVMContext.h>
@@ -47,6 +48,7 @@
 #include "llvm/IR/TypedPointerType.h"
 #include "llvm/IR/Intrinsics.h"
 
+#include <nil/blueprint/logger.hpp>
 #include <nil/blueprint/gep_resolver.hpp>
 #include <nil/blueprint/public_input.hpp>
 #include <nil/blueprint/stack.hpp>
@@ -65,15 +67,24 @@
 #include <nil/blueprint/curves/multiplication.hpp>
 #include <nil/blueprint/curves/init.hpp>
 
+#include <nil/blueprint/hashes/sha2_256.hpp>
+#include <nil/blueprint/hashes/sha2_512.hpp>
+
 namespace nil {
     namespace blueprint {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         struct parser {
 
+            parser(bool detailed_logging) {
+                if (detailed_logging) {
+                    log.set_level(logger::level::DEBUG);
+                }
+            }
+
             using ArithmetizationType =
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
-            using var = crypto3::zk::snark::plonk_variable<BlueprintFieldType>;
+            using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
             circuit<ArithmetizationType> bp;
             assignment<ArithmetizationType> assignmnt;
@@ -184,7 +195,7 @@ namespace nil {
             }
 
             template<typename VarType>
-            Chunk<VarType> store_constant(llvm::Constant *constant_init) {
+            Chunk<VarType> store_constant(const llvm::Constant *constant_init) {
                 if (auto operation = llvm::dyn_cast<llvm::ConstantExpr>(constant_init)) {
                     if (operation->isCast())
                         constant_init = operation->getOperand(0);
@@ -198,7 +209,7 @@ namespace nil {
                         UNREACHABLE("Unsupported constant expression");
                     }
                 }
-                if (auto CS = llvm::cast<llvm::GlobalVariable>(constant_init)) {
+                if (auto CS = llvm::dyn_cast<llvm::GlobalVariable>(constant_init)) {
                     ASSERT(CS->isConstant());
                     constant_init = CS->getInitializer();
                 }
@@ -207,10 +218,10 @@ namespace nil {
                 // So we use deep-first search for scalar elements of the struct (or array)
                 Chunk<var> chunk;
                 unsigned idx = 0;
-                std::stack<llvm::Constant *> component_stack;
+                std::stack<const llvm::Constant *> component_stack;
                 component_stack.push(constant_init);
                 while (!component_stack.empty()) {
-                    llvm::Constant *constant = component_stack.top();
+                    const llvm::Constant *constant = component_stack.top();
                     component_stack.pop();
                     llvm::Type *type = constant->getType();
                     if (!type->isAggregateType()) {
@@ -272,29 +283,39 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_sha2_256: {
-                        using component_type = components::sha256<ArithmetizationType, 9>;
+                        handle_sha2_256_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_sha2_512: {
+                        handle_sha2_512_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_bit_decomposition64: {
+                        var input_var = frame.scalars[inst->getOperand(0)];
+                        auto input_var_value = var_value(assignmnt, input_var);
 
-                        constexpr const std::int32_t block_size = 2;
-                        constexpr const std::int32_t input_blocks_amount = 2;
+                        std::vector<var> component_result;
+
+                        for (std::size_t i = 0; i < 64; ++i) {
+                            assignmnt.public_input(0, public_input_idx) = 1;
+                            component_result.emplace_back( var(0, public_input_idx++, false, var::column_type::public_input) );
+                        }
+
+                        frame.vectors[inst] = component_result;
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_bit_composition128: {
 
                         auto &block_arg0 = frame.vectors[inst->getOperand(0)];
                         auto &block_arg1 = frame.vectors[inst->getOperand(1)];
-                        std::array<var, input_blocks_amount * block_size> input_block_vars;
+                        
+                        std::array<var, 128> input_block_vars;
 
                         std::copy(block_arg0.begin(), block_arg0.end(), input_block_vars.begin());
-                        std::copy(block_arg1.begin(), block_arg1.end(), input_block_vars.begin() + block_size);
+                        std::copy(block_arg1.begin(), block_arg1.end(), input_block_vars.begin() + 64);
 
-                        typename component_type::input_type instance_input = {input_block_vars};
-
-                        component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
-
-                        components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
-
-                        typename component_type::result_type component_result =
-                            components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
-
-                        std::vector<var> output(component_result.output.begin(), component_result.output.end());
-                        frame.vectors[inst] = output;
+                        assignmnt.public_input(0, public_input_idx) = 1;
+                        frame.scalars[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
                         return true;
                     }
                     case llvm::Intrinsic::memcpy: {
@@ -368,6 +389,7 @@ namespace nil {
             }
 
             const llvm::Instruction *handle_instruction(const llvm::Instruction *inst) {
+                log.log_instruction(inst);
                 stack_frame<var> &frame = call_stack.top();
                 auto &variables = frame.scalars;
                 std::uint32_t start_row = assignmnt.allocated_rows();
@@ -587,6 +609,27 @@ namespace nil {
                         UNREACHABLE("Incoming value for phi was not found");
                         break;
                     }
+                    case llvm::Instruction::Switch: {
+                        // Save current basic block to resolve PHI inst further
+                        predecessor = inst->getParent();
+
+                        auto switch_inst = llvm::cast<llvm::SwitchInst>(inst);
+                        llvm::Value *cond = switch_inst->getCondition();
+                        ASSERT(cond->getType()->isIntegerTy());
+                        unsigned bit_width = llvm::cast<llvm::IntegerType>(cond->getType())->getBitWidth();
+                        ASSERT(bit_width <= 64);
+                        auto cond_var = var_value(assignmnt, frame.scalars[cond]);
+                        auto cond_val = llvm::APInt(
+                            bit_width,
+                            (int64_t) static_cast<typename BlueprintFieldType::integral_type>(cond_var.data));
+                        for (auto Case : switch_inst->cases()) {
+                            if (Case.getCaseValue()->getValue().eq(cond_val)) {
+                                return &Case.getCaseSuccessor()->front();
+                            }
+                        }
+                        return &switch_inst->getDefaultDest()->front();
+                        break;
+                    }
                     case llvm::Instruction::InsertElement: {
                         auto insert_inst = llvm::cast<llvm::InsertElementInst>(inst);
                         llvm::Value *vec = insert_inst->getOperand(0);
@@ -648,7 +691,7 @@ namespace nil {
                             gep_indices.push_back(gep_index);
                         }
                         const llvm::Type *gep_ty = gep->getSourceElementType();
-                        Pointer<var> ptr = frame.pointers[gep->getPointerOperand()];
+                        Pointer<var> ptr = resolve_pointer(frame, gep->getPointerOperand());
 
                         int initial_ptr_adjustment = gep_resolver.get_type_size(gep_ty) * gep_indices[0];
                         ptr = ptr.adjust(initial_ptr_adjustment);
@@ -803,16 +846,25 @@ namespace nil {
                 call_stack.emplace(std::move(base_frame));
 
                 for (const llvm::GlobalVariable &global : module.getGlobalList()) {
-                    global_data.emplace_back();
-                    auto ptr = Pointer<var>(&global_data.back(), 0);
-                    globals[&global] = ptr;
-                    if (!global.getInitializer()->getType()->isIntegerTy() &&
-                        !global.getInitializer()->getType()->isFieldTy()) {
-                        // Only int and field constants are supported for now
-                        continue;
+
+                    Pointer<var> ptr;
+                    const llvm::Constant *initializer = global.getInitializer();
+                    if (initializer->getType()->isAggregateType()) {
+                        auto r = store_constant<var>(initializer);
+                        global_data.push_back(r);
+                        ptr = Pointer<var>(&global_data.back(), 0);
+                    } else if (initializer->getType()->isIntegerTy() || initializer->getType()->isFieldTy()) {
+                        global_data.emplace_back();
+                        ptr = Pointer<var>(&global_data.back(), 0);
+                        assignmnt.public_input(0, public_input_idx) = marshal_int_val(initializer);
+                        ptr.store_var(var(0, public_input_idx++, false, var::column_type::public_input));
+                    } else {
+                        // Unhandled global variable type
+                        // We don't want to panic right here, because this value is likely unused
+                        // So just store null pointer to crash on its usage
+                        ptr = Pointer<var>(nullptr, 0);
                     }
-                    assignmnt.public_input(0, public_input_idx) = marshal_int_val(global.getInitializer());
-                    ptr.store_var(var(0, public_input_idx++, false, var::column_type::public_input));
+                    globals[&global] = ptr;
                 }
 
                 // Initialize undef var once
@@ -841,6 +893,7 @@ namespace nil {
             size_t public_input_idx = 0;
             GepResolver gep_resolver;
             var undef_var;
+            logger log;
         };
 
     }    // namespace blueprint

@@ -23,46 +23,61 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_INTEGER_SUBTRACTION_HPP
-#define CRYPTO3_ASSIGNER_INTEGER_SUBTRACTION_HPP
+#ifndef CRYPTO3_ASSIGNER_HASHES_SHA2_256_HPP
+#define CRYPTO3_ASSIGNER_HASHES_SHA2_256_HPP
 
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
+#include <nil/crypto3/algebra/curves/bls12.hpp>
+#include <nil/crypto3/algebra/curves/ed25519.hpp>
+#include <nil/crypto3/algebra/curves/curve25519.hpp>
+#include <nil/crypto3/algebra/curves/pallas.hpp>
+#include <nil/crypto3/algebra/curves/vesta.hpp>
+
 #include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
 
-#include <nil/blueprint/basic_non_native_policy.hpp>
+#include <nil/blueprint/component.hpp>
+#include <nil/blueprint/components/hashes/sha2/plonk/sha256.hpp>
 
-#include <nil/blueprint/fields/subtraction.hpp>
-
-#include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
 
 namespace nil {
     namespace blueprint {
-
         template<typename BlueprintFieldType, typename ArithmetizationParams>
-        void handle_integer_subtraction_component(
+        void handle_sha2_256_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
-                &assignment,
+                &assignmnt,
             std::uint32_t start_row) {
 
-            using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
+            using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+            using component_type = components::sha256<
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, 9>;
 
-            llvm::Value *operand0 = inst->getOperand(0);
-            llvm::Value *operand1 = inst->getOperand(1);
+            constexpr const std::int32_t block_size = 2;
+            constexpr const std::int32_t input_blocks_amount = 2;
 
-            frame.scalars[inst] = detail::handle_native_field_subtraction_component<BlueprintFieldType,
-                                                                                            ArithmetizationParams>(
-                                              operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                              .output;
+            auto &block_arg = frame.vectors[inst->getOperand(0)];
+            std::array<var, input_blocks_amount * block_size> input_block_vars;
+            std::copy(block_arg.begin(), block_arg.end(), input_block_vars.begin());
+
+            typename component_type::input_type instance_input = {input_block_vars};
+
+            component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
+
+            components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
+
+            typename component_type::result_type component_result =
+                components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
+
+            std::vector<var> output(component_result.output.begin(), component_result.output.end());
+            frame.vectors[inst] = output;
         }
-
     }    // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_ASSIGNER_INTEGER_SUBTRACTION_HPP
+#endif    // CRYPTO3_ASSIGNER_HASHES_SHA2_256_HPP
