@@ -175,7 +175,7 @@ namespace nil {
                     }
                     return result;
                 }
-            
+
                 default:
                     UNREACHABLE("unsupported field operand type");
             }
@@ -204,7 +204,7 @@ namespace nil {
                     numlen = value.as_string().size();
                     if (numlen > buflen - 1) {
                         std::cerr << "value " << value.as_string() << " exceeds buffer size (" << buflen - 1 << ")\n";
-                        UNREACHABLE("value size exceeds buffer size"); 
+                        UNREACHABLE("value size exceeds buffer size");
                     }
                     value.as_string().copy(buf, numlen);
                     buf[numlen] = '\0';
@@ -277,7 +277,7 @@ namespace nil {
 
             std::vector<var> put_field_into_assignmnt (std::vector<typename BlueprintFieldType::value_type> input) {
 
-                std::vector<var> res; 
+                std::vector<var> res;
 
                 for (std::size_t i = 0; i < input.size(); i++) {
                     assignmnt.public_input(0, public_input_idx) = input[i];
@@ -315,7 +315,7 @@ namespace nil {
                     numlen = value.as_string().size();
                     if (numlen > buflen - 1) {
                         std::cerr << "value " << value.as_string() << " exceeds buffer size (" << buflen - 1 << ")\n";
-                        UNREACHABLE("value size exceeds buffer size"); 
+                        UNREACHABLE("value size exceeds buffer size");
                     }
                     value.as_string().copy(buf, numlen);
                     buf[numlen] = '\0';
@@ -341,7 +341,7 @@ namespace nil {
                 llvm::GaloisFieldKind arg_field_type;
                 if (llvm::isa<llvm::GaloisFieldType>(field_type)) {
                     arg_field_type = llvm::cast<llvm::GaloisFieldType>(field_type)->getFieldKind();
-                } 
+                }
                 else {UNREACHABLE("public input reader take_field can handle only fields");}
                 if (value.at("field").is_double()) {
                     error =
@@ -441,13 +441,13 @@ namespace nil {
                         } else {
                             UNREACHABLE("curve elemein in the array is not json object");
                         }
-                    } 
+                    }
                     else if(elem_type->isFieldTy()){
                         if (json_arr[i].is_object()) {
                             elem_value = process_field(elem_type, json_arr[i].as_object());
                             if (elem_value.size() == 1) {
                                 frame.memory.back().store_var(elem_value[0], i);
-                            } 
+                            }
                             else {
                                 frame.memory.back().store_vector(elem_value, i);
                             }
@@ -462,7 +462,7 @@ namespace nil {
                         }
                         if (elem_len == 1) {
                             frame.memory.back().store_var(elem_value[0], i);
-                        } 
+                        }
                         else {
                             frame.memory.back().store_vector(elem_value, i);
                         }

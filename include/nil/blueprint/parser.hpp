@@ -57,6 +57,7 @@
 #include <nil/blueprint/integers/multiplication.hpp>
 #include <nil/blueprint/integers/division.hpp>
 #include <nil/blueprint/integers/division_remainder.hpp>
+#include <nil/blueprint/integers/bit_shift.hpp>
 
 #include <nil/blueprint/comparison/comparison.hpp>
 
@@ -485,6 +486,26 @@ namespace nil {
                             return inst->getNextNonDebugInstruction();
                         } else {
                             UNREACHABLE("URem opcode is defined only for integerTy");
+                        }
+                    }
+                    case llvm::Instruction::Shl: {
+                        if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
+                            handle_integer_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row,
+                                        nil::blueprint::components::detail::bit_shift_mode::LEFT);
+                            return inst->getNextNonDebugInstruction();
+                        } else {
+                            UNREACHABLE("shl opcode is defined only for integerTy");
+                        }
+                    }
+                    case llvm::Instruction::LShr: {
+                        if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
+                            handle_integer_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row,
+                                        nil::blueprint::components::detail::bit_shift_mode::RIGHT);
+                            return inst->getNextNonDebugInstruction();
+                        } else {
+                            UNREACHABLE("LShr opcode is defined only for integerTy");
                         }
                     }
                     case llvm::Instruction::SDiv: {
