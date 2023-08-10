@@ -274,7 +274,7 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_bit_composition128: {
-                        handle_integer_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
+                        handle_integer_bit_composition128_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
                         return true;
                     }
                     case llvm::Intrinsic::memcpy: {
