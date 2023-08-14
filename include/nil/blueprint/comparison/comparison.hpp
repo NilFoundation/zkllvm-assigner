@@ -58,9 +58,13 @@ namespace nil {
             nil::blueprint::components::detail::comparison_mode Mode;
 
             switch (p) {
-                case llvm::CmpInst::ICMP_EQ:
-                    Mode = nil::blueprint::components::detail::comparison_mode::FLAG;
+                case llvm::CmpInst::ICMP_EQ: {
+                    bool res = (var_value(assignment, x) == var_value(assignment, y));
+                    assignment.public_input(0, public_input_idx) = res;
+                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+                    return var(0, public_input_idx++, false, var::column_type::public_input);
                     break;
+                }
                 case llvm::CmpInst::ICMP_NE:{
                     bool res = (var_value(assignment, x) != var_value(assignment, y));
                     assignment.public_input(0, public_input_idx) = res;
