@@ -475,8 +475,14 @@ namespace nil {
                             handle_integer_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row, true);
                             return inst->getNextNonDebugInstruction();
-                        } else {
-                            UNREACHABLE("UDiv opcode is defined only for integerTy");
+                        }
+                        else if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
+                            handle_field_division_component<BlueprintFieldType, ArithmetizationParams>(
+                                inst, frame, bp, assignmnt, start_row);
+                            return inst->getNextNonDebugInstruction();
+                        }
+                        else {
+                            UNREACHABLE("UDiv opcode is defined only for integerTy and fieldTy");
                         }
                     }
                     case llvm::Instruction::URem: {
