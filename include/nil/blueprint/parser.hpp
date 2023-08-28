@@ -61,6 +61,9 @@
 #include <nil/blueprint/integers/bit_de_composition.hpp>
 
 #include <nil/blueprint/comparison/comparison.hpp>
+#include <nil/blueprint/bitwise/and.hpp>
+#include <nil/blueprint/bitwise/or.hpp>
+#include <nil/blueprint/bitwise/xor.hpp>
 
 #include <nil/blueprint/fields/addition.hpp>
 #include <nil/blueprint/fields/subtraction.hpp>
@@ -571,7 +574,39 @@ namespace nil {
                         }
                         return inst->getNextNonDebugInstruction();
                     }
+                    case llvm::Instruction::And: {
 
+                        const var &lhs = variables[inst->getOperand(0)];
+                        const var &rhs = variables[inst->getOperand(1)];
+
+                        variables[inst] = handle_bitwise_and_component<BlueprintFieldType, ArithmetizationParams>(
+                            lhs, rhs,
+                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+
+                        return inst->getNextNonDebugInstruction();
+                    }
+                    case llvm::Instruction::Or: {
+
+                        const var &lhs = variables[inst->getOperand(0)];
+                        const var &rhs = variables[inst->getOperand(1)];
+
+                        variables[inst] = handle_bitwise_or_component<BlueprintFieldType, ArithmetizationParams>(
+                            lhs, rhs,
+                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+
+                        return inst->getNextNonDebugInstruction();
+                    }
+                    case llvm::Instruction::Xor: {
+
+                        const var &lhs = variables[inst->getOperand(0)];
+                        const var &rhs = variables[inst->getOperand(1)];
+
+                        variables[inst] = handle_bitwise_xor_component<BlueprintFieldType, ArithmetizationParams>(
+                            lhs, rhs,
+                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+
+                        return inst->getNextNonDebugInstruction();
+                    }
                     case llvm::Instruction::Br: {
                         // Save current basic block to resolve PHI inst further
                         predecessor = inst->getParent();
