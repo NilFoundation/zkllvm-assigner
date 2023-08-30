@@ -81,7 +81,7 @@
 namespace nil {
     namespace blueprint {
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType, typename ArithmetizationParams, bool PrintCircuitOutput>
         struct parser {
 
             parser(bool detailed_logging) {
@@ -804,18 +804,20 @@ namespace nil {
                             ASSERT(call_stack.size() == 0);
                             finished = true;
 
-                            if (inst->getNumOperands() != 0) {
-                                llvm::Value *ret_val = inst->getOperand(0);
-                                if (ret_val->getType()->isPointerTy()) {
-                                    auto res = extracted_frame.pointers[ret_val];
-                                } else if (ret_val->getType()->isVectorTy()) {
-                                    std::vector<var> res = extracted_frame.vectors[ret_val];
-                                    for (var x : res) {
-                                        std::cout << var_value(assignmnt, x).data << " ";
+                            if(PrintCircuitOutput) {
+                                if (inst->getNumOperands() != 0) {
+                                    llvm::Value *ret_val = inst->getOperand(0);
+                                    if (ret_val->getType()->isPointerTy()) {
+                                        auto res = extracted_frame.pointers[ret_val];
+                                    } else if (ret_val->getType()->isVectorTy()) {
+                                        std::vector<var> res = extracted_frame.vectors[ret_val];
+                                        for (var x : res) {
+                                            std::cout << var_value(assignmnt, x).data << " ";
+                                        }
+                                        std::cout << std::endl;
+                                    } else {
+                                        std::cout << var_value(assignmnt, extracted_frame.scalars[ret_val]).data << std::endl;
                                     }
-                                    std::cout << std::endl;
-                                } else {
-                                    std::cout << var_value(assignmnt, extracted_frame.scalars[ret_val]).data << std::endl;
                                 }
                             }
 
