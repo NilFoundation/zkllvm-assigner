@@ -58,8 +58,12 @@
 #include <nil/blueprint/integers/division.hpp>
 #include <nil/blueprint/integers/division_remainder.hpp>
 #include <nil/blueprint/integers/bit_shift.hpp>
+#include <nil/blueprint/integers/bit_de_composition.hpp>
 
 #include <nil/blueprint/comparison/comparison.hpp>
+#include <nil/blueprint/bitwise/and.hpp>
+#include <nil/blueprint/bitwise/or.hpp>
+#include <nil/blueprint/bitwise/xor.hpp>
 
 #include <nil/blueprint/fields/addition.hpp>
 #include <nil/blueprint/fields/subtraction.hpp>
@@ -77,7 +81,7 @@
 namespace nil {
     namespace blueprint {
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType, typename ArithmetizationParams, bool PrintCircuitOutput>
         struct parser {
 
             parser(bool detailed_logging) {
@@ -270,32 +274,11 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_bit_decomposition64: {
-                        var input_var = frame.scalars[inst->getOperand(0)];
-                        auto input_var_value = var_value(assignmnt, input_var);
-
-                        std::vector<var> component_result;
-
-                        for (std::size_t i = 0; i < 64; ++i) {
-                            assignmnt.public_input(0, public_input_idx) = 1;
-                            component_result.emplace_back(
-                                var(0, public_input_idx++, false, var::column_type::public_input));
-                        }
-
-                        frame.vectors[inst] = component_result;
+                        handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_bit_composition128: {
-
-                        auto &block_arg0 = frame.vectors[inst->getOperand(0)];
-                        auto &block_arg1 = frame.vectors[inst->getOperand(1)];
-
-                        std::array<var, 128> input_block_vars;
-
-                        std::copy(block_arg0.begin(), block_arg0.end(), input_block_vars.begin());
-                        std::copy(block_arg1.begin(), block_arg1.end(), input_block_vars.begin() + 64);
-
-                        assignmnt.public_input(0, public_input_idx) = 1;
-                        frame.scalars[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
+                        handle_integer_bit_composition128_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
                         return true;
                     }
                     case llvm::Intrinsic::memcpy: {
@@ -600,7 +583,39 @@ namespace nil {
                         }
                         return inst->getNextNonDebugInstruction();
                     }
+                    case llvm::Instruction::And: {
 
+                        const var &lhs = variables[inst->getOperand(0)];
+                        const var &rhs = variables[inst->getOperand(1)];
+
+                        variables[inst] = handle_bitwise_and_component<BlueprintFieldType, ArithmetizationParams>(
+                            lhs, rhs,
+                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+
+                        return inst->getNextNonDebugInstruction();
+                    }
+                    case llvm::Instruction::Or: {
+
+                        const var &lhs = variables[inst->getOperand(0)];
+                        const var &rhs = variables[inst->getOperand(1)];
+
+                        variables[inst] = handle_bitwise_or_component<BlueprintFieldType, ArithmetizationParams>(
+                            lhs, rhs,
+                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+
+                        return inst->getNextNonDebugInstruction();
+                    }
+                    case llvm::Instruction::Xor: {
+
+                        const var &lhs = variables[inst->getOperand(0)];
+                        const var &rhs = variables[inst->getOperand(1)];
+
+                        variables[inst] = handle_bitwise_xor_component<BlueprintFieldType, ArithmetizationParams>(
+                            lhs, rhs,
+                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+
+                        return inst->getNextNonDebugInstruction();
+                    }
                     case llvm::Instruction::Br: {
                         // Save current basic block to resolve PHI inst further
                         predecessor = inst->getParent();
@@ -799,6 +814,24 @@ namespace nil {
                             // Final return
                             ASSERT(call_stack.size() == 0);
                             finished = true;
+
+                            if(PrintCircuitOutput) {
+                                if (inst->getNumOperands() != 0) {
+                                    llvm::Value *ret_val = inst->getOperand(0);
+                                    if (ret_val->getType()->isPointerTy()) {
+                                        auto res = extracted_frame.pointers[ret_val];
+                                    } else if (ret_val->getType()->isVectorTy()) {
+                                        std::vector<var> res = extracted_frame.vectors[ret_val];
+                                        for (var x : res) {
+                                            std::cout << var_value(assignmnt, x).data << " ";
+                                        }
+                                        std::cout << std::endl;
+                                    } else {
+                                        std::cout << var_value(assignmnt, extracted_frame.scalars[ret_val]).data << std::endl;
+                                    }
+                                }
+                            }
+
                             return nullptr;
                         }
                         if (inst->getNumOperands() != 0) {
