@@ -56,7 +56,9 @@ namespace nil {
                 BlueprintFieldType, 3, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_native_field_addition_component(
                     llvm::Value *operand0, llvm::Value *operand1,
-                    typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
+                    typename std::map<const llvm::Value *,
+                                      crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>
+                        &variables,
                     circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
@@ -82,7 +84,8 @@ namespace nil {
                 OperatingFieldType, 9, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_non_native_field_addition_component(
                     llvm::Value *operand0, llvm::Value *operand1,
-                    typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
+                    typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<
+                                                               typename BlueprintFieldType::value_type>>> &vectors,
                     circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
@@ -132,8 +135,8 @@ namespace nil {
             llvm::Type *op0_type = operand0->getType();
             llvm::Type *op1_type = operand1->getType();
 
-            ASSERT(llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind() ==
-                   llvm::cast<llvm::GaloisFieldType>(op1_type)->getFieldKind());
+            BOOST_VERIFY(llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind() ==
+                         llvm::cast<llvm::GaloisFieldType>(op1_type)->getFieldKind());
 
             switch (llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind()) {
                 case llvm::GALOIS_FIELD_BLS12381_BASE: {
@@ -187,14 +190,15 @@ namespace nil {
                                                    operand0, operand1, frame.vectors, bp, assignment, start_row)
                                                    .output;
 
-                        frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
-                            std::begin(component_result), std::end(component_result));
+                        frame.vectors[inst] =
+                            std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
+                                std::begin(component_result), std::end(component_result));
                     }
 
                     break;
                 }
                 default:
-                    UNREACHABLE("unsupported field operand type");
+                    BOOST_UNREACHABLE_MSG("unsupported field operand type");
             };
         }
 

@@ -41,8 +41,7 @@ namespace nil {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>
-            handle_comparison_component(
-                llvm::CmpInst::Predicate p,
+            handle_comparison_component(llvm::CmpInst::Predicate p,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &x,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &y,
                 std::size_t Bitness,
@@ -53,7 +52,8 @@ namespace nil {
                 std::size_t &public_input_idx) {
 
             using component_type = components::comparison_flag<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, 3>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                3>;
 
             nil::blueprint::components::detail::comparison_mode Mode;
 
@@ -65,7 +65,7 @@ namespace nil {
                     return var(0, public_input_idx++, false, var::column_type::public_input);
                     break;
                 }
-                case llvm::CmpInst::ICMP_NE:{
+                case llvm::CmpInst::ICMP_NE: {
                     bool res = (var_value(assignment, x) != var_value(assignment, y));
                     assignment.public_input(0, public_input_idx) = res;
                     using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -89,11 +89,11 @@ namespace nil {
                     Mode = nil::blueprint::components::detail::comparison_mode::LESS_THAN;
                     break;
                 default:
-                    UNREACHABLE("Unsupported icmp predicate");
+                    BOOST_UNREACHABLE_MSG("Unsupported icmp predicate");
                     break;
             }
 
-            std::size_t bitness = Bitness?Bitness:BlueprintFieldType::value_bits - 1;
+            std::size_t bitness = Bitness ? Bitness : BlueprintFieldType::value_bits - 1;
 
             component_type component_instance = component_type({0, 1, 2}, {0}, {0}, bitness, Mode);
 

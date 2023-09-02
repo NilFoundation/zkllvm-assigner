@@ -56,7 +56,7 @@ namespace nil {
             llvm::Value *operand0 = inst->getOperand(0);
             llvm::Value *operand1 = inst->getOperand(1);
 
-            UNREACHABLE("division operation not implemented for integral types");
+            BOOST_UNREACHABLE_MSG("division operation not implemented for integral types");
         }
 
     }    // namespace blueprint

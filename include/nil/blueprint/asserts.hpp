@@ -23,46 +23,14 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_NIL_BLUEPRINT_ASSERTS_HPP
-#define CRYPTO3_ASSIGNER_NIL_BLUEPRINT_ASSERTS_HPP
+#ifndef CRYPTO3_ASSIGNER_ASSERTS_HPP
+#define CRYPTO3_ASSIGNER_ASSERTS_HPP
 
 #include <iostream>
 #include <cstring>
 
-#define UNREACHABLE(msg) ::nil::blueprint::unreachable((msg), __FILE__, __LINE__)
+#include <boost/assert.hpp>
 
-#define ASSERT(expr) ::nil::blueprint::assert_check((expr), #expr, __FILE__, __LINE__)
+#define BOOST_UNREACHABLE_MSG(msg) BOOST_ASSERT_MSG(false, "UNREACHABLE: "(msg))
 
-#define ASSERT_MSG(expr, msg) ::nil::blueprint::assert_check((expr), #expr, __FILE__, __LINE__, (msg))
-
-namespace nil {
-    namespace blueprint {
-        [[noreturn]] void abort_process() {
-            std::abort();
-        }
-
-        [[noreturn]] void unreachable(const char *msg, const char *filename, unsigned line) {
-            std::cerr << "UNREACHABLE at " << filename << ":" << line << std::endl;
-            std::cerr <<'\t' << msg << std::endl;
-            abort_process();
-        }
-
-        [[noreturn]] void unreachable(const std::string &msg, const char *filename, unsigned line) {
-            unreachable(msg.c_str(),filename, line);
-        }
-
-        void assert_check(bool expr, const char *expr_str, const char *filename, unsigned line, const char *msg = "") {
-            if (!expr) {
-                std::cerr << "Assertion failed at " << filename << ":" << line << ":" << std::endl;
-                std::cerr << '\t' << expr_str;
-                if (strlen(msg) != 0) {
-                    std::cerr << " -> " << msg;
-                }
-                std::cerr << std::endl;
-                abort_process();
-            }
-        }
-    }
-}
-
-#endif  // CRYPTO3_ASSIGNER_NIL_BLUEPRINT_ASSERTS_HPP
+#endif    // CRYPTO3_ASSIGNER_NIL_BLUEPRINT_ASSERTS_HPP

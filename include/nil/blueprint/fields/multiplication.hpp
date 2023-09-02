@@ -56,7 +56,8 @@ namespace nil {
                 BlueprintFieldType, 3, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_native_field_multiplication_component(
                     llvm::Value *operand0, llvm::Value *operand1,
-                    std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
+                    std::map<const llvm::Value *,
+                             crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
                     circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
@@ -82,7 +83,8 @@ namespace nil {
                 OperatingFieldType, 9, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_non_native_field_multiplication_component(
                     llvm::Value *operand0, llvm::Value *operand1,
-                    typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
+                    typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<
+                                                               typename BlueprintFieldType::value_type>>> &vectors,
                     circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
@@ -132,18 +134,19 @@ namespace nil {
             llvm::Type *op0_type = operand0->getType();
             llvm::Type *op1_type = operand1->getType();
 
-            ASSERT(llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind() ==
-                   llvm::cast<llvm::GaloisFieldType>(op1_type)->getFieldKind());
+            BOOST_VERIFY(llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind() ==
+                         llvm::cast<llvm::GaloisFieldType>(op1_type)->getFieldKind());
 
             switch (llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind()) {
                 case llvm::GALOIS_FIELD_BLS12381_BASE: {
                     using operating_field_type = typename crypto3::algebra::curves::bls12<381>::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        frame.scalars[inst] = detail::handle_native_field_multiplication_component<BlueprintFieldType,
-                                                                                               ArithmetizationParams>(
-                                              operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                              .output;
+                        frame.scalars[inst] =
+                            detail::handle_native_field_multiplication_component<BlueprintFieldType,
+                                                                                 ArithmetizationParams>(
+                                operand0, operand1, frame.scalars, bp, assignment, start_row)
+                                .output;
                     } else {
                         // Non-native bls12-381 is undefined yet
                         // variables[inst] = detail::handle_non_native_field_multiplication_component<
@@ -158,10 +161,11 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::pallas::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        frame.scalars[inst] = detail::handle_native_field_multiplication_component<BlueprintFieldType,
-                                                                                               ArithmetizationParams>(
-                                              operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                              .output;
+                        frame.scalars[inst] =
+                            detail::handle_native_field_multiplication_component<BlueprintFieldType,
+                                                                                 ArithmetizationParams>(
+                                operand0, operand1, frame.scalars, bp, assignment, start_row)
+                                .output;
                     } else {
                         // Non-native pallas is undefined yet
                         // variables[inst] = detail::handle_non_native_field_multiplication_component<
@@ -176,10 +180,11 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        frame.scalars[inst] = detail::handle_native_field_multiplication_component<BlueprintFieldType,
-                                                                                               ArithmetizationParams>(
-                                              operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                              .output;
+                        frame.scalars[inst] =
+                            detail::handle_native_field_multiplication_component<BlueprintFieldType,
+                                                                                 ArithmetizationParams>(
+                                operand0, operand1, frame.scalars, bp, assignment, start_row)
+                                .output;
                     } else {
                         typename non_native_policy_type::template field<operating_field_type>::non_native_var_type
                             component_result = detail::handle_non_native_field_multiplication_component<
@@ -187,14 +192,15 @@ namespace nil {
                                                    operand0, operand1, frame.vectors, bp, assignment, start_row)
                                                    .output;
 
-                        frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
-                            std::begin(component_result), std::end(component_result));
+                        frame.vectors[inst] =
+                            std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
+                                std::begin(component_result), std::end(component_result));
                     }
 
                     break;
                 }
                 default:
-                    UNREACHABLE("unsupported field operand type");
+                    BOOST_UNREACHABLE_MSG("unsupported field operand type");
             };
         }
 
