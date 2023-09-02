@@ -56,9 +56,9 @@ namespace nil {
 
         public:
             GepResolver() = default;
-            template <typename Array>
+            template<typename Array>
             int get_flat_index(const llvm::Type *type, const Array &gep_indices) {
-                ASSERT(type->isAggregateType());
+                BOOST_VERIFY(type->isAggregateType());
                 if (type_cache.find(type) == type_cache.end())
                     resolve_type(type);
                 auto *type_record = &type_cache[type];
@@ -107,17 +107,17 @@ namespace nil {
                 cache_data.indices.resize(struct_ty->getNumElements());
                 for (unsigned i = 0; i < struct_ty->getNumElements(); ++i) {
                     auto elem_ty = struct_ty->getElementType(i);
-                    cache_data.size += resolve_type(elem_ty);;
-                    cache_data.indices[i] = {elem_ty,prev};
+                    cache_data.size += resolve_type(elem_ty);
+                    ;
+                    cache_data.indices[i] = {elem_ty, prev};
                     prev = cache_data.size;
                 }
                 type_cache[type] = cache_data;
                 return cache_data.size;
-
             }
             std::unordered_map<const llvm::Type *, IndexMapping> type_cache;
         };
-    }
+    }    // namespace blueprint
 }    // namespace nil
 
-#endif  // CRYPTO3_ASSIGNER_GEP_RESOLVER_HPP
+#endif    // CRYPTO3_ASSIGNER_GEP_RESOLVER_HPP

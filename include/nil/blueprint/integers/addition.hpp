@@ -55,9 +55,10 @@ namespace nil {
             llvm::Value *operand0 = inst->getOperand(0);
             llvm::Value *operand1 = inst->getOperand(1);
 
-            frame.scalars[inst] = detail::handle_native_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                .output;
+            frame.scalars[inst] =
+                detail::handle_native_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
+                    operand0, operand1, frame.scalars, bp, assignment, start_row)
+                    .output;
         }
 
     }    // namespace blueprint

@@ -42,11 +42,11 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/InstrTypes.h>
 #include <llvm/IR/Instructions.h>
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/TypeFinder.h"
-#include "llvm/IR/TypedPointerType.h"
-#include "llvm/IR/Intrinsics.h"
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/Type.h>
+#include <llvm/IR/TypeFinder.h>
+#include <llvm/IR/TypedPointerType.h>
+#include <llvm/IR/Intrinsics.h>
 
 #include <nil/blueprint/logger.hpp>
 #include <nil/blueprint/gep_resolver.hpp>
@@ -86,7 +86,7 @@ namespace nil {
 
             parser(bool detailed_logging) {
                 if (detailed_logging) {
-                    log.set_level(logger::level::DEBUG);
+                    boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::debug);
                 }
             }
 
@@ -98,7 +98,6 @@ namespace nil {
             assignment<ArithmetizationType> assignmnt;
 
         private:
-
             template<typename map_type>
             void handle_scalar_cmp(const llvm::ICmpInst *inst, map_type &variables) {
                 const var &lhs = variables[inst->getOperand(0)];
@@ -106,22 +105,22 @@ namespace nil {
 
                 std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
                 variables[inst] = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
-                    inst->getPredicate(), lhs, rhs, bitness,
-                    bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                    inst->getPredicate(), lhs, rhs, bitness, bp, assignmnt, assignmnt.allocated_rows(),
+                    public_input_idx);
             }
 
             void handle_vector_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
                 const std::vector<var> &lhs = frame.vectors[inst->getOperand(0)];
                 const std::vector<var> &rhs = frame.vectors[inst->getOperand(1)];
-                ASSERT(lhs.size() == rhs.size());
+                BOOST_VERIFY(lhs.size() == rhs.size());
                 std::vector<var> res;
 
                 // Todo: this either isn't a proper way to handle vector element size or it's not implemented correctly
                 std::size_t bitness = inst->getOperand(0)->getType()->getScalarType()->getPrimitiveSizeInBits();
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     res.emplace_back(handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
-                        inst->getPredicate(), lhs[i], rhs[i], bitness,
-                        bp, assignmnt, assignmnt.allocated_rows(), public_input_idx));
+                        inst->getPredicate(), lhs[i], rhs[i], bitness, bp, assignmnt, assignmnt.allocated_rows(),
+                        public_input_idx));
                 }
                 frame.vectors[inst] = res;
             }
@@ -138,7 +137,7 @@ namespace nil {
                         res = !(lhs == rhs);
                         break;
                     default:
-                        UNREACHABLE("Unsupported predicate");
+                        BOOST_UNREACHABLE_MSG("Unsupported predicate");
                         break;
                 }
                 assignmnt.public_input(0, public_input_idx) = res;
@@ -146,7 +145,7 @@ namespace nil {
             }
 
             typename BlueprintFieldType::value_type marshal_int_val(const llvm::Value *val) {
-                ASSERT(llvm::isa<llvm::ConstantField>(val) || llvm::isa<llvm::ConstantInt>(val));
+                BOOST_VERIFY(llvm::isa<llvm::ConstantField>(val) || llvm::isa<llvm::ConstantInt>(val));
                 llvm::APInt int_val;
                 if (llvm::isa<llvm::ConstantField>(val)) {
                     int_val = llvm::cast<llvm::ConstantField>(val)->getValue();
@@ -163,7 +162,7 @@ namespace nil {
                     std::vector<char> bytes(APIntData, APIntData + words * 8);
                     nil::marshalling::status_type status;
                     field_constant = nil::marshalling::pack<nil::marshalling::option::little_endian>(bytes, status);
-                    ASSERT(status == nil::marshalling::status_type::success);
+                    BOOST_VERIFY(status == nil::marshalling::status_type::success);
                 }
                 return field_constant;
             }
@@ -172,7 +171,7 @@ namespace nil {
                 if (llvm::isa<llvm::GlobalVariable>(ptr_value)) {
                     return globals[ptr_value];
                 }
-                ASSERT(frame.pointers.find(ptr_value) != frame.pointers.end());
+                BOOST_VERIFY(frame.pointers.find(ptr_value) != frame.pointers.end());
                 return frame.pointers[ptr_value];
             }
 
@@ -184,15 +183,15 @@ namespace nil {
                     else if (operation->getOpcode() == llvm::Instruction::GetElementPtr) {
                         for (int i = 1; i < operation->getNumOperands(); ++i) {
                             int64_t idx = llvm::cast<llvm::ConstantInt>(operation->getOperand(i))->getSExtValue();
-                            ASSERT_MSG(idx == 0, "Only trivial GEP constant expressions are supported");
+                            BOOST_VERIFY_MSG(idx == 0, "Only trivial GEP constant expressions are supported");
                         }
                         constant_init = operation->getOperand(0);
                     } else {
-                        UNREACHABLE("Unsupported constant expression");
+                        BOOST_UNREACHABLE_MSG("Unsupported constant expression");
                     }
                 }
                 if (auto CS = llvm::dyn_cast<llvm::GlobalVariable>(constant_init)) {
-                    ASSERT(CS->isConstant());
+                    BOOST_VERIFY(CS->isConstant());
                     constant_init = CS->getInitializer();
                 }
 
@@ -227,18 +226,19 @@ namespace nil {
                 return chunk;
             }
 
-            bool handle_intrinsic(const llvm::CallInst *inst, llvm::Intrinsic::ID id, stack_frame<var> &frame, uint32_t start_row) {
+            bool handle_intrinsic(const llvm::CallInst *inst, llvm::Intrinsic::ID id, stack_frame<var> &frame,
+                                  uint32_t start_row) {
                 switch (id) {
                     case llvm::Intrinsic::assigner_malloc: {
                         global_data.emplace_back();
-                        frame.pointers[inst] = Pointer<var>{&global_data.back(), 0};
+                        frame.pointers[inst] = Pointer<var> {&global_data.back(), 0};
                         return true;
                     }
                     case llvm::Intrinsic::assigner_free: {
                         Pointer<var> ptr = resolve_pointer(frame, inst->getOperand(0));
                         Chunk<var> *chunk = ptr.get_base();
                         auto entry = std::find_if(global_data.begin(), global_data.end(),
-                                  [chunk](const Chunk<var> &elem) { return &elem == chunk; });
+                                                  [chunk](const Chunk<var> &elem) { return &elem == chunk; });
                         global_data.erase(entry);
                         return true;
                     }
@@ -251,8 +251,7 @@ namespace nil {
 
                         typename component_type::input_type instance_input = {input_state_var};
 
-                        component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {},
-                                                            {});
+                        component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {}, {});
 
                         components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
 
@@ -265,19 +264,23 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_sha2_256: {
-                        handle_sha2_256_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
+                        handle_sha2_256_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt,
+                                                                                             start_row);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_sha2_512: {
-                        handle_sha2_512_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
+                        handle_sha2_512_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt,
+                                                                                             start_row);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_bit_decomposition64: {
-                        handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
+                        handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(
+                            inst, frame, bp, assignmnt, start_row);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_bit_composition128: {
-                        handle_integer_bit_composition128_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
+                        handle_integer_bit_composition128_component<BlueprintFieldType, ArithmetizationParams>(
+                            inst, frame, bp, assignmnt, start_row);
                         return true;
                     }
                     case llvm::Intrinsic::memcpy: {
@@ -293,19 +296,19 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_zkml_convolution: {
-                        UNREACHABLE("zkml_convolution intrinsic is not implemented yet");
+                        BOOST_UNREACHABLE_MSG("zkml_convolution intrinsic is not implemented yet");
                         return false;
                     }
                     case llvm::Intrinsic::assigner_zkml_pooling: {
-                        UNREACHABLE("zkml_pooling intrinsic is not implemented yet");
+                        BOOST_UNREACHABLE_MSG("zkml_pooling intrinsic is not implemented yet");
                         return false;
                     }
                     case llvm::Intrinsic::assigner_zkml_ReLU: {
-                        UNREACHABLE("zkml_ReLU intrinsic is not implemented yet");
+                        BOOST_UNREACHABLE_MSG("zkml_ReLU intrinsic is not implemented yet");
                         return false;
                     }
                     case llvm::Intrinsic::assigner_zkml_batch_norm: {
-                        UNREACHABLE("zkml_batch_norm intrinsic is not implemented yet");
+                        BOOST_UNREACHABLE_MSG("zkml_batch_norm intrinsic is not implemented yet");
                         return false;
                     }
                     case llvm::Intrinsic::expect: {
@@ -322,28 +325,28 @@ namespace nil {
                         return true;
                     }
                     default:
-                        UNREACHABLE("Unexpected intrinsic!");
+                        BOOST_UNREACHABLE_MSG("Unexpected intrinsic!");
                 }
                 return false;
             }
 
-            void handle_store(Pointer<var> ptr, const llvm::Value *val, stack_frame<var> & frame) {
+            void handle_store(Pointer<var> ptr, const llvm::Value *val, stack_frame<var> &frame) {
                 llvm::Type *store_type = val->getType();
                 if (store_type->isPointerTy()) {
                     ptr.store_pointer(frame.pointers[val]);
                 } else if (store_type->isIntegerTy() ||
-                            (store_type->isFieldTy() && field_arg_num<BlueprintFieldType>(store_type) == 1)) {
+                           (store_type->isFieldTy() && field_arg_num<BlueprintFieldType>(store_type) == 1)) {
                     ptr.store_var(frame.scalars[val]);
                 } else {
                     ptr.store_vector(frame.vectors[val]);
                 }
             }
-            void handle_load(Pointer<var> ptr, const llvm::Value *dest, stack_frame<var> & frame) {
+            void handle_load(Pointer<var> ptr, const llvm::Value *dest, stack_frame<var> &frame) {
                 llvm::Type *load_type = dest->getType();
                 if (load_type->isPointerTy()) {
                     frame.pointers[dest] = ptr.load_pointer();
                 } else if (load_type->isIntegerTy() ||
-                            (load_type->isFieldTy() && field_arg_num<BlueprintFieldType>(load_type) == 1)) {
+                           (load_type->isFieldTy() && field_arg_num<BlueprintFieldType>(load_type) == 1)) {
                     frame.scalars[dest] = ptr.load_var();
                 } else {
                     frame.vectors[dest] = ptr.load_vector();
@@ -373,9 +376,9 @@ namespace nil {
                         } else if (auto vector_type = llvm::dyn_cast<llvm::FixedVectorType>(undef_type)) {
                             frame.vectors[op] = std::vector<var>(vector_type->getNumElements(), undef_var);
                         } else {
-                            ASSERT(undef_type->isAggregateType());
+                            BOOST_VERIFY(undef_type->isAggregateType());
                             frame.memory.emplace_back();
-                            frame.pointers[op] = Pointer<var>{&frame.memory.back(), 0};
+                            frame.pointers[op] = Pointer<var> {&frame.memory.back(), 0};
                         }
                     }
                 }
@@ -385,20 +388,22 @@ namespace nil {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
                             handle_integer_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                                        inst, frame, bp, assignmnt, start_row);
+                                inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         }
 
-                        if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
+                        if (inst->getOperand(0)->getType()->isFieldTy() &&
+                            inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                                        inst, frame, bp, assignmnt, start_row);
+                                inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
-                        } else if (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isCurveTy()) {
+                        } else if (inst->getOperand(0)->getType()->isCurveTy() &&
+                                   inst->getOperand(1)->getType()->isCurveTy()) {
                             handle_curve_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                                        inst, frame, bp, assignmnt, start_row);
+                                inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         } else {
-                            UNREACHABLE("curve + scalar is undefined");
+                            BOOST_UNREACHABLE_MSG("curve + scalar is undefined");
                         }
 
                         return inst->getNextNonDebugInstruction();
@@ -410,16 +415,18 @@ namespace nil {
                             return inst->getNextNonDebugInstruction();
                         }
 
-                        if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
+                        if (inst->getOperand(0)->getType()->isFieldTy() &&
+                            inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
-                        } else if (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isCurveTy()) {
+                        } else if (inst->getOperand(0)->getType()->isCurveTy() &&
+                                   inst->getOperand(1)->getType()->isCurveTy()) {
                             handle_curve_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         } else {
-                            UNREACHABLE("curve - scalar is undefined");
+                            BOOST_UNREACHABLE_MSG("curve - scalar is undefined");
                         }
 
                         return inst->getNextNonDebugInstruction();
@@ -432,70 +439,75 @@ namespace nil {
                             return inst->getNextNonDebugInstruction();
                         }
 
-                        if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
+                        if (inst->getOperand(0)->getType()->isFieldTy() &&
+                            inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         }
 
-                        UNREACHABLE("Mul opcode is defined only for fieldTy and integerTy");
+                        BOOST_UNREACHABLE_MSG("Mul opcode is defined only for fieldTy and integerTy");
 
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::CMul: {
-                        if (
-                            (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isFieldTy()) ||
-                            (inst->getOperand(1)->getType()->isCurveTy() && inst->getOperand(0)->getType()->isFieldTy())) {
+                        if ((inst->getOperand(0)->getType()->isCurveTy() &&
+                             inst->getOperand(1)->getType()->isFieldTy()) ||
+                            (inst->getOperand(1)->getType()->isCurveTy() &&
+                             inst->getOperand(0)->getType()->isFieldTy())) {
 
                             handle_curve_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
                         } else {
-                            UNREACHABLE("cmul opcode is defined only for curveTy * fieldTy");
+                            BOOST_UNREACHABLE_MSG("cmul opcode is defined only for curveTy * fieldTy");
                         }
                     }
                     case llvm::Instruction::UDiv: {
-                        if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
+                        if (inst->getOperand(0)->getType()->isIntegerTy() &&
+                            inst->getOperand(1)->getType()->isIntegerTy()) {
                             handle_integer_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row, true);
                             return inst->getNextNonDebugInstruction();
-                        }
-                        else if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
+                        } else if (inst->getOperand(0)->getType()->isFieldTy() &&
+                                   inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_division_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
-                        }
-                        else {
-                            UNREACHABLE("UDiv opcode is defined only for integerTy and fieldTy");
+                        } else {
+                            BOOST_UNREACHABLE_MSG("UDiv opcode is defined only for integerTy and fieldTy");
                         }
                     }
                     case llvm::Instruction::URem: {
-                        if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
+                        if (inst->getOperand(0)->getType()->isIntegerTy() &&
+                            inst->getOperand(1)->getType()->isIntegerTy()) {
                             handle_integer_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row, false);
                             return inst->getNextNonDebugInstruction();
                         } else {
-                            UNREACHABLE("URem opcode is defined only for integerTy");
+                            BOOST_UNREACHABLE_MSG("URem opcode is defined only for integerTy");
                         }
                     }
                     case llvm::Instruction::Shl: {
-                        if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
+                        if (inst->getOperand(0)->getType()->isIntegerTy() &&
+                            inst->getOperand(1)->getType()->isIntegerTy()) {
                             handle_integer_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row,
-                                        nil::blueprint::components::detail::bit_shift_mode::LEFT);
+                                nil::blueprint::components::detail::bit_shift_mode::LEFT);
                             return inst->getNextNonDebugInstruction();
                         } else {
-                            UNREACHABLE("shl opcode is defined only for integerTy");
+                            BOOST_UNREACHABLE_MSG("shl opcode is defined only for integerTy");
                         }
                     }
                     case llvm::Instruction::LShr: {
-                        if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
+                        if (inst->getOperand(0)->getType()->isIntegerTy() &&
+                            inst->getOperand(1)->getType()->isIntegerTy()) {
                             handle_integer_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row,
-                                        nil::blueprint::components::detail::bit_shift_mode::RIGHT);
+                                nil::blueprint::components::detail::bit_shift_mode::RIGHT);
                             return inst->getNextNonDebugInstruction();
                         } else {
-                            UNREACHABLE("LShr opcode is defined only for integerTy");
+                            BOOST_UNREACHABLE_MSG("LShr opcode is defined only for integerTy");
                         }
                     }
                     case llvm::Instruction::SDiv: {
@@ -506,7 +518,8 @@ namespace nil {
                             return inst->getNextNonDebugInstruction();
                         }
 
-                        if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
+                        if (inst->getOperand(0)->getType()->isFieldTy() &&
+                            inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_division_component<BlueprintFieldType, ArithmetizationParams>(
                                 inst, frame, bp, assignmnt, start_row);
                             return inst->getNextNonDebugInstruction();
@@ -522,14 +535,14 @@ namespace nil {
                             return nullptr;
                         }
                         llvm::StringRef fun_name = fun->getName();
-                        ASSERT(fun->arg_size() == call_inst->getNumOperands() - 1);
+                        BOOST_VERIFY(fun->arg_size() == call_inst->getNumOperands() - 1);
                         if (fun->isIntrinsic()) {
                             if (!handle_intrinsic(call_inst, fun->getIntrinsicID(), frame, start_row))
                                 return nullptr;
                             return inst->getNextNonDebugInstruction();
                         }
                         if (fun->empty()) {
-                            UNREACHABLE("Function " + fun_name.str() + " has no implementation.");
+                            BOOST_UNREACHABLE_MSG("Function " + fun_name.str() + " has no implementation.");
                         }
                         stack_frame<var> new_frame;
                         auto &new_variables = new_frame.scalars;
@@ -541,7 +554,6 @@ namespace nil {
                                 new_frame.vectors[arg] = frame.vectors[call_inst->getOperand(i)];
                             else
                                 new_variables[arg] = variables[call_inst->getOperand(i)];
-
                         }
                         new_frame.caller = call_inst;
                         call_stack.emplace(std::move(new_frame));
@@ -550,15 +562,14 @@ namespace nil {
                     case llvm::Instruction::ICmp: {
                         auto cmp_inst = llvm::cast<const llvm::ICmpInst>(inst);
                         llvm::Type *cmp_type = cmp_inst->getOperand(0)->getType();
-                        if (cmp_type->isIntegerTy()|| cmp_type->isFieldTy())
+                        if (cmp_type->isIntegerTy() || cmp_type->isFieldTy())
                             handle_scalar_cmp(cmp_inst, variables);
                         else if (cmp_type->isPointerTy())
                             handle_ptr_cmp(cmp_inst, frame);
                         else if (cmp_type->isVectorTy()) {
                             handle_vector_cmp(cmp_inst, frame);
-                        }
-                        else {
-                            UNREACHABLE("Unsupported icmp operand type");
+                        } else {
+                            BOOST_UNREACHABLE_MSG("Unsupported icmp operand type");
                         }
                         return inst->getNextNonDebugInstruction();
                     }
@@ -580,8 +591,7 @@ namespace nil {
                         const var &rhs = variables[inst->getOperand(1)];
 
                         variables[inst] = handle_bitwise_and_component<BlueprintFieldType, ArithmetizationParams>(
-                            lhs, rhs,
-                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                            lhs, rhs, bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
 
                         return inst->getNextNonDebugInstruction();
                     }
@@ -591,8 +601,7 @@ namespace nil {
                         const var &rhs = variables[inst->getOperand(1)];
 
                         variables[inst] = handle_bitwise_or_component<BlueprintFieldType, ArithmetizationParams>(
-                            lhs, rhs,
-                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                            lhs, rhs, bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
 
                         return inst->getNextNonDebugInstruction();
                     }
@@ -602,8 +611,7 @@ namespace nil {
                         const var &rhs = variables[inst->getOperand(1)];
 
                         variables[inst] = handle_bitwise_xor_component<BlueprintFieldType, ArithmetizationParams>(
-                            lhs, rhs,
-                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                            lhs, rhs, bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
 
                         return inst->getNextNonDebugInstruction();
                     }
@@ -612,7 +620,7 @@ namespace nil {
                         predecessor = inst->getParent();
 
                         if (inst->getNumOperands() != 1) {
-                            ASSERT(inst->getNumOperands() == 3);
+                            BOOST_VERIFY(inst->getNumOperands() == 3);
                             auto false_bb = llvm::cast<llvm::BasicBlock>(inst->getOperand(1));
                             auto true_bb = llvm::cast<llvm::BasicBlock>(inst->getOperand(2));
                             var cond = variables[inst->getOperand(0)];
@@ -630,20 +638,21 @@ namespace nil {
                                 llvm::Value *incoming_value = phi_node->getIncomingValue(i);
                                 llvm::Type *value_type = incoming_value->getType();
                                 if (value_type->isPointerTy()) {
-                                    ASSERT(frame.pointers.find(incoming_value) != frame.pointers.end());
+                                    BOOST_VERIFY(frame.pointers.find(incoming_value) != frame.pointers.end());
                                     frame.pointers[phi_node] = frame.pointers[incoming_value];
                                 } else if (value_type->isIntegerTy() ||
-                                           (value_type->isFieldTy() && field_arg_num<BlueprintFieldType>(value_type) == 1)) {
-                                    ASSERT(variables.find(incoming_value) != variables.end());
+                                           (value_type->isFieldTy() &&
+                                            field_arg_num<BlueprintFieldType>(value_type) == 1)) {
+                                    BOOST_VERIFY(variables.find(incoming_value) != variables.end());
                                     variables[phi_node] = variables[incoming_value];
                                 } else {
-                                    ASSERT(frame.vectors.find(incoming_value) != frame.vectors.end());
+                                    BOOST_VERIFY(frame.vectors.find(incoming_value) != frame.vectors.end());
                                     frame.vectors[phi_node] = frame.vectors[incoming_value];
                                 }
                                 return phi_node->getNextNonDebugInstruction();
                             }
                         }
-                        UNREACHABLE("Incoming value for phi was not found");
+                        BOOST_UNREACHABLE_MSG("Incoming value for phi was not found");
                         break;
                     }
                     case llvm::Instruction::Switch: {
@@ -652,9 +661,9 @@ namespace nil {
 
                         auto switch_inst = llvm::cast<llvm::SwitchInst>(inst);
                         llvm::Value *cond = switch_inst->getCondition();
-                        ASSERT(cond->getType()->isIntegerTy());
+                        BOOST_VERIFY(cond->getType()->isIntegerTy());
                         unsigned bit_width = llvm::cast<llvm::IntegerType>(cond->getType())->getBitWidth();
-                        ASSERT(bit_width <= 64);
+                        BOOST_VERIFY(bit_width <= 64);
                         auto cond_var = var_value(assignmnt, frame.scalars[cond]);
                         auto cond_val = llvm::APInt(
                             bit_width,
@@ -680,7 +689,7 @@ namespace nil {
                         std::vector<var> result_vector;
                         if (llvm::isa<llvm::Constant>(vec)) {
                             auto *vector_type = llvm::cast<llvm::FixedVectorType>(vec->getType());
-                            ASSERT(vector_type->getElementType()->isFieldTy());
+                            BOOST_VERIFY(vector_type->getElementType()->isFieldTy());
                             unsigned size = vector_type->getNumElements();
                             result_vector = std::vector<var>(size);
                             if (auto *cv = llvm::dyn_cast<llvm::ConstantVector>(vec)) {
@@ -689,10 +698,11 @@ namespace nil {
                                     if (llvm::isa<llvm::UndefValue>(elem))
                                         continue;
                                     assignmnt.public_input(0, public_input_idx) = marshal_int_val(elem);
-                                    result_vector[i] = var(0, public_input_idx++, false, var::column_type::public_input);
+                                    result_vector[i] =
+                                        var(0, public_input_idx++, false, var::column_type::public_input);
                                 }
                             } else {
-                                ASSERT_MSG(llvm::isa<llvm::UndefValue>(vec), "Unexpected constant value!");
+                                BOOST_VERIFY_MSG(llvm::isa<llvm::UndefValue>(vec), "Unexpected constant value!");
                             }
                         } else {
                             result_vector = frame.vectors[vec];
@@ -715,7 +725,7 @@ namespace nil {
                     }
                     case llvm::Instruction::Alloca:
                         frame.memory.emplace_back();
-                        frame.pointers[inst] = Pointer<var>{&frame.memory.back(), 0};
+                        frame.pointers[inst] = Pointer<var> {&frame.memory.back(), 0};
                         return inst->getNextNonDebugInstruction();
                     case llvm::Instruction::GetElementPtr: {
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(inst);
@@ -762,7 +772,7 @@ namespace nil {
                     case llvm::Instruction::InsertValue: {
                         auto *insert_val_inst = llvm::cast<llvm::InsertValueInst>(inst);
                         frame.memory.emplace_back();
-                        auto res = Pointer<var>{&frame.memory.back(), 0};
+                        auto res = Pointer<var> {&frame.memory.back(), 0};
                         frame.pointers[inst] = res;
                         Pointer<var> src = frame.pointers[inst->getOperand(0)];
                         res.memcpy(src);
@@ -801,10 +811,10 @@ namespace nil {
                         call_stack.pop();
                         if (extracted_frame.caller == nullptr) {
                             // Final return
-                            ASSERT(call_stack.size() == 0);
+                            BOOST_VERIFY(call_stack.size() == 0);
                             finished = true;
 
-                            if(PrintCircuitOutput) {
+                            if (PrintCircuitOutput) {
                                 if (inst->getNumOperands() != 0) {
                                     llvm::Value *ret_val = inst->getOperand(0);
                                     if (ret_val->getType()->isPointerTy()) {
@@ -816,7 +826,8 @@ namespace nil {
                                         }
                                         std::cout << std::endl;
                                     } else {
-                                        std::cout << var_value(assignmnt, extracted_frame.scalars[ret_val]).data << std::endl;
+                                        std::cout << var_value(assignmnt, extracted_frame.scalars[ret_val]).data
+                                                  << std::endl;
                                     }
                                 }
                             }
@@ -848,8 +859,9 @@ namespace nil {
                     }
 
                     default:
-                        UNREACHABLE(std::string("Unsupported opcode type: ") + inst->getOpcodeName());
+                        BOOST_UNREACHABLE_MSG(std::string("Unsupported opcode type: ") + inst->getOpcodeName());
                 }
+
                 return nullptr;
             }
 
@@ -886,8 +898,8 @@ namespace nil {
                 }
                 auto &function = *entry_point_it;
 
-                auto public_input_reader = PublicInputReader<BlueprintFieldType, var, assignment<ArithmetizationType>>(
-                    base_frame, assignmnt);
+                auto public_input_reader =
+                    PublicInputReader<BlueprintFieldType, var, assignment<ArithmetizationType>>(base_frame, assignmnt);
                 if (!public_input_reader.fill_public_input(function, public_input)) {
                     std::cerr << "Public input does not match the circuit signature";
                     const std::string &error = public_input_reader.get_error();

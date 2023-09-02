@@ -55,8 +55,8 @@ namespace nil {
             std::uint32_t start_row) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
-            using component_type = components::sha256<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, 9>;
+            using component_type = components::
+                sha256<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, 9>;
 
             constexpr const std::int32_t block_size = 2;
             constexpr const std::int32_t input_blocks_amount = 2;

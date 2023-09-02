@@ -38,14 +38,16 @@ namespace nil {
         template<typename VarType>
         class Chunk;
 
-        template <typename VarType>
+        template<typename VarType>
         class Pointer {
             Chunk<VarType> *base;
             unsigned index;
 
         public:
-            Pointer<VarType>(Chunk<VarType>* c, unsigned i): base(c), index(i) {}
-            Pointer<VarType>(): base(nullptr), index(0) {}
+            Pointer<VarType>(Chunk<VarType> *c, unsigned i) : base(c), index(i) {
+            }
+            Pointer<VarType>() : base(nullptr), index(0) {
+            }
             Pointer<VarType> adjust(int idx) {
                 return Pointer<VarType>(base, index + idx);
             }
@@ -67,7 +69,7 @@ namespace nil {
             }
         };
 
-        template <typename VarType>
+        template<typename VarType>
         class Chunk {
             std::unordered_map<unsigned, Pointer<VarType>> links;
             std::unordered_map<unsigned, VarType> data;
@@ -135,16 +137,16 @@ namespace nil {
         }
         template<typename VarType>
         inline void Pointer<VarType>::memcpy(Chunk<VarType> *mem) {
-            ASSERT(index == 0);
+            BOOST_VERIFY(index == 0);
             base->memcpy(mem);
         }
         template<typename VarType>
         inline void Pointer<VarType>::memcpy(Pointer<VarType> mem) {
-            ASSERT(mem.index == 0);
+            BOOST_VERIFY(mem.index == 0);
             base->memcpy(mem.base);
         }
 
     }    // namespace blueprint
 }    // namespace nil
 
-#endif  // CRYPTO3_ASSIGNER_MEMORY_HPP
+#endif    // CRYPTO3_ASSIGNER_MEMORY_HPP

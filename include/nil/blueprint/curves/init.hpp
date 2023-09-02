@@ -37,7 +37,7 @@ namespace nil {
             VarType y = frame.scalars[inst->getOperand(1)];
             frame.vectors[inst] = {x, y};
         }
-    }
-}
+    }    // namespace blueprint
+}    // namespace nil
 
-#endif // CRYPTO3_ASSIGNER_NIL_BLUEPRINT_CURVE_INIT_HPP
+#endif    // CRYPTO3_ASSIGNER_NIL_BLUEPRINT_CURVE_INIT_HPP

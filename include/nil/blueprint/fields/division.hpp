@@ -55,7 +55,9 @@ namespace nil {
                 BlueprintFieldType, 4, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_native_field_division_component(
                     llvm::Value *operand0, llvm::Value *operand1,
-                    typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
+                    typename std::map<const llvm::Value *,
+                                      crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>
+                        &variables,
                     circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
@@ -94,8 +96,8 @@ namespace nil {
             llvm::Type *op0_type = operand0->getType();
             llvm::Type *op1_type = operand1->getType();
 
-            ASSERT(llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind() ==
-                   llvm::cast<llvm::GaloisFieldType>(op1_type)->getFieldKind());
+            BOOST_VERIFY(llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind() ==
+                         llvm::cast<llvm::GaloisFieldType>(op1_type)->getFieldKind());
 
             switch (llvm::cast<llvm::GaloisFieldType>(op0_type)->getFieldKind()) {
                 case llvm::GALOIS_FIELD_BLS12381_BASE: {
@@ -107,7 +109,7 @@ namespace nil {
                                 operand0, operand1, frame.scalars, bp, assignment, start_row)
                                 .output;
                     } else {
-                        UNREACHABLE("Non-native bls12-381 is undefined yet");
+                        BOOST_UNREACHABLE_MSG("Non-native bls12-381 is undefined yet");
                     }
 
                     break;
@@ -121,7 +123,7 @@ namespace nil {
                                 operand0, operand1, frame.scalars, bp, assignment, start_row)
                                 .output;
                     } else {
-                        UNREACHABLE("Non-native pallas is undefined yet");
+                        BOOST_UNREACHABLE_MSG("Non-native pallas is undefined yet");
                     }
 
                     break;
@@ -135,13 +137,13 @@ namespace nil {
                                 operand0, operand1, frame.scalars, bp, assignment, start_row)
                                 .output;
                     } else {
-                        UNREACHABLE("Non-native ed25519 division is not implemented yet");
+                        BOOST_UNREACHABLE_MSG("Non-native ed25519 division is not implemented yet");
                     }
 
                     break;
                 }
                 default:
-                    UNREACHABLE("unsupported field operand type");
+                    BOOST_UNREACHABLE_MSG("unsupported field operand type");
             };
         }
 
