@@ -199,6 +199,8 @@ namespace nil {
                 default:
                     BOOST_UNREACHABLE_MSG("unsupported field operand type");
             }
+
+            return {};
         }
 
         template<typename BlueprintFieldType, typename var, typename Assignment>
