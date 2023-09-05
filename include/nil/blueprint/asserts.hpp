@@ -31,6 +31,6 @@
 
 #include <boost/assert.hpp>
 
-#define BOOST_UNREACHABLE_MSG(msg) BOOST_ASSERT_MSG(false, "UNREACHABLE: "(msg))
+#define BOOST_UNREACHABLE_MSG(msg) BOOST_VERIFY_MSG(false, "UNREACHABLE: "(msg))
 
 #endif    // CRYPTO3_ASSIGNER_NIL_BLUEPRINT_ASSERTS_HPP
