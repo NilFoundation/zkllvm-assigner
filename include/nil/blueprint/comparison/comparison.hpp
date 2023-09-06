@@ -53,7 +53,7 @@ namespace nil {
                 std::size_t &public_input_idx) {
 
             using component_type = components::comparison_flag<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, 3>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
             nil::blueprint::components::detail::comparison_mode Mode;
 

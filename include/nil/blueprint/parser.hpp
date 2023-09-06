@@ -31,7 +31,7 @@
 
 #include <nil/blueprint/blueprint/plonk/assignment.hpp>
 #include <nil/blueprint/blueprint/plonk/circuit.hpp>
-#include <nil/blueprint/components/hashes/poseidon/plonk/poseidon_15_wires.hpp>
+#include <nil/blueprint/components/hashes/poseidon/plonk/poseidon.hpp>
 #include <nil/blueprint/components/hashes/sha2/plonk/sha256.hpp>
 #include <nil/blueprint/components/hashes/sha2/plonk/sha512.hpp>
 
@@ -243,7 +243,7 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_poseidon: {
-                        using component_type = components::poseidon<ArithmetizationType, BlueprintFieldType, 15>;
+                        using component_type = components::poseidon<ArithmetizationType, BlueprintFieldType>;
 
                         auto &input_block = frame.vectors[inst->getOperand(0)];
                         std::array<var, component_type::state_size> input_state_var;

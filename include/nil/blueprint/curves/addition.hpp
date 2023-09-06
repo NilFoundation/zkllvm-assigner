@@ -53,7 +53,7 @@ namespace nil {
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename CurveType>
             typename components::unified_addition<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
-                CurveType, 11>::result_type
+                CurveType>::result_type
                 handle_native_curve_unified_addition_component(
                     llvm::Value *operand0, llvm::Value *operand1,
                     typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
@@ -65,7 +65,7 @@ namespace nil {
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
                 using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
-                using component_type = components::unified_addition<ArithmetizationType, CurveType, 11>;
+                using component_type = components::unified_addition<ArithmetizationType, CurveType>;
                 component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, {}, {});
 
                 struct var_ec_point {
@@ -88,7 +88,6 @@ namespace nil {
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
                 CurveType,
                 Ed25519Type,
-                9,
                 basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_non_native_curve_addition_component(
                     llvm::Value *operand0, llvm::Value *operand1,
@@ -101,8 +100,8 @@ namespace nil {
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
                 using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
-                using component_type = components::complete_addition<ArithmetizationType, CurveType, 
-                            Ed25519Type, 9, basic_non_native_policy<BlueprintFieldType>>;
+                using component_type = components::complete_addition<ArithmetizationType, CurveType,
+                            Ed25519Type, basic_non_native_policy<BlueprintFieldType>>;
                 component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
 
                 using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
@@ -114,21 +113,21 @@ namespace nil {
 
                 var_ec_point P = {
                     {
-                        vectors[operand0][0], 
-                        vectors[operand0][1], 
-                        vectors[operand0][2], 
+                        vectors[operand0][0],
+                        vectors[operand0][1],
+                        vectors[operand0][2],
                         vectors[operand0][3]
                     }, {
                         vectors[operand0][4],
                         vectors[operand0][5],
                         vectors[operand0][6],
                         vectors[operand0][7]}};
-                    
+
                 var_ec_point Q = {
                     {
-                        vectors[operand1][0], 
-                        vectors[operand1][1], 
-                        vectors[operand1][2], 
+                        vectors[operand1][0],
+                        vectors[operand1][1],
+                        vectors[operand1][2],
                         vectors[operand1][3]
                     }, {
                         vectors[operand1][4],
@@ -171,7 +170,7 @@ namespace nil {
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
-                        using component_type = components::unified_addition<ArithmetizationType, operating_curve_type, 11>;
+                        using component_type = components::unified_addition<ArithmetizationType, operating_curve_type>;
                         typename component_type::result_type res =
                             detail::handle_native_curve_unified_addition_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
                                 operand0, operand1, frame.vectors, bp, assignment, start_row);
@@ -209,8 +208,8 @@ namespace nil {
                         UNREACHABLE("native curve25519 addition is not implemented");
                     } else {
                         using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
-                        using component_type = components::complete_addition<ArithmetizationType, pallas_curve_type, 
-                            operating_curve_type, 9, basic_non_native_policy<BlueprintFieldType>>;
+                        using component_type = components::complete_addition<ArithmetizationType, pallas_curve_type,
+                            operating_curve_type, basic_non_native_policy<BlueprintFieldType>>;
                         typename component_type::result_type res =
                             detail::handle_non_native_curve_addition_component<BlueprintFieldType, ArithmetizationParams, pallas_curve_type, operating_curve_type>(
                                 operand0, operand1, frame.vectors, bp, assignment, start_row);
