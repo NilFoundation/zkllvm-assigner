@@ -44,7 +44,7 @@ namespace nil {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         typename components::bit_decomposition<
-        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, 9>::result_type
+        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::result_type
             handle_native_field_decomposition_component(
             std::size_t BitsAmount,
             llvm::Value *operand0,
@@ -67,7 +67,7 @@ namespace nil {
             mode Mode = is_msb ? mode::MSB : mode::LSB;
 
             using component_type = nil::blueprint::components::bit_decomposition<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, 9>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
             component_type component_instance =  component_type({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {0},
                                                            BitsAmount, Mode);
@@ -79,7 +79,7 @@ namespace nil {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         typename components::bit_composition<
-        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, 9>::result_type
+        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::result_type
             handle_native_field_bit_composition128_component(
             llvm::Value *operand0,
             llvm::Value *operand1,
@@ -94,7 +94,7 @@ namespace nil {
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
             using component_type = nil::blueprint::components::bit_composition<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, 9>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
             using mode = nil::blueprint::components::detail::bit_composition_mode;
 

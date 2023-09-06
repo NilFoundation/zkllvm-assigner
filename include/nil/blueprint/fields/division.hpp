@@ -52,7 +52,7 @@ namespace nil {
             template<typename BlueprintFieldType, typename ArithmetizationParams>
             typename components::division<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
-                BlueprintFieldType, 4, basic_non_native_policy<BlueprintFieldType>>::result_type
+                BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_native_field_division_component(
                     llvm::Value *operand0, llvm::Value *operand1,
                     typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
@@ -65,7 +65,7 @@ namespace nil {
 
                 using component_type = components::division<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
-                    BlueprintFieldType, 4, basic_non_native_policy<BlueprintFieldType>>;
+                    BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
                 component_type component_instance({0, 1, 2, 3}, {}, {});
 
                 var x = variables[operand0];
