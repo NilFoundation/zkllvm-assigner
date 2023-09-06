@@ -102,62 +102,36 @@ namespace nil {
             }
         }
 
+        template<typename BlueprintFieldType, typename NonNativeFieldType>
+        std::vector<typename BlueprintFieldType::value_type> check_modulus_and_chop(typename BlueprintFieldType::extended_integral_type glued_non_native) {
+            if(glued_non_native >= NonNativeFieldType::modulus) {
+                std::cerr << std::hex;
+                std::cerr << "0x" << glued_non_native << " >=\n";
+                std::cerr << "0x" << NonNativeFieldType::modulus << "\n";
+                UNREACHABLE("value does not fit into field modulus!");
+            }
+            return value_into_vector<BlueprintFieldType, NonNativeFieldType>(typename NonNativeFieldType::value_type(glued_non_native));
+        }
+
+
         template<typename BlueprintFieldType>
         std::vector<typename BlueprintFieldType::value_type> extended_integral_into_vector (llvm::GaloisFieldKind arg_field_type, typename BlueprintFieldType::extended_integral_type glued_non_native) {
-
             switch (arg_field_type) {
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
-
                     using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
-
-                    if(glued_non_native >= non_native_field_type::modulus) {
-                        std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >=\n";
-                        std::cerr << "0x" << non_native_field_type::modulus << "\n";
-                        UNREACHABLE("value does not fit into ed25519 base field!");
-                    }
-
-                    return value_into_vector<BlueprintFieldType, non_native_field_type>(typename non_native_field_type::value_type(glued_non_native));
+                    return check_modulus_and_chop<BlueprintFieldType, non_native_field_type>(glued_non_native);
                 }
-
                 case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
                     using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::scalar_field_type;
-
-                    if(glued_non_native >= non_native_field_type::modulus) {
-                        std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >=\n";
-                        std::cerr << "0x" << non_native_field_type::modulus << "\n";
-                        UNREACHABLE("value does not fit into ed25519 scalar field!");
-                    }
-                    return value_into_vector<BlueprintFieldType, non_native_field_type>(typename non_native_field_type::value_type(glued_non_native));
+                    return check_modulus_and_chop<BlueprintFieldType, non_native_field_type>(glued_non_native);
                 }
-
                 case llvm::GALOIS_FIELD_PALLAS_BASE: {
-
                     using non_native_field_type = typename nil::crypto3::algebra::curves::pallas::base_field_type;
-
-                    if(glued_non_native >= BlueprintFieldType::modulus) {
-                        std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >=\n";
-                        std::cerr << "0x" << BlueprintFieldType::modulus << "\n";
-                        UNREACHABLE("value does not fit into pallas base field!");
-                    }
-
-                    return value_into_vector<BlueprintFieldType, non_native_field_type>(typename non_native_field_type::value_type(glued_non_native));
+                    return check_modulus_and_chop<BlueprintFieldType, non_native_field_type>(glued_non_native);
                 }
-
                 case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
-
                     using non_native_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
-
-                    if(glued_non_native >= non_native_field_type::modulus) {
-                        std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >=\n";
-                        std::cerr << "0x" << non_native_field_type::modulus << "\n";
-                        UNREACHABLE("value does not fit into pallas scalar field!");
-                    }
-
-                    return value_into_vector<BlueprintFieldType, non_native_field_type>(typename non_native_field_type::value_type(glued_non_native));
+                    return check_modulus_and_chop<BlueprintFieldType, non_native_field_type>(glued_non_native);
                 }
 
                 default:
