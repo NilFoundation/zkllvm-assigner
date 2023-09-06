@@ -33,85 +33,13 @@
 #include <nil/blueprint/layout_resolver.hpp>
 
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/non_native_marshalling.hpp>
 
 #include <iostream>
 #include <boost/json/src.hpp>
 
 namespace nil {
     namespace blueprint {
-
-        template<typename BlueprintFieldType>
-        std::vector<typename BlueprintFieldType::value_type> extended_integral_into_vector (llvm::GaloisFieldKind arg_field_type, typename BlueprintFieldType::extended_integral_type glued_non_native) {
-
-            switch (arg_field_type) {
-                case llvm::GALOIS_FIELD_CURVE25519_BASE: {
-                    using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
-                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
-                    if(glued_non_native >= non_native_field_type::modulus) {
-                        std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >=\n";
-                        std::cerr << "0x" << non_native_field_type::modulus << "\n";
-                        UNREACHABLE("value does not fit into ed25519 base field!");
-                    }
-                    auto res = non_native_policy::chop_non_native(glued_non_native);
-                    std::vector<typename BlueprintFieldType::value_type> result;
-                    for (std::size_t i = 0; i < res.size(); i++) {
-                        result.push_back(res[i]);
-                    }
-                    return result;
-                }
-                case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
-                    using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::scalar_field_type;
-                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
-                    if(glued_non_native >= non_native_field_type::modulus) {
-                        std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >=\n";
-                        std::cerr << "0x" << non_native_field_type::modulus << "\n";
-                        UNREACHABLE("value does not fit into ed25519 scalar field!");
-                    }
-                    if (nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::scalar_field_type>::ratio != 1) {
-                        UNREACHABLE("ed25519 scalar field size must be 1 for used BlueprintFieldType");
-                    }
-                    std::vector<typename BlueprintFieldType::value_type> result;
-                    result.push_back(glued_non_native);
-                    return result;
-                }
-                case llvm::GALOIS_FIELD_PALLAS_BASE: {
-                    if(glued_non_native >= BlueprintFieldType::modulus) {
-                        std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >=\n";
-                        std::cerr << "0x" << BlueprintFieldType::modulus << "\n";
-                        UNREACHABLE("value does not fit into pallas base field!");
-                    }
-                    if (nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::pallas::base_field_type>::ratio != 1) {
-                        UNREACHABLE("pallas base field size must be 1 for used BlueprintFieldType");
-                    }
-                    std::vector<typename BlueprintFieldType::value_type> result;
-                    result.push_back(glued_non_native);
-                    return result;
-                }
-                case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
-                    using non_native_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
-                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
-                    if(glued_non_native >= non_native_field_type::modulus) {
-                        std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >=\n";
-                        std::cerr << "0x" << non_native_field_type::modulus << "\n";
-                        UNREACHABLE("value does not fit into pallas scalar field!");
-                    }
-                    auto res = non_native_policy::chop_non_native(glued_non_native);
-                    std::vector<typename BlueprintFieldType::value_type> result;
-                    for (std::size_t i = 0; i < res.size(); i++) {
-                        result.push_back(res[i]);
-                    }
-                    return result;
-                }
-
-                default:
-                    UNREACHABLE("unsupported field operand type");
-            }
-        }
-
         template<typename BlueprintFieldType, typename var, typename Assignment>
         class PublicInputReader {
         public:
@@ -156,8 +84,10 @@ namespace nil {
             std::vector<var> process_curve (llvm::EllipticCurveType *curve_type, const boost::json::object &value) {
                 size_t arg_len = curve_arg_num<BlueprintFieldType>(curve_type);
                 ASSERT_MSG(arg_len >= 2, "arg_len of curveTy cannot be less than two");
-                if (value.size() != 1 || !value.contains("curve"))
+                if (value.size() != 1 || !value.contains("curve")) {
+                    std::cerr << "error in json value:\n" << value << "\n";
                     UNREACHABLE("value.size() != 1 || !value.contains(\"curve\")");
+                }
                 ASSERT_MSG(value.at("curve").is_array(), "curve element must be array!");
                 ASSERT_MSG((value.at("curve").as_array().size() == 2), "curve element consists of two field elements!");
 
@@ -233,18 +163,29 @@ namespace nil {
             }
 
             std::vector<var> process_field (llvm::GaloisFieldType *field_type, const boost::json::object &value) {
-                ASSERT(value.size() == 1 && value.contains("field"));
+                ASSERT(llvm::isa<llvm::GaloisFieldType>(field_type));
+                if (value.size() != 1 || !value.contains("field")){
+                    std::cerr << "error in json value:\n" << value << "\n";
+                    UNREACHABLE("value.size() != 1 || !value.contains(\"field\")");
+                }
                 size_t arg_len = field_arg_num<BlueprintFieldType>(field_type);
                 ASSERT_MSG(arg_len != 0, "wrong input size");
                 llvm::GaloisFieldKind arg_field_type = field_type->getFieldKind();
 
                 if (value.at("field").is_double()) {
+                    std::cerr << "error in json value:\n" << value << "\n";
                     error =
                         "got double value for field argument. Probably the value is too big to be represented as "
                         "integer. You can put it in \"\" to avoid JSON parser restrictions.";
+                    UNREACHABLE("got double type value");
                 }
                 auto values = process_non_native_field(value.at("field"), arg_field_type);
-                ASSERT(values.size() == arg_len);
+                if (values.size() != arg_len) {
+                    std::cerr << "error in json value:\n" << value << "\n";
+                    std::cerr << "values.size() != arg_len\n";
+                    std::cerr << "values.size() = "  << values.size() << ", arg_len = " << arg_len<< std::endl;
+                    UNREACHABLE("value size != arg_len");
+                }
                 return values;
             }
 
@@ -481,7 +422,7 @@ namespace nil {
             size_t public_input_idx;
             std::string error;
         };
-    }    // namespace blueprint
+    }   // namespace blueprint
 }    // namespace nil
 
 
