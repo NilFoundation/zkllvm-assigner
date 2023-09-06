@@ -37,6 +37,7 @@
 
 #include "nil/crypto3/algebra/fields/pallas/base_field.hpp"
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/non_native_marshalling.hpp>
 
 #include <iostream>
 #include <boost/json/src.hpp>
@@ -50,135 +51,6 @@ namespace nil {
                 return llvm::cast<llvm::ArrayType>(pointee->getContainedType(0))->getNumElements();
             }
             return 0;
-        }
-
-        template<typename BlueprintFieldType>
-        std::size_t curve_arg_num(llvm::Type *arg_type) {
-            std::size_t size = 0;
-
-            switch (llvm::cast<llvm::EllipticCurveType>(arg_type)->getCurveKind()) {
-                case llvm::ELLIPTIC_CURVE_PALLAS: {
-                    return 2;
-                }
-                case llvm::ELLIPTIC_CURVE_VESTA: {
-                    UNREACHABLE("vesta curve is not supported for used native field yet");
-                }
-                case llvm::ELLIPTIC_CURVE_CURVE25519: {
-                    return 2 * nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::base_field_type>::ratio;
-                }
-                case llvm::ELLIPTIC_CURVE_BLS12381: {
-                    UNREACHABLE("bls12381 is not supported for used native field yet");
-                }
-                default:
-                    UNREACHABLE("unsupported curve type");
-                    return 0;
-            };
-        }
-
-        template<typename BlueprintFieldType>
-        std::size_t field_arg_num(llvm::Type *arg_type) {
-            std::size_t size = 0;
-            switch (llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind()) {
-                case llvm::GALOIS_FIELD_PALLAS_BASE: {
-                    return 1;
-                }
-                case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
-                    return nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::pallas::scalar_field_type>::ratio;
-                }
-                case llvm::GALOIS_FIELD_VESTA_BASE: {
-                    UNREACHABLE("vesta base field is not supported for used native field yet");
-                }
-                case llvm::GALOIS_FIELD_VESTA_SCALAR: {
-                    UNREACHABLE("vesta scalar field is not supported for used native field yet");
-                }
-                case llvm::GALOIS_FIELD_BLS12381_BASE: {
-                    UNREACHABLE("bls12381 base field is not supported for used native field yet");
-                }
-                case llvm::GALOIS_FIELD_BLS12381_SCALAR: {
-                    UNREACHABLE("bls12381 scalar field is not supported for used native field yet");
-                }
-                case llvm::GALOIS_FIELD_CURVE25519_BASE: {
-                    return nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::base_field_type>::ratio;
-                }
-                case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
-                    return nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::scalar_field_type>::ratio;
-                }
-
-                default:
-                    UNREACHABLE("unsupported field operand type");
-            }
-        }
-
-        template<typename BlueprintFieldType>
-        std::vector<typename BlueprintFieldType::value_type> extended_integral_into_vector (llvm::GaloisFieldKind arg_field_type, typename BlueprintFieldType::extended_integral_type glued_non_native) {
-
-            switch (arg_field_type) {
-                case llvm::GALOIS_FIELD_CURVE25519_BASE: {
-                    using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
-                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
-                    if(glued_non_native >= non_native_field_type::modulus) {
-                        std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >=\n";
-                        std::cerr << "0x" << non_native_field_type::modulus << "\n";
-                        UNREACHABLE("value does not fit into ed25519 base field!");
-                    }
-                    auto res = non_native_policy::chop_non_native(glued_non_native);
-                    std::vector<typename BlueprintFieldType::value_type> result;
-                    for (std::size_t i = 0; i < res.size(); i++) {
-                        result.push_back(res[i]);
-                    }
-                    return result;
-                }
-                case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
-                    using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::scalar_field_type;
-                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
-                    if(glued_non_native >= non_native_field_type::modulus) {
-                        std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >=\n";
-                        std::cerr << "0x" << non_native_field_type::modulus << "\n";
-                        UNREACHABLE("value does not fit into ed25519 scalar field!");
-                    }
-                    if (nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::scalar_field_type>::ratio != 1) {
-                        UNREACHABLE("ed25519 scalar field size must be 1 for used BlueprintFieldType");
-                    }
-                    std::vector<typename BlueprintFieldType::value_type> result;
-                    result.push_back(glued_non_native);
-                    return result;
-                }
-                case llvm::GALOIS_FIELD_PALLAS_BASE: {
-                    if(glued_non_native >= BlueprintFieldType::modulus) {
-                        std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >=\n";
-                        std::cerr << "0x" << BlueprintFieldType::modulus << "\n";
-                        UNREACHABLE("value does not fit into pallas base field!");
-                    }
-                    if (nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::pallas::base_field_type>::ratio != 1) {
-                        UNREACHABLE("pallas base field size must be 1 for used BlueprintFieldType");
-                    }
-                    std::vector<typename BlueprintFieldType::value_type> result;
-                    result.push_back(glued_non_native);
-                    return result;
-                }
-                case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
-                    using non_native_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
-                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
-                    if(glued_non_native >= non_native_field_type::modulus) {
-                        std::cerr << std::hex;
-                        std::cerr << "0x" << glued_non_native << " >=\n";
-                        std::cerr << "0x" << non_native_field_type::modulus << "\n";
-                        UNREACHABLE("value does not fit into pallas scalar field!");
-                    }
-                    auto res = non_native_policy::chop_non_native(glued_non_native);
-                    std::vector<typename BlueprintFieldType::value_type> result;
-                    for (std::size_t i = 0; i < res.size(); i++) {
-                        result.push_back(res[i]);
-                    }
-                    return result;
-                }
-
-                default:
-                    UNREACHABLE("unsupported field operand type");
-            }
         }
 
         template<typename BlueprintFieldType, typename var, typename Assignment>
