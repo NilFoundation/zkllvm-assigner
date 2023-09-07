@@ -51,6 +51,7 @@
 #include <nil/blueprint/logger.hpp>
 #include <nil/blueprint/gep_resolver.hpp>
 #include <nil/blueprint/public_input.hpp>
+#include <nil/blueprint/non_native_marshalling.hpp>
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/integers/addition.hpp>
 #include <nil/blueprint/integers/subtraction.hpp>
@@ -145,7 +146,8 @@ namespace nil {
                 frame.scalars[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
             }
 
-            typename BlueprintFieldType::value_type marshal_int_val(const llvm::Value *val) {
+            template<typename FieldType>
+            std::vector<typename BlueprintFieldType::value_type> field_dependent_marshal_val(const llvm::Value *val) {
                 ASSERT(llvm::isa<llvm::ConstantField>(val) || llvm::isa<llvm::ConstantInt>(val));
                 llvm::APInt int_val;
                 if (llvm::isa<llvm::ConstantField>(val)) {
@@ -154,7 +156,7 @@ namespace nil {
                     int_val = llvm::cast<llvm::ConstantInt>(val)->getValue();
                 }
                 unsigned words = int_val.getNumWords();
-                typename BlueprintFieldType::value_type field_constant;
+                typename FieldType::value_type field_constant;
                 if (words == 1) {
                     field_constant = int_val.getSExtValue();
                 } else {
@@ -165,8 +167,38 @@ namespace nil {
                     field_constant = nil::marshalling::pack<nil::marshalling::option::little_endian>(bytes, status);
                     ASSERT(status == nil::marshalling::status_type::success);
                 }
-                return field_constant;
+                return value_into_vector<BlueprintFieldType, FieldType>(field_constant);
             }
+
+            std::vector<typename BlueprintFieldType::value_type> marshal_int_val(const llvm::Value *val) {
+
+                ASSERT(llvm::isa<llvm::ConstantField>(val) || llvm::isa<llvm::ConstantInt>(val));
+                if (llvm::isa<llvm::ConstantInt>(val)) {
+                    return field_dependent_marshal_val<BlueprintFieldType>(val);
+                } else {
+                    switch (llvm::cast<llvm::GaloisFieldType>(val->getType())->getFieldKind()) {
+                        case llvm::GALOIS_FIELD_CURVE25519_BASE: {
+                            using operating_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
+                            return field_dependent_marshal_val<operating_field_type>(val);
+                        }
+                        case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
+                            using operating_field_type = typename nil::crypto3::algebra::curves::ed25519::scalar_field_type;
+                            return field_dependent_marshal_val<operating_field_type>(val);
+                        }
+                        case llvm::GALOIS_FIELD_PALLAS_BASE: {
+                            using operating_field_type = typename nil::crypto3::algebra::curves::pallas::base_field_type;
+                            return field_dependent_marshal_val<operating_field_type>(val);
+                        }
+                        case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
+                            using operating_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
+                            return field_dependent_marshal_val<operating_field_type>(val);
+                        }
+                        default:
+                            UNREACHABLE("unsupported field operand type");
+                    }
+                }
+            }
+
 
             Pointer<var> resolve_pointer(stack_frame<var> &frame, const llvm::Value *ptr_value) {
                 if (llvm::isa<llvm::GlobalVariable>(ptr_value)) {
@@ -207,10 +239,21 @@ namespace nil {
                     component_stack.pop();
                     llvm::Type *type = constant->getType();
                     if (!type->isAggregateType()) {
-                        assignmnt.public_input(0, public_input_idx) = marshal_int_val(constant);
-                        auto variable = var(0, public_input_idx++, false, var::column_type::public_input);
-                        chunk.store_var(variable, idx++);
-                        continue;
+                        std::vector<typename BlueprintFieldType::value_type> marshalled_int_val = marshal_int_val(constant);
+                        if (marshalled_int_val.size() == 1) {
+                            assignmnt.public_input(0, public_input_idx) = marshalled_int_val[0];
+                            auto variable = var(0, public_input_idx++, false, var::column_type::public_input);
+                            chunk.store_var(variable, idx++);
+                            continue;
+                        } else {
+                            std::vector<var> non_native_var(marshalled_int_val.size());
+                            for(std::size_t i = 0; i < marshalled_int_val.size(); i++) {
+                                assignmnt.public_input(0, public_input_idx) = marshalled_int_val[i];
+                                non_native_var[i] = var(0, public_input_idx++, false, var::column_type::public_input);
+                            }
+                            chunk.store_vector(non_native_var, idx++);
+                            continue;
+                        }
                     }
                     unsigned num_elements = 0;
                     if (llvm::isa<llvm::StructType>(type)) {
@@ -363,8 +406,17 @@ namespace nil {
                         continue;
                     }
                     if (llvm::isa<llvm::ConstantField>(op) || llvm::isa<llvm::ConstantInt>(op)) {
-                        assignmnt.public_input(0, public_input_idx) = marshal_int_val(op);
-                        variables[op] = var(0, public_input_idx++, false, var::column_type::public_input);
+                        std::vector<typename BlueprintFieldType::value_type> marshalled_int_val = marshal_int_val(op);
+                        if (marshalled_int_val.size() == 1) {
+                            assignmnt.public_input(0, public_input_idx) = marshalled_int_val[0];
+                            variables[op] = var(0, public_input_idx++, false, var::column_type::public_input);
+                        }
+                        else {
+                            for (std::size_t i = 0; i < marshalled_int_val.size(); i++) {
+                                assignmnt.public_input(0, public_input_idx) = marshalled_int_val[i];
+                                frame.vectors[op].push_back(var(0, public_input_idx++, false, var::column_type::public_input));
+                            }
+                        }
                     }
                     if (llvm::isa<llvm::UndefValue>(op)) {
                         llvm::Type *undef_type = op->getType();
@@ -688,7 +740,11 @@ namespace nil {
                                     llvm::Constant *elem = cv->getAggregateElement(i);
                                     if (llvm::isa<llvm::UndefValue>(elem))
                                         continue;
-                                    assignmnt.public_input(0, public_input_idx) = marshal_int_val(elem);
+                                    std::vector<typename BlueprintFieldType::value_type> marshalled_int_val = marshal_int_val(elem);
+                                    if (marshalled_int_val.size() != 1) {
+                                        UNREACHABLE("not implemented yet"); //TODO implement
+                                    }
+                                    assignmnt.public_input(0, public_input_idx) = marshalled_int_val[0];
                                     result_vector[i] = var(0, public_input_idx++, false, var::column_type::public_input);
                                 }
                             } else {
@@ -911,7 +967,11 @@ namespace nil {
                     } else if (initializer->getType()->isIntegerTy() || initializer->getType()->isFieldTy()) {
                         global_data.emplace_back();
                         ptr = Pointer<var>(&global_data.back(), 0);
-                        assignmnt.public_input(0, public_input_idx) = marshal_int_val(initializer);
+                        std::vector<typename BlueprintFieldType::value_type> marshalled_int_val = marshal_int_val(initializer);
+                        if (marshalled_int_val.size() != 1) {
+                            UNREACHABLE("not implemented yet"); //TODO implement
+                        }
+                        assignmnt.public_input(0, public_input_idx) = marshalled_int_val[0];
                         ptr.store_var(var(0, public_input_idx++, false, var::column_type::public_input));
                     } else {
                         // Unhandled global variable type
