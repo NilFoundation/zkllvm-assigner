@@ -127,6 +127,21 @@ namespace nil {
                 frame.vectors[inst] = res;
             }
 
+            void handle_curve_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
+                switch (inst->getPredicate()) {
+                case llvm::CmpInst::ICMP_EQ: {
+                    handle_vector_cmp(inst, frame);
+                }
+                case llvm::CmpInst::ICMP_NE:{
+                    handle_vector_cmp(inst, frame);
+                    break;
+                }
+                default:
+                    UNREACHABLE("Curve element cmp is inplemented only for EQ and NE");
+                    break;
+                }
+            }
+
             void handle_ptr_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
                 Pointer<var> lhs = frame.pointers[inst->getOperand(0)];
                 Pointer<var> rhs = frame.pointers[inst->getOperand(1)];
@@ -608,9 +623,10 @@ namespace nil {
                             handle_scalar_cmp(cmp_inst, variables);
                         else if (cmp_type->isPointerTy())
                             handle_ptr_cmp(cmp_inst, frame);
-                        else if (cmp_type->isVectorTy()) {
+                        else if (cmp_type->isVectorTy())
                             handle_vector_cmp(cmp_inst, frame);
-                        }
+                        else if (cmp_type->isCurveTy())
+                            handle_curve_cmp(cmp_inst, frame);
                         else {
                             UNREACHABLE("Unsupported icmp operand type");
                         }
