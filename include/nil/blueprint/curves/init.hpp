@@ -33,9 +33,19 @@ namespace nil {
     namespace blueprint {
         template<typename VarType>
         void handle_curve_init(const llvm::CallInst *inst, stack_frame<VarType> &frame) {
-            VarType x = frame.scalars[inst->getOperand(0)];
-            VarType y = frame.scalars[inst->getOperand(1)];
-            frame.vectors[inst] = {x, y};
+            ASSERT(frame.vectors[inst->getOperand(0)].size() == frame.vectors[inst->getOperand(1)].size());
+
+            if (frame.vectors[inst->getOperand(0)].size() == 0) {
+                VarType x = frame.scalars[inst->getOperand(0)];
+                VarType y = frame.scalars[inst->getOperand(1)];
+                frame.vectors[inst] = {x, y};
+            }
+            else {
+                std::vector<VarType> vect0 = frame.vectors[inst->getOperand(0)];
+                std::vector<VarType> vect1 = frame.vectors[inst->getOperand(1)];
+                vect0.insert(vect0.end(), vect1.begin(), vect1.end());
+                frame.vectors[inst] = vect0;
+            }
         }
     }
 }

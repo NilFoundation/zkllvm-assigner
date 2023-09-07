@@ -589,8 +589,10 @@ namespace nil {
                             llvm::Argument *arg = fun->getArg(i);
                             if (arg->getType()->isPointerTy())
                                 new_frame.pointers[arg] = frame.pointers[call_inst->getOperand(i)];
-                            else if (arg->getType()->isVectorTy())
+                            else if (arg->getType()->isVectorTy() || arg->getType()->isCurveTy() ||
+                                    (arg->getType()->isFieldTy() && field_arg_num<BlueprintFieldType>(arg->getType()) > 1)) {
                                 new_frame.vectors[arg] = frame.vectors[call_inst->getOperand(i)];
+                            }
                             else
                                 new_variables[arg] = variables[call_inst->getOperand(i)];
 
@@ -885,7 +887,8 @@ namespace nil {
                                 auto &upper_frame_pointers = call_stack.top().pointers;
                                 auto res = extracted_frame.pointers[ret_val];
                                 upper_frame_pointers[extracted_frame.caller] = res;
-                            } else if (ret_val->getType()->isVectorTy()) {
+                            } else if (ret_val->getType()->isVectorTy() || ret_val->getType()->isCurveTy()
+                                    || (ret_val->getType()->isFieldTy() && field_arg_num<BlueprintFieldType>(ret_val->getType()) > 1)) {
                                 auto &upper_frame_vectors = call_stack.top().vectors;
                                 auto res = extracted_frame.vectors[ret_val];
                                 upper_frame_vectors[extracted_frame.caller] = res;
