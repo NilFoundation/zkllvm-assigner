@@ -103,6 +103,30 @@ namespace nil {
         }
 
         template<typename BlueprintFieldType, typename NonNativeFieldType>
+        typename NonNativeFieldType::value_type vector_into_value (std::vector<typename BlueprintFieldType::value_type> input) {
+            using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, NonNativeFieldType>;
+
+            if (input.size() != non_native_policy::ratio) {
+                std::cerr << "input.size(): " << input.size() << "\n";
+                std::cerr << "non_native_policy::ratio: " << non_native_policy::ratio << "\n";
+                UNREACHABLE("input.size() != non_native_policy::ratio");
+            }
+
+
+            if constexpr (non_native_policy::ratio == 1) {
+                UNREACHABLE("scalar, no need to use vector, conversion for ratio==1 is not implemented");
+            }
+            else {
+                typename non_native_policy::chopped_value_type chopped_field;
+                for (std::size_t i = 0; i < non_native_policy::ratio; i++) {
+                    chopped_field[i] = input[i];
+                }
+                typename NonNativeFieldType::value_type res = non_native_policy::glue_non_native(chopped_field);
+                return res;
+            }
+        }
+
+        template<typename BlueprintFieldType, typename NonNativeFieldType>
         std::vector<typename BlueprintFieldType::value_type> check_modulus_and_chop(typename BlueprintFieldType::extended_integral_type glued_non_native) {
             if(glued_non_native >= NonNativeFieldType::modulus) {
                 std::cerr << std::hex;

@@ -185,7 +185,7 @@ namespace nil {
                 return value_into_vector<BlueprintFieldType, FieldType>(field_constant);
             }
 
-            std::vector<typename BlueprintFieldType::value_type> marshal_int_val(const llvm::Value *val) {
+            std::vector<typename BlueprintFieldType::value_type> marshal_field_val(const llvm::Value *val) {
 
                 ASSERT(llvm::isa<llvm::ConstantField>(val) || llvm::isa<llvm::ConstantInt>(val));
                 if (llvm::isa<llvm::ConstantInt>(val)) {
@@ -211,6 +211,29 @@ namespace nil {
                         default:
                             UNREACHABLE("unsupported field operand type");
                     }
+                }
+            }
+
+            typename BlueprintFieldType::integral_type unmarshal_field_val(const llvm::GaloisFieldKind field_type, std::vector<typename BlueprintFieldType::value_type> input) {
+                switch (field_type) {
+                    case llvm::GALOIS_FIELD_CURVE25519_BASE: {
+                        using operating_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
+                        return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                    }
+                    case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
+                        using operating_field_type = typename nil::crypto3::algebra::curves::ed25519::scalar_field_type;
+                        return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                    }
+                    case llvm::GALOIS_FIELD_PALLAS_BASE: {
+                        using operating_field_type = typename nil::crypto3::algebra::curves::pallas::base_field_type;
+                        return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                    }
+                    case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
+                        using operating_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
+                        return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                    }
+                    default:
+                        UNREACHABLE("unsupported field operand type");
                 }
             }
 
@@ -254,16 +277,16 @@ namespace nil {
                     component_stack.pop();
                     llvm::Type *type = constant->getType();
                     if (!type->isAggregateType()) {
-                        std::vector<typename BlueprintFieldType::value_type> marshalled_int_val = marshal_int_val(constant);
-                        if (marshalled_int_val.size() == 1) {
-                            assignmnt.public_input(0, public_input_idx) = marshalled_int_val[0];
+                        std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val(constant);
+                        if (marshalled_field_val.size() == 1) {
+                            assignmnt.public_input(0, public_input_idx) = marshalled_field_val[0];
                             auto variable = var(0, public_input_idx++, false, var::column_type::public_input);
                             chunk.store_var(variable, idx++);
                             continue;
                         } else {
-                            std::vector<var> non_native_var(marshalled_int_val.size());
-                            for(std::size_t i = 0; i < marshalled_int_val.size(); i++) {
-                                assignmnt.public_input(0, public_input_idx) = marshalled_int_val[i];
+                            std::vector<var> non_native_var(marshalled_field_val.size());
+                            for(std::size_t i = 0; i < marshalled_field_val.size(); i++) {
+                                assignmnt.public_input(0, public_input_idx) = marshalled_field_val[i];
                                 non_native_var[i] = var(0, public_input_idx++, false, var::column_type::public_input);
                             }
                             chunk.store_vector(non_native_var, idx++);
@@ -421,14 +444,14 @@ namespace nil {
                         continue;
                     }
                     if (llvm::isa<llvm::ConstantField>(op) || llvm::isa<llvm::ConstantInt>(op)) {
-                        std::vector<typename BlueprintFieldType::value_type> marshalled_int_val = marshal_int_val(op);
-                        if (marshalled_int_val.size() == 1) {
-                            assignmnt.public_input(0, public_input_idx) = marshalled_int_val[0];
+                        std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val(op);
+                        if (marshalled_field_val.size() == 1) {
+                            assignmnt.public_input(0, public_input_idx) = marshalled_field_val[0];
                             variables[op] = var(0, public_input_idx++, false, var::column_type::public_input);
                         }
                         else {
-                            for (std::size_t i = 0; i < marshalled_int_val.size(); i++) {
-                                assignmnt.public_input(0, public_input_idx) = marshalled_int_val[i];
+                            for (std::size_t i = 0; i < marshalled_field_val.size(); i++) {
+                                assignmnt.public_input(0, public_input_idx) = marshalled_field_val[i];
                                 frame.vectors[op].push_back(var(0, public_input_idx++, false, var::column_type::public_input));
                             }
                         }
@@ -758,11 +781,11 @@ namespace nil {
                                     llvm::Constant *elem = cv->getAggregateElement(i);
                                     if (llvm::isa<llvm::UndefValue>(elem))
                                         continue;
-                                    std::vector<typename BlueprintFieldType::value_type> marshalled_int_val = marshal_int_val(elem);
-                                    if (marshalled_int_val.size() != 1) {
+                                    std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val(elem);
+                                    if (marshalled_field_val.size() != 1) {
                                         UNREACHABLE("not implemented yet"); //TODO implement
                                     }
-                                    assignmnt.public_input(0, public_input_idx) = marshalled_int_val[0];
+                                    assignmnt.public_input(0, public_input_idx) = marshalled_field_val[0];
                                     result_vector[i] = var(0, public_input_idx++, false, var::column_type::public_input);
                                 }
                             } else {
@@ -889,6 +912,48 @@ namespace nil {
                                             std::cout << var_value(assignmnt, x).data << " ";
                                         }
                                         std::cout << std::endl;
+                                    } else if (ret_val->getType()->isFieldTy() && field_arg_num<BlueprintFieldType>(ret_val->getType()) > 1) {
+                                        std::vector<var> res = extracted_frame.vectors[ret_val];
+                                        std::vector<typename BlueprintFieldType::value_type> chopped_field;
+                                        for (std::size_t i = 0; i < res.size(); i++) {
+                                            chopped_field.push_back(var_value(assignmnt, res[i]));
+                                        }
+                                        llvm::GaloisFieldKind ret_field_type;
+                                        if (llvm::isa<llvm::GaloisFieldType>(ret_val->getType())) {
+                                            ret_field_type = llvm::cast<llvm::GaloisFieldType>(ret_val->getType())->getFieldKind();
+                                        }
+                                        else {UNREACHABLE("public input reader take_field can handle only fields");}
+
+                                        std::cout << unmarshal_field_val(ret_field_type, chopped_field) << std::endl;
+
+                                    } else if (ret_val->getType()->isCurveTy()) {
+                                        std::size_t curve_len = curve_arg_num<BlueprintFieldType>(ret_val->getType());
+                                        if (curve_len == 2) {
+                                            std::cout << var_value(assignmnt, extracted_frame.vectors[ret_val][0]).data << "\n";
+                                            std::cout << var_value(assignmnt, extracted_frame.vectors[ret_val][1]).data << "\n";
+                                        }
+                                        else if(curve_len > 2) {
+                                            llvm::GaloisFieldKind ret_field_type;
+                                            if (llvm::isa<llvm::EllipticCurveType>(ret_val->getType())) {
+                                                ret_field_type  = llvm::cast<llvm::EllipticCurveType>(ret_val->getType())->GetBaseFieldKind();
+                                            }
+                                            else {UNREACHABLE("public input reader take_field can handle only fields");}
+
+                                            std::vector<var> res = extracted_frame.vectors[ret_val];
+
+                                            std::vector<typename BlueprintFieldType::value_type> chopped_field_x;
+                                            std::vector<typename BlueprintFieldType::value_type> chopped_field_y;
+                                            for (std::size_t i = 0; i < curve_len / 2; i++) {
+                                                chopped_field_x.push_back(var_value(assignmnt, res[i]));
+                                                chopped_field_y.push_back(var_value(assignmnt, res[i + (curve_len/2)]));
+                                            }
+                                            std::cout << unmarshal_field_val(ret_field_type, chopped_field_x) << std::endl;
+                                            std::cout << unmarshal_field_val(ret_field_type, chopped_field_y) << std::endl;
+
+                                        }
+                                        else {
+                                            UNREACHABLE("curve_arg_num mest be >= 2");
+                                        }
                                     } else {
                                         std::cout << var_value(assignmnt, extracted_frame.scalars[ret_val]).data << std::endl;
                                     }
@@ -986,11 +1051,11 @@ namespace nil {
                     } else if (initializer->getType()->isIntegerTy() || initializer->getType()->isFieldTy()) {
                         global_data.emplace_back();
                         ptr = Pointer<var>(&global_data.back(), 0);
-                        std::vector<typename BlueprintFieldType::value_type> marshalled_int_val = marshal_int_val(initializer);
-                        if (marshalled_int_val.size() != 1) {
+                        std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val(initializer);
+                        if (marshalled_field_val.size() != 1) {
                             UNREACHABLE("not implemented yet"); //TODO implement
                         }
-                        assignmnt.public_input(0, public_input_idx) = marshalled_int_val[0];
+                        assignmnt.public_input(0, public_input_idx) = marshalled_field_val[0];
                         ptr.store_var(var(0, public_input_idx++, false, var::column_type::public_input));
                     } else {
                         // Unhandled global variable type
