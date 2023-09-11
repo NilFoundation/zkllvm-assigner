@@ -47,9 +47,7 @@ namespace nil {
         template<typename VarType>
         struct stack_frame {
             std::map<const llvm::Value *, VarType> scalars;
-            std::map<const llvm::Value *, Pointer<VarType>> pointers;
             std::map<const llvm::Value *, std::vector<VarType>> vectors;
-            std::list<Chunk<VarType>> memory;
             const llvm::CallInst *caller;
         };
 
