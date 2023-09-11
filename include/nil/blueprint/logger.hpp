@@ -60,6 +60,11 @@ namespace nil {
                 }
             }
 
+            template<typename... Args>
+            void debug(std::string_view fmt, const Args &...args) {
+                spdlog::debug(fmt, args...);
+            }
+
             void log_instruction(const llvm::Instruction *inst) {
                 if (lvl != level::DEBUG) {
                     return;
@@ -72,13 +77,10 @@ namespace nil {
                     current_block = inst->getParent();
                     spdlog::debug("\t{}: ", current_block->getNameOrAsOperand());
                 }
-                std::string inst_name = inst->getNameOrAsOperand();
-                const char *opcode_name = inst->getOpcodeName();
-                if (inst_name == "<badref>") {
-                    spdlog::debug("\t\t{}", opcode_name);
-                } else {
-                    spdlog::debug("\t\t{} -> {}", opcode_name, inst_name);
-                }
+                std::string str;
+                llvm::raw_string_ostream ss(str);
+                inst->print(ss);
+                spdlog::debug("\t\t{}", str);
             }
 
         private:
