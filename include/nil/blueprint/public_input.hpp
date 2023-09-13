@@ -125,8 +125,10 @@ namespace nil {
             std::vector<var> process_curve (llvm::Type *curve_type, const boost::json::object &value) {
                 size_t arg_len = curve_arg_num<BlueprintFieldType>(curve_type);
                 ASSERT_MSG(arg_len >= 2, "arg_len of curveTy cannot be less than two");
-                if (value.size() != 1 || !value.contains("curve"))
+                if (value.size() != 1 || !value.contains("curve")) {
+                    std::cerr << "error in json value:\n" << value << "\n";
                     UNREACHABLE("value.size() != 1 || !value.contains(\"curve\")");
+                }
                 ASSERT_MSG(value.at("curve").is_array(), "curve element must be array!");
                 ASSERT_MSG((value.at("curve").as_array().size() == 2), "curve element consists of two field elements!");
 
@@ -206,6 +208,7 @@ namespace nil {
             std::vector<var> process_field (llvm::Type *field_type, const boost::json::object &value) {
                 ASSERT(llvm::isa<llvm::GaloisFieldType>(field_type));
                 if (value.size() != 1 || !value.contains("field")){
+                    std::cerr << "error in json value:\n" << value << "\n";
                     UNREACHABLE("value.size() != 1 || !value.contains(\"field\")");
                 }
                 size_t arg_len = field_arg_num<BlueprintFieldType>(field_type);
@@ -216,12 +219,14 @@ namespace nil {
                 }
                 else {UNREACHABLE("public input reader take_field can handle only fields");}
                 if (value.at("field").is_double()) {
+                    std::cerr << "error in json value:\n" << value << "\n";
                     error =
                         "got double value for field argument. Probably the value is too big to be represented as "
                         "integer. You can put it in \"\" to avoid JSON parser restrictions.";
                 }
                 auto values = process_non_native_field(value.at("field"), arg_field_type);
                 if (values.size() != arg_len) {
+                    std::cerr << "error in json value:\n" << value << "\n";
                     std::cerr << "values.size() != arg_len\n";
                     std::cerr << "values.size() = "  << values.size() << ", arg_len = " << arg_len<< std::endl;
                 }
