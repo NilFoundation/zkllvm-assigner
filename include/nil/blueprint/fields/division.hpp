@@ -44,6 +44,7 @@
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/policy/policy_manager.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -66,7 +67,8 @@ namespace nil {
                 using component_type = components::division<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
                     BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
-                component_type component_instance({0, 1, 2, 3}, {}, {});
+                const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0));
+                component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
 
                 var x = variables[operand0];
                 var y = variables[operand1];

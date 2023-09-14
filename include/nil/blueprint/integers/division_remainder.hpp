@@ -36,6 +36,7 @@
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/policy/policy_manager.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -56,10 +57,10 @@ namespace nil {
             std::uint32_t start_row) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
-
             using component_type = components::division_remainder<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
-            component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {0}, Bitness, true);
+            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, Bitness, true));
+            component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), Bitness, true);
 
             var x = variables[operand0];
             var y = variables[operand1];

@@ -37,6 +37,7 @@
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/policy/policy_manager.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -68,9 +69,8 @@ namespace nil {
 
             using component_type = nil::blueprint::components::bit_decomposition<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
-
-            component_type component_instance =  component_type({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {0},
-                                                           BitsAmount, Mode);
+            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, BitsAmount));
+            component_type component_instance =  component_type(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), BitsAmount, Mode);
 
             components::generate_circuit(component_instance, bp, assignment, {component_input}, start_row);
             return components::generate_assignments(component_instance, assignment, {component_input}, start_row);
@@ -104,9 +104,8 @@ namespace nil {
 
             bool is_msb = bool(typename BlueprintFieldType::integral_type(var_value(assignment, sig_bit_var).data));
             mode Mode = is_msb ? mode::MSB : mode::LSB;
-
-            component_type component_instance =  component_type({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {0},
-                                           128, true, Mode);
+            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, 128, true));
+            component_type component_instance =  component_type(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), 128, true, Mode);
 
             components::generate_circuit(component_instance, bp, assignment, {component_input}, start_row);
             return components::generate_assignments(component_instance, assignment, {component_input}, start_row);
