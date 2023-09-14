@@ -45,6 +45,7 @@
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/policy/policy_manager.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -67,7 +68,8 @@ namespace nil {
                 using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
                 using component_type = components::curve_element_variable_base_scalar_mul<
                     ArithmetizationType,CurveType>;
-                component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {0}, {});
+                const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0));
+                component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
 
                 struct var_ec_point {
                     var X;
@@ -104,7 +106,8 @@ namespace nil {
                 using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
                 using component_type = components::variable_base_multiplication<ArithmetizationType, CurveType,
                             Ed25519Type, basic_non_native_policy<BlueprintFieldType>>;
-                component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
+                const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, 253));
+                component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), 253, nil::blueprint::components::bit_shift_mode::RIGHT);
 
                 using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 

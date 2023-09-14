@@ -36,6 +36,8 @@
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/policy/policy_manager.hpp>
+
 
 namespace nil {
     namespace blueprint {
@@ -67,8 +69,9 @@ namespace nil {
 
             using nil::blueprint::components::bit_shift_mode;
 
+            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, Bitness, Shift, left_or_right));
 
-            component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {0}, Bitness, Shift, left_or_right);
+            component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), Bitness, Shift, left_or_right);
 
 
             components::generate_circuit(component_instance, bp, assignment, {x}, start_row);
@@ -86,8 +89,6 @@ namespace nil {
                 &assignment,
             std::uint32_t start_row,
             typename nil::blueprint::components::bit_shift_mode left_or_right) {
-
-            using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
             llvm::Value *operand0 = inst->getOperand(0);
             llvm::Value *operand1 = inst->getOperand(1);

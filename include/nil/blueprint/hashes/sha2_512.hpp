@@ -43,6 +43,7 @@
 #include <nil/blueprint/components/algebra/fields/plonk/non_native/reduction.hpp>
 
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/policy/policy_manager.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -77,8 +78,10 @@ namespace nil {
 
             typename sha2_512_component_type::input_type sha2_512_instance_input = {R, A, {{input_vars[16], input_vars[17],
                 input_vars[18], input_vars[19]}}};
-
-            sha2_512_component_type sha2_512_component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
+            const auto p_sha2_512 = detail::PolicyManager::get_parameters(detail::ManifestReader<sha2_512_component_type, ArithmetizationParams>::get_witness(0));
+            sha2_512_component_type sha2_512_component_instance(p_sha2_512.witness,
+                                                                detail::ManifestReader<sha2_512_component_type, ArithmetizationParams>::get_constants(),
+                                                                detail::ManifestReader<sha2_512_component_type, ArithmetizationParams>::get_public_inputs());
 
             components::generate_circuit(sha2_512_component_instance, bp, assignmnt, sha2_512_instance_input, start_row);
 
@@ -89,7 +92,11 @@ namespace nil {
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType,
                 basic_non_native_policy<BlueprintFieldType>>;
 
-            reduction_component_type reduction_component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {});
+            const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<reduction_component_type, ArithmetizationParams>::get_witness(0));
+
+            reduction_component_type reduction_component_instance(p.witness,
+                                                                  detail::ManifestReader<reduction_component_type, ArithmetizationParams>::get_constants(),
+                                                                  detail::ManifestReader<reduction_component_type, ArithmetizationParams>::get_public_inputs());
 
             start_row = assignmnt.allocated_rows();
 

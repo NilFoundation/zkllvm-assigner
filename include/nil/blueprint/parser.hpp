@@ -81,16 +81,19 @@
 #include <nil/blueprint/hashes/sha2_256.hpp>
 #include <nil/blueprint/hashes/sha2_512.hpp>
 
+#include <nil/blueprint/policy/policy_manager.hpp>
+
 namespace nil {
     namespace blueprint {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, bool PrintCircuitOutput>
         struct parser {
 
-            parser(long stack_size, bool detailed_logging) : stack_memory(stack_size) {
+            parser(long stack_size, bool detailed_logging, const std::string &kind = "") : stack_memory(stack_size) {
                 if (detailed_logging) {
                     log.set_level(logger::level::DEBUG);
                 }
+                detail::PolicyManager::set_policy(kind);
             }
 
             using ArithmetizationType =
