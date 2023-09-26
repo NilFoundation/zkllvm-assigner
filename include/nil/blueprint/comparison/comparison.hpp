@@ -52,11 +52,7 @@ namespace nil {
                 std::uint32_t start_row,
                 std::size_t &public_input_idx) {
 
-            using component_type = components::comparison_flag<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, 3>;
-
-            nil::blueprint::components::detail::comparison_mode Mode;
-
+            // TODO(maksenov): replace naive handling with the component
             switch (p) {
                 case llvm::CmpInst::ICMP_EQ: {
                     bool res = (var_value(assignment, x) == var_value(assignment, y));
@@ -73,32 +69,41 @@ namespace nil {
                     break;
                 }
                 case llvm::CmpInst::ICMP_SGE:
-                case llvm::CmpInst::ICMP_UGE:
-                    Mode = nil::blueprint::components::detail::comparison_mode::GREATER_EQUAL;
+                case llvm::CmpInst::ICMP_UGE:{
+                    bool res = (var_value(assignment, x) >= var_value(assignment, y));
+                    assignment.public_input(0, public_input_idx) = res;
+                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+                    return var(0, public_input_idx++, false, var::column_type::public_input);
                     break;
+                }
                 case llvm::CmpInst::ICMP_SGT:
-                case llvm::CmpInst::ICMP_UGT:
-                    Mode = nil::blueprint::components::detail::comparison_mode::GREATER_THAN;
+                case llvm::CmpInst::ICMP_UGT:{
+                    bool res = (var_value(assignment, x) > var_value(assignment, y));
+                    assignment.public_input(0, public_input_idx) = res;
+                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+                    return var(0, public_input_idx++, false, var::column_type::public_input);
                     break;
+                }
                 case llvm::CmpInst::ICMP_SLE:
-                case llvm::CmpInst::ICMP_ULE:
-                    Mode = nil::blueprint::components::detail::comparison_mode::LESS_EQUAL;
+                case llvm::CmpInst::ICMP_ULE:{
+                    bool res = (var_value(assignment, x) <= var_value(assignment, y));
+                    assignment.public_input(0, public_input_idx) = res;
+                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+                    return var(0, public_input_idx++, false, var::column_type::public_input);
                     break;
+                }
                 case llvm::CmpInst::ICMP_SLT:
-                case llvm::CmpInst::ICMP_ULT:
-                    Mode = nil::blueprint::components::detail::comparison_mode::LESS_THAN;
+                case llvm::CmpInst::ICMP_ULT:{
+                    bool res = (var_value(assignment, x) < var_value(assignment, y));
+                    assignment.public_input(0, public_input_idx) = res;
+                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+                    return var(0, public_input_idx++, false, var::column_type::public_input);
                     break;
+                }
                 default:
                     UNREACHABLE("Unsupported icmp predicate");
                     break;
             }
-
-            std::size_t bitness = Bitness?Bitness:BlueprintFieldType::value_bits - 1;
-
-            component_type component_instance = component_type({0, 1, 2}, {0}, {0}, bitness, Mode);
-
-            components::generate_circuit(component_instance, bp, assignment, {x, y}, start_row);
-            return components::generate_assignments(component_instance, assignment, {x, y}, start_row).flag;
         }
 
     }    // namespace blueprint

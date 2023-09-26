@@ -43,7 +43,7 @@ namespace nil {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         typename components::bit_shift_constant<
-        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, 9>::result_type
+        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::result_type
             handle_native_field_bit_shift_constant_component(
             std::size_t Bitness,
             llvm::Value *operand0, llvm::Value *operand1,
@@ -63,7 +63,7 @@ namespace nil {
             std::size_t Shift = std::size_t(typename BlueprintFieldType::integral_type(var_value(assignment, shift_var).data));
 
             using component_type = nil::blueprint::components::bit_shift_constant<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, 9>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
             using nil::blueprint::components::detail::bit_shift_mode;
 

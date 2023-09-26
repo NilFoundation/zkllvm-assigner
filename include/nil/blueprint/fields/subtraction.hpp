@@ -53,7 +53,7 @@ namespace nil {
             template<typename BlueprintFieldType, typename ArithmetizationParams>
             typename components::subtraction<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
-                BlueprintFieldType, 3, basic_non_native_policy<BlueprintFieldType>>::result_type
+                BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_native_field_subtraction_component(
                     llvm::Value *operand0, llvm::Value *operand1,
                     std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
@@ -66,7 +66,7 @@ namespace nil {
 
                 using component_type = components::subtraction<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
-                    BlueprintFieldType, 3, basic_non_native_policy<BlueprintFieldType>>;
+                    BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
                 component_type component_instance({0, 1, 2}, {}, {});
 
                 var x = variables[operand0];
@@ -79,7 +79,7 @@ namespace nil {
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename OperatingFieldType>
             typename components::subtraction<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
-                OperatingFieldType, 9, basic_non_native_policy<BlueprintFieldType>>::result_type
+                OperatingFieldType, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_non_native_field_subtraction_component(
                     llvm::Value *operand0, llvm::Value *operand1,
                     std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
@@ -93,7 +93,7 @@ namespace nil {
 
                 using component_type = components::subtraction<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
-                    OperatingFieldType, 9, basic_non_native_policy<BlueprintFieldType>>;
+                    OperatingFieldType, basic_non_native_policy<BlueprintFieldType>>;
                 component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {}, {});
 
                 std::vector<var> operand0_vars = vectors[operand0];

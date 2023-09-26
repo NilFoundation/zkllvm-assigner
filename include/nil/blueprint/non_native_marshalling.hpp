@@ -23,6 +23,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
+#include <nil/blueprint/asserts.hpp>
+
 #ifndef CRYPTO3_ASSIGNER_NON_NATIVE_MARSHALLING_HPP
 #define CRYPTO3_ASSIGNER_NON_NATIVE_MARSHALLING_HPP
 
