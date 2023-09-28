@@ -30,6 +30,7 @@
 #include <unordered_map>
 #include <vector>
 #include <stack>
+#include <algorithm>
 
 #include <nil/blueprint/asserts.hpp>
 
@@ -47,13 +48,17 @@ namespace nil {
         template<typename VarType>
         struct program_memory : public std::vector<cell<VarType>> {
         public:
-            program_memory(long stack_size) : heap_top(stack_size) {
+            program_memory(long stack_size) : stack_size(stack_size), heap_top(stack_size) {
+                // We cell's offset is (actual_offset + size), so we add initial cell with zero offset
+                // to easily compute a size of a cell as a difference with the previous one
                 this->push_back({VarType(), 0});
                 this->resize(heap_top);
                 push_frame();
             }
             void stack_push(unsigned offset) {
-                this->operator[](stack_top++) = cell<VarType> {VarType(), offset, 1};
+                cell<VarType> &new_cell = this->operator[](stack_top++);
+                new_cell.offset = offset;
+                new_cell.head = 1;
             }
 
             void push_frame() {
@@ -85,14 +90,38 @@ namespace nil {
             }
 
             void store(ptr_type ptr, VarType value) {
-                this->operator[](ptr).v = value;
+                (*this)[ptr].v = value;
             }
             VarType load(ptr_type ptr) {
-                return this->operator[](ptr).v;
+                return (*this)[ptr].v;
+            }
+
+            size_t ptrtoint(ptr_type ptr) {
+                // Actual offset is stored in the previous cell
+                return (*this)[ptr - 1].offset;
+            }
+
+            ptr_type inttoptr(size_t offset) {
+                // Find the corresponding cell using binary search
+                auto left = this->begin();
+                auto right = this->end();
+                if (offset < stack_size) {
+                    right = left + stack_top;
+                } else {
+                    left = left + stack_size;
+                }
+                auto res = std::lower_bound(
+                    left, right, offset, [](const cell<VarType> &cell, size_t offset) { return cell.offset < offset; });
+                if (res == right) {
+                    return 0;
+                }
+                // The operation is inverse to ptrtoint, so we need to add 1 to get the desired ptr
+                return res - left + 1;
             }
 
         private:
             ptr_type stack_top = 1;
+            size_t stack_size;
             size_t heap_top;
             std::stack<ptr_type> frames;
         };
