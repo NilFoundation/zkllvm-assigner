@@ -31,23 +31,27 @@
 
 namespace nil {
     namespace blueprint {
-        template<typename VarType>
+        template<typename VarType, typename BlueprintFieldType>
         void handle_curve_init(const llvm::CallInst *inst, stack_frame<VarType> &frame) {
-            ASSERT(frame.vectors[inst->getOperand(0)].size() == frame.vectors[inst->getOperand(1)].size());
+            ASSERT(inst->getOperand(0)->getType() == inst->getOperand(1)->getType());
+            ASSERT(inst->getOperand(0)->getType()->isFieldTy());
 
-            if (frame.vectors[inst->getOperand(0)].size() == 0) {
+            std::size_t arg_num = field_arg_num<BlueprintFieldType>(inst->getOperand(0)->getType());
+            if (arg_num == 1) {
                 VarType x = frame.scalars[inst->getOperand(0)];
                 VarType y = frame.scalars[inst->getOperand(1)];
                 frame.vectors[inst] = {x, y};
             }
             else {
+                ASSERT(frame.vectors[inst->getOperand(0)].size() == frame.vectors[inst->getOperand(1)].size());
                 std::vector<VarType> vect0 = frame.vectors[inst->getOperand(0)];
                 std::vector<VarType> vect1 = frame.vectors[inst->getOperand(1)];
                 vect0.insert(vect0.end(), vect1.begin(), vect1.end());
                 frame.vectors[inst] = vect0;
             }
         }
-    }
-}
+
+    } // namespace blueprint
+} // namespace nil
 
 #endif // CRYPTO3_ASSIGNER_NIL_BLUEPRINT_CURVE_INIT_HPP

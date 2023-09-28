@@ -177,12 +177,14 @@ namespace nil {
                     error =
                         "got double value for field argument. Probably the value is too big to be represented as "
                         "integer. You can put it in \"\" to avoid JSON parser restrictions.";
+                    UNREACHABLE("got double type value");
                 }
                 auto values = process_non_native_field(value.at("field"), arg_field_type);
                 if (values.size() != arg_len) {
                     std::cerr << "error in json value:\n" << value << "\n";
                     std::cerr << "values.size() != arg_len\n";
                     std::cerr << "values.size() = "  << values.size() << ", arg_len = " << arg_len<< std::endl;
+                    UNREACHABLE("value size != arg_len");
                 }
                 return values;
             }

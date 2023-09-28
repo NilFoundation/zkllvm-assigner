@@ -418,7 +418,7 @@ namespace nil {
                         // Nothing to do
                         return true;
                     case llvm::Intrinsic::assigner_curve_init: {
-                        handle_curve_init(inst, frame);
+                        handle_curve_init<var, BlueprintFieldType>(inst, frame);
                         return true;
                     }
                     default:
@@ -825,7 +825,8 @@ namespace nil {
                             auto *vector_type = llvm::cast<llvm::FixedVectorType>(vec->getType());
                             ASSERT(vector_type->getElementType()->isFieldTy());
                             unsigned size = vector_type->getNumElements();
-                            result_vector = std::vector<var>(size);
+                            std::size_t arg_num = field_arg_num<BlueprintFieldType>(vector_type->getElementType());
+                            result_vector = std::vector<var>(size * arg_num);
                             if (auto *cv = llvm::dyn_cast<llvm::ConstantVector>(vec)) {
                                 for (int i = 0; i < size; ++i) {
                                     llvm::Constant *elem = cv->getAggregateElement(i);
@@ -833,10 +834,14 @@ namespace nil {
                                         continue;
                                     std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val(elem);
                                     if (marshalled_field_val.size() != 1) {
-                                        UNREACHABLE("not implemented yet"); //TODO implement
+                                        for (std::size_t j = 0; j < marshalled_field_val.size(); j++) {
+                                            assignmnt.public_input(0, public_input_idx) = marshalled_field_val[j];
+                                            result_vector[i * arg_num + j] = var(0, public_input_idx++, false, var::column_type::public_input);
+                                        }
+                                    } else {
+                                        assignmnt.public_input(0, public_input_idx) = marshalled_field_val[0];
+                                        result_vector[i] = var(0, public_input_idx++, false, var::column_type::public_input);
                                     }
-                                    assignmnt.public_input(0, public_input_idx) = marshalled_field_val[0];
-                                    result_vector[i] = var(0, public_input_idx++, false, var::column_type::public_input);
                                 }
                             } else {
                                 ASSERT_MSG(llvm::isa<llvm::UndefValue>(vec), "Unexpected constant value!");
