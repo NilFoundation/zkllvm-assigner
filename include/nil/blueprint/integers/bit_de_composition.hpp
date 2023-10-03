@@ -58,7 +58,7 @@ namespace nil {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
-            using mode = nil::blueprint::components::detail::bit_composition_mode;
+            using mode = nil::blueprint::components::bit_composition_mode;
 
             var component_input = variables[operand0];
             var sig_bit_var = variables[operand_sig_bit]; // TODO should be input of blueprint component, not as there
@@ -96,7 +96,7 @@ namespace nil {
             using component_type = nil::blueprint::components::bit_composition<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
-            using mode = nil::blueprint::components::detail::bit_composition_mode;
+            using mode = nil::blueprint::components::bit_composition_mode;
 
             std::vector<var> component_input = vectors[operand0];
             component_input.insert(component_input.end(), vectors[operand1].begin(), vectors[operand1].end());
