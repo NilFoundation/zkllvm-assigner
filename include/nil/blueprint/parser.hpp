@@ -436,6 +436,9 @@ namespace nil {
                         handle_curve_init<var, BlueprintFieldType>(inst, frame);
                         return true;
                     }
+                    case llvm::Intrinsic::assigner_exit_check:
+                        // TODO: implement
+                        return true;
                     default:
                         UNREACHABLE("Unexpected intrinsic!");
                 }
