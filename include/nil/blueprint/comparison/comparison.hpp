@@ -31,7 +31,7 @@
 
 #include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
 
-#include <nil/blueprint/components/algebra/fields/plonk/non_native/comparison_flag.hpp>
+#include <nil/blueprint/components/algebra/fields/plonk/non_native/equality_flag.hpp>
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
@@ -52,20 +52,21 @@ namespace nil {
                 std::uint32_t start_row,
                 std::size_t &public_input_idx) {
 
+            using eq_component_type = components::equality_flag<
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+
             // TODO(maksenov): replace naive handling with the component
             switch (p) {
                 case llvm::CmpInst::ICMP_EQ: {
-                    bool res = (var_value(assignment, x) == var_value(assignment, y));
-                    assignment.public_input(0, public_input_idx) = res;
-                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
-                    return var(0, public_input_idx++, false, var::column_type::public_input);
+                    eq_component_type component_instance = eq_component_type({0, 1, 2, 3, 4}, {0}, {0}, false);
+                    components::generate_circuit(component_instance, bp, assignment, {x, y}, start_row);
+                    return components::generate_assignments(component_instance, assignment, {x, y}, start_row).output;
                     break;
                 }
                 case llvm::CmpInst::ICMP_NE:{
-                    bool res = (var_value(assignment, x) != var_value(assignment, y));
-                    assignment.public_input(0, public_input_idx) = res;
-                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
-                    return var(0, public_input_idx++, false, var::column_type::public_input);
+                    eq_component_type component_instance = eq_component_type({0, 1, 2, 3, 4}, {0}, {0}, true);
+                    components::generate_circuit(component_instance, bp, assignment, {x, y}, start_row);
+                    return components::generate_assignments(component_instance, assignment, {x, y}, start_row).output;
                     break;
                 }
                 case llvm::CmpInst::ICMP_SGE:
