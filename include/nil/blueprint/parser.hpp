@@ -136,18 +136,32 @@ namespace nil {
             }
 
             void handle_curve_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
-                switch (inst->getPredicate()) {
-                case llvm::CmpInst::ICMP_EQ: {
-                    handle_vector_cmp(inst, frame);
+                ASSERT(llvm::cast<llvm::EllipticCurveType>(inst->getOperand(0)->getType())->getCurveKind() ==
+                   llvm::cast<llvm::EllipticCurveType>(inst->getOperand(1)->getType())->getCurveKind());
+
+                const std::vector<var> &lhs = frame.vectors[inst->getOperand(0)];
+                const std::vector<var> &rhs = frame.vectors[inst->getOperand(1)];
+                ASSERT(lhs.size() != 0 && lhs.size() == rhs.size());
+
+                std::vector<var> res;
+
+                for (size_t i = 0; i < lhs.size(); ++i) {
+                    auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
+                        inst->getPredicate(), lhs[i], rhs[i], 0,
+                        bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                    res.emplace_back(v);
                 }
-                case llvm::CmpInst::ICMP_NE:{
-                    handle_vector_cmp(inst, frame);
-                    break;
+
+                ASSERT_MSG(inst->getPredicate() == llvm::CmpInst::ICMP_EQ, "only == comparison is implemented for curve elements");
+
+                // TODO: use components
+                bool curves_are_equal = true;
+                for (size_t i = 0; i < lhs.size(); ++i) {
+                    curves_are_equal = curves_are_equal && (bool)(var_value(assignmnt, res[i]).data);
                 }
-                default:
-                    UNREACHABLE("Curve element cmp is inplemented only for EQ and NE");
-                    break;
-                }
+
+                assignmnt.public_input(0, public_input_idx) = curves_are_equal;
+                frame.scalars[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
             }
 
             void handle_ptr_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
