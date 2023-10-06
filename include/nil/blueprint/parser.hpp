@@ -436,9 +436,20 @@ namespace nil {
                         handle_curve_init<var, BlueprintFieldType>(inst, frame);
                         return true;
                     }
-                    case llvm::Intrinsic::assigner_exit_check:
-                        // TODO: implement
+
+                    case llvm::Intrinsic::assigner_exit_check: {
+                        const var &logical_statement = frame.scalars[inst->getOperand(0)];
+
+                        std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
+
+                        var comparison_result = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
+                            llvm::CmpInst::ICMP_EQ, logical_statement, zero_var, bitness,
+                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+
+                        bp.add_copy_constraint({comparison_result, zero_var});
+
                         return true;
+                    }
                     default:
                         UNREACHABLE("Unexpected intrinsic!");
                 }
