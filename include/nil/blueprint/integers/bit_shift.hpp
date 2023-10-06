@@ -52,7 +52,7 @@ namespace nil {
             assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
             std::uint32_t start_row,
-            typename nil::blueprint::components::detail::bit_shift_mode left_or_right) {
+            typename nil::blueprint::components::bit_shift_mode left_or_right) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -65,7 +65,7 @@ namespace nil {
             using component_type = nil::blueprint::components::bit_shift_constant<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
-            using nil::blueprint::components::detail::bit_shift_mode;
+            using nil::blueprint::components::bit_shift_mode;
 
 
             component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8}, {0}, {0}, Bitness, Shift, left_or_right);
@@ -85,7 +85,7 @@ namespace nil {
             assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
             std::uint32_t start_row,
-            typename nil::blueprint::components::detail::bit_shift_mode left_or_right) {
+            typename nil::blueprint::components::bit_shift_mode left_or_right) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
