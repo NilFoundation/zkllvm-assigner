@@ -270,6 +270,15 @@ namespace nil {
                 return true;
             }
 
+            bool try_array(llvm::Value *arg, llvm::ArrayType *array_type, const boost::json::object &value) {
+                ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(array_type));
+                process_array(array_type, value, ptr);
+                assignmnt.public_input(0, public_input_idx) = ptr;
+                auto variable = var(0, public_input_idx++, false, var::column_type::public_input);
+                frame.scalars[arg] = variable;
+                return true;
+            }
+
             ptr_type process_array(llvm::ArrayType *array_type, const boost::json::object &value, ptr_type ptr) {
                 ASSERT(value.size() == 1 && value.contains("array"));
                 ASSERT(value.at("array").is_array());
@@ -373,9 +382,15 @@ namespace nil {
                         }
                         if (current_arg->hasAttribute(llvm::Attribute::ByVal)) {
                             auto pointee = current_arg->getAttribute(llvm::Attribute::ByVal).getValueAsType();
-                            ASSERT(pointee->isStructTy());
-                            if (try_struct(current_arg, llvm::cast<llvm::StructType>(pointee), current_value))
-                                continue;
+                            if (pointee->isStructTy()) {
+                                if (try_struct(current_arg, llvm::cast<llvm::StructType>(pointee), current_value))
+                                    continue;
+                            } else if (pointee->isArrayTy()) {
+                                if (try_array(current_arg, llvm::cast<llvm::ArrayType>(pointee), current_value))
+                                    continue;
+                            } else {
+                                UNREACHABLE("unsupported pointer type");
+                            }
                         }
                         if (!try_string(current_arg, arg_type, current_value)) {
                             std::cerr << "Unhandled pointer argument" << std::endl;
