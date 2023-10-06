@@ -66,6 +66,8 @@
 #include <nil/blueprint/bitwise/or.hpp>
 #include <nil/blueprint/bitwise/xor.hpp>
 
+#include <nil/blueprint/boolean/logic_ops.hpp>
+
 #include <nil/blueprint/fields/addition.hpp>
 #include <nil/blueprint/fields/subtraction.hpp>
 #include <nil/blueprint/fields/multiplication.hpp>
@@ -143,6 +145,8 @@ namespace nil {
                 const std::vector<var> &rhs = frame.vectors[inst->getOperand(1)];
                 ASSERT(lhs.size() != 0 && lhs.size() == rhs.size());
 
+                ASSERT_MSG(inst->getPredicate() == llvm::CmpInst::ICMP_EQ, "only == comparison is implemented for curve elements");
+
                 std::vector<var> res;
 
                 for (size_t i = 0; i < lhs.size(); ++i) {
@@ -152,16 +156,14 @@ namespace nil {
                     res.emplace_back(v);
                 }
 
-                ASSERT_MSG(inst->getPredicate() == llvm::CmpInst::ICMP_EQ, "only == comparison is implemented for curve elements");
+                var are_curves_equal = res[0];
 
-                // TODO: use components
-                bool curves_are_equal = true;
-                for (size_t i = 0; i < lhs.size(); ++i) {
-                    curves_are_equal = curves_are_equal && (bool)(var_value(assignmnt, res[i]).data);
+                for (size_t i = 1; i < lhs.size(); ++i) {
+                    are_curves_equal = handle_logic_and<BlueprintFieldType, ArithmetizationParams>(
+                        are_curves_equal, res[i], bp, assignmnt,
+                        assignmnt.allocated_rows(), public_input_idx);
                 }
-
-                assignmnt.public_input(0, public_input_idx) = curves_are_equal;
-                frame.scalars[inst] = var(0, public_input_idx++, false, var::column_type::public_input);
+                frame.scalars[inst] = are_curves_equal;
             }
 
             void handle_ptr_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
