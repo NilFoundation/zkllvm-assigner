@@ -41,9 +41,9 @@
 namespace nil {
     namespace blueprint {
         template<typename BlueprintFieldType, typename var, typename Assignment>
-        class PublicInputReader {
+        class InputReader {
         public:
-            PublicInputReader(stack_frame<var> &frame, program_memory<var> &memory, Assignment &assignmnt, LayoutResolver &layout_resolver) :
+            InputReader(stack_frame<var> &frame, program_memory<var> &memory, Assignment &assignmnt, LayoutResolver &layout_resolver) :
                 frame(frame), layout_resolver(layout_resolver), memory(memory),
                 assignmnt(assignmnt), public_input_idx(0), private_input_idx(0) {}
 

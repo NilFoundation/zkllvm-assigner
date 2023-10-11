@@ -50,7 +50,7 @@
 
 #include <nil/blueprint/logger.hpp>
 #include <nil/blueprint/layout_resolver.hpp>
-#include <nil/blueprint/public_input.hpp>
+#include <nil/blueprint/input_reader.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/integers/addition.hpp>
@@ -1139,18 +1139,18 @@ namespace nil {
                 }
                 auto &function = *entry_point_it;
 
-                auto public_input_reader = PublicInputReader<BlueprintFieldType, var, assignment<ArithmetizationType>>(
+                auto input_reader = InputReader<BlueprintFieldType, var, assignment<ArithmetizationType>>(
                     base_frame, stack_memory, assignmnt, *layout_resolver);
-                if (!public_input_reader.fill_public_input(function, public_input)) {
+                if (!input_reader.fill_public_input(function, public_input)) {
                     std::cerr << "Public input does not match the circuit signature";
-                    const std::string &error = public_input_reader.get_error();
+                    const std::string &error = input_reader.get_error();
                     if (!error.empty()) {
                         std::cout << ": " << error;
                     }
                     std::cout << std::endl;
                     return false;
                 }
-                public_input_idx = public_input_reader.get_idx();
+                public_input_idx = input_reader.get_idx();
                 call_stack.emplace(std::move(base_frame));
 
                 for (const llvm::GlobalVariable &global : module.getGlobalList()) {
