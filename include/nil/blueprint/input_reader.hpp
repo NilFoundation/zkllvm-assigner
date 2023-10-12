@@ -179,19 +179,58 @@ namespace nil {
                 return true;
             }
 
-            std::vector<var> process_int(const boost::json::object &value, bool is_private) {
-                ASSERT(value.size() == 1 && value.contains("int"));
+            std::vector<var> process_int(const boost::json::object &object, std::size_t bitness, bool is_private) {
+                ASSERT(object.size() == 1 && object.contains("int"));
                 std::vector<var> res = std::vector<var>(1);
 
                 typename BlueprintFieldType::value_type out;
 
-                switch (value.at("int").kind()) {
+                switch (object.at("int").kind()) {
                 case boost::json::kind::int64:
-                    out = value.at("int").as_int64();
+                    if (bitness < 64 && object.at("int").as_int64() >> bitness > 0) {
+                        std::cerr << "value " << object.at("int").as_int64() << " does not fit into " << bitness << " bits\n";
+                        UNREACHABLE("one of the input values is too large");
+                    }
+                    out = object.at("int").as_int64();
                     break;
                 case boost::json::kind::uint64:
-                    out = value.at("int").as_uint64();
+                    if (bitness < 64 && object.at("int").as_uint64() >> bitness > 0) {
+                        std::cerr << "value " << object.at("int").as_uint64() << " does not fit into " << bitness << " bits\n";
+                        UNREACHABLE("one of the input values is too large");
+                    }
+                    out = object.at("int").as_uint64();
                     break;
+                case boost::json::kind::double_: {
+                    std::cerr << "error in json value " <<  boost::json::serialize(object) << "\n";
+                    error =
+                        "got double value for int argument. Probably the value is too big to be represented as "
+                        "integer. You can put it in \"\" to avoid JSON parser restrictions.";
+                    UNREACHABLE(error);
+                }
+                case boost::json::kind::string: {
+                    const std::size_t buflen = 256;
+                    char buf[buflen];
+
+                    std::size_t numlen = object.at("int").as_string().size();
+
+                    if (numlen > buflen - 1) {
+                        std::cerr << "value " << object.at("int").as_string() << " exceeds buffer size (" << buflen - 1 << ")\n";
+                        UNREACHABLE("value size exceeds buffer size");
+                    }
+
+                    object.at("int").as_string().copy(buf, numlen);
+                    buf[numlen] = '\0';
+                    typename BlueprintFieldType::extended_integral_type number = typename BlueprintFieldType::extended_integral_type(buf);
+                    typename BlueprintFieldType::extended_integral_type one = 1;
+                    ASSERT_MSG(bitness <= 128, "integers larger than 128 bits are not supported, try to use field types");
+                    typename BlueprintFieldType::extended_integral_type max_size = one << bitness;
+                    if (number >= max_size) {
+                        std::cout << "value " << buf << " does not fit into " << bitness << " bits, try to use other type\n";
+                        UNREACHABLE("input value is too big");
+                    }
+                    out = number;
+                    break;
+                }
                 default:
                     UNREACHABLE("process_int handles only ints");
                     break;
@@ -204,7 +243,8 @@ namespace nil {
             bool take_int(llvm::Value *int_arg, const boost::json::object &value, bool is_private) {
                 if (value.size() != 1 || !value.contains("int"))
                     return false;
-                auto values = process_int(value, is_private);
+                std::size_t bitness = int_arg->getType()->getPrimitiveSizeInBits();
+                auto values = process_int(value, bitness, is_private);
                 if (values.size() != 1)
                     return false;
                 frame.scalars[int_arg] = values[0];
@@ -312,7 +352,7 @@ namespace nil {
                 case llvm::Type::EllipticCurveTyID:
                     return process_curve(llvm::cast<llvm::EllipticCurveType>(type), value, is_private);
                 case llvm::Type::IntegerTyID:
-                    return process_int(value, is_private);
+                    return process_int(value, type->getPrimitiveSizeInBits(), is_private);
                 case llvm::Type::FixedVectorTyID:
                     return process_vector(llvm::cast<llvm::FixedVectorType>(type), value, is_private);
                 default:
