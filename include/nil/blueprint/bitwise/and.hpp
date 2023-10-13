@@ -47,14 +47,11 @@ namespace nil {
                     &assignment,
                 std::uint32_t start_row,
                 std::size_t &public_input_idx) {
-                
+
                 typename BlueprintFieldType::integral_type x_integer(var_value(assignment, x).data);
                 typename BlueprintFieldType::integral_type y_integer(var_value(assignment, y).data);
 
-                typename BlueprintFieldType::value_type res = (x_integer & y_integer);
-                assignment.public_input(0, public_input_idx) = res;
-                using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
-                return var(0, public_input_idx++, false, var::column_type::public_input);
+                UNREACHABLE("component is not implemented yet");
         }
 
     }    // namespace blueprint

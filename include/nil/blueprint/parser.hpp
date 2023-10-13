@@ -110,10 +110,45 @@ namespace nil {
                 const var &lhs = variables[inst->getOperand(0)];
                 const var &rhs = variables[inst->getOperand(1)];
 
-                std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
-                variables[inst] = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
-                    inst->getPredicate(), lhs, rhs, bitness,
-                    bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                llvm::CmpInst::Predicate p = inst->getPredicate();
+
+                if (p == llvm::CmpInst::ICMP_EQ || p ==llvm::CmpInst::ICMP_NE) {
+                    std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
+                    variables[inst] = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
+                        p, lhs, rhs, bitness,
+                        bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                } else {
+                    bool res;
+
+                    switch (p) {
+                    case llvm::CmpInst::ICMP_SGE:
+                    case llvm::CmpInst::ICMP_UGE:{
+                        res = (var_value(assignmnt, lhs) >= var_value(assignmnt, rhs));
+                        break;
+                    }
+                    case llvm::CmpInst::ICMP_SGT:
+                    case llvm::CmpInst::ICMP_UGT:{
+                        res = (var_value(assignmnt, lhs) > var_value(assignmnt, rhs));
+                        break;
+                    }
+                    case llvm::CmpInst::ICMP_SLE:
+                    case llvm::CmpInst::ICMP_ULE:{
+                        res = (var_value(assignmnt, lhs) <= var_value(assignmnt, rhs));
+                        break;
+                    }
+                    case llvm::CmpInst::ICMP_SLT:
+                    case llvm::CmpInst::ICMP_ULT:{
+                        res = (var_value(assignmnt, lhs) < var_value(assignmnt, rhs));
+                        break;
+                    }
+                    default:
+                        UNREACHABLE("Unsupported icmp predicate");
+                        break;
+                    }
+                    variables[inst] = put_into_assignment(res);
+
+                }
+
             }
 
             void handle_vector_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
@@ -796,9 +831,14 @@ namespace nil {
                         const var &lhs = variables[inst->getOperand(0)];
                         const var &rhs = variables[inst->getOperand(1)];
 
-                        variables[inst] = handle_bitwise_and_component<BlueprintFieldType, ArithmetizationParams>(
-                            lhs, rhs,
-                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                        // variables[inst] = handle_bitwise_and_component<BlueprintFieldType, ArithmetizationParams>(
+                        //     lhs, rhs,
+                        //     bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+
+                        typename BlueprintFieldType::integral_type x_integer(var_value(assignmnt, lhs).data);
+                        typename BlueprintFieldType::integral_type y_integer(var_value(assignmnt, rhs).data);
+                        typename BlueprintFieldType::value_type res = (x_integer & y_integer);
+                        variables[inst] = put_into_assignment(res);
 
                         return inst->getNextNonDebugInstruction();
                     }
@@ -807,9 +847,15 @@ namespace nil {
                         const var &lhs = variables[inst->getOperand(0)];
                         const var &rhs = variables[inst->getOperand(1)];
 
-                        variables[inst] = handle_bitwise_or_component<BlueprintFieldType, ArithmetizationParams>(
-                            lhs, rhs,
-                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                        // variables[inst] = handle_bitwise_or_component<BlueprintFieldType, ArithmetizationParams>(
+                        //     lhs, rhs,
+                        //     bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+
+                        typename BlueprintFieldType::integral_type x_integer(var_value(assignmnt, lhs).data);
+                        typename BlueprintFieldType::integral_type y_integer(var_value(assignmnt, rhs).data);
+                        typename BlueprintFieldType::value_type res = (x_integer | y_integer);
+                        variables[inst] = put_into_assignment(res);
+
 
                         return inst->getNextNonDebugInstruction();
                     }
@@ -818,9 +864,14 @@ namespace nil {
                         const var &lhs = variables[inst->getOperand(0)];
                         const var &rhs = variables[inst->getOperand(1)];
 
-                        variables[inst] = handle_bitwise_xor_component<BlueprintFieldType, ArithmetizationParams>(
-                            lhs, rhs,
-                            bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                        // variables[inst] = handle_bitwise_xor_component<BlueprintFieldType, ArithmetizationParams>(
+                        //     lhs, rhs,
+                        //     bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+
+                        typename BlueprintFieldType::integral_type x_integer(var_value(assignmnt, lhs).data);
+                        typename BlueprintFieldType::integral_type y_integer(var_value(assignmnt, rhs).data);
+                        typename BlueprintFieldType::value_type res = (x_integer ^ y_integer);
+                        variables[inst] = put_into_assignment(res);
 
                         return inst->getNextNonDebugInstruction();
                     }
