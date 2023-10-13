@@ -69,38 +69,6 @@ namespace nil {
                     return components::generate_assignments(component_instance, assignment, {x, y}, start_row).output;
                     break;
                 }
-                case llvm::CmpInst::ICMP_SGE:
-                case llvm::CmpInst::ICMP_UGE:{
-                    bool res = (var_value(assignment, x) >= var_value(assignment, y));
-                    assignment.public_input(0, public_input_idx) = res;
-                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
-                    return var(0, public_input_idx++, false, var::column_type::public_input);
-                    break;
-                }
-                case llvm::CmpInst::ICMP_SGT:
-                case llvm::CmpInst::ICMP_UGT:{
-                    bool res = (var_value(assignment, x) > var_value(assignment, y));
-                    assignment.public_input(0, public_input_idx) = res;
-                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
-                    return var(0, public_input_idx++, false, var::column_type::public_input);
-                    break;
-                }
-                case llvm::CmpInst::ICMP_SLE:
-                case llvm::CmpInst::ICMP_ULE:{
-                    bool res = (var_value(assignment, x) <= var_value(assignment, y));
-                    assignment.public_input(0, public_input_idx) = res;
-                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
-                    return var(0, public_input_idx++, false, var::column_type::public_input);
-                    break;
-                }
-                case llvm::CmpInst::ICMP_SLT:
-                case llvm::CmpInst::ICMP_ULT:{
-                    bool res = (var_value(assignment, x) < var_value(assignment, y));
-                    assignment.public_input(0, public_input_idx) = res;
-                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
-                    return var(0, public_input_idx++, false, var::column_type::public_input);
-                    break;
-                }
                 default:
                     UNREACHABLE("Unsupported icmp predicate");
                     break;
