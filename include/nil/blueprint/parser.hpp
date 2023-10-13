@@ -483,8 +483,8 @@ namespace nil {
                     std::vector<var> res;
                     for (size_t i = 0; i < num_cells; ++i) {
                         res.push_back(stack_memory[ptr + i].v);
-                        frame.vectors[dest] = res;
                     }
+                    frame.vectors[dest] = res;
                 }
             }
 
