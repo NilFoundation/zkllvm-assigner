@@ -451,6 +451,10 @@ namespace nil {
                 return public_input_idx;
             }
 
+            size_t get_private_idx() const {
+                return private_input_idx;
+            }
+
             const std::string &get_error() const {
                 return error;
             }

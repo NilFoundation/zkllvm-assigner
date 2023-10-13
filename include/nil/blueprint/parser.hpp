@@ -1190,6 +1190,7 @@ namespace nil {
                     return false;
                 }
                 public_input_idx = input_reader.get_idx();
+                private_input_idx = input_reader.get_private_idx();
                 call_stack.emplace(std::move(base_frame));
 
                 for (const llvm::GlobalVariable &global : module.getGlobalList()) {
@@ -1257,8 +1258,8 @@ namespace nil {
 
             template<typename InputType>
             var put_into_assignment(InputType input) {
-                assignmnt.public_input(0, public_input_idx) = input;
-                return var(0, public_input_idx++, false, var::column_type::public_input);
+                assignmnt.private_storage(private_input_idx) = input;
+                return var(assignment<ArithmetizationType>::PRIVATE_STORAGE_INDEX, private_input_idx++, false, var::column_type::public_input);
             }
 
         private:
@@ -1270,6 +1271,7 @@ namespace nil {
             std::unordered_map<const llvm::BasicBlock *, var> labels;
             bool finished = false;
             size_t public_input_idx = 0;
+            size_t private_input_idx = 0;
             std::unique_ptr<LayoutResolver> layout_resolver;
             var undef_var;
             var zero_var;
