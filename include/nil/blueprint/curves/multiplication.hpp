@@ -58,8 +58,8 @@ namespace nil {
                 handle_native_curve_non_native_scalar_multiplication_component(
                     llvm::Value *operand_curve, llvm::Value *operand_field,
                     typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
-                    circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
                     std::uint32_t start_row) {
 
@@ -96,8 +96,8 @@ namespace nil {
                     llvm::Value *operand_field,
                     typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
                     typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
-                    circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
                     std::uint32_t start_row) {
 
@@ -141,10 +141,10 @@ namespace nil {
         void handle_curve_multiplication_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, bool next_prover) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
@@ -194,7 +194,12 @@ namespace nil {
                             detail::handle_native_curve_non_native_scalar_multiplication_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
                                 operand_curve, operand_field, frame.vectors, bp, assignment, start_row);
                         std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = {res.X, res.Y};
-                        frame.vectors[inst] = res_vector;
+                        if (next_prover) {
+                            std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector;
+                            frame.vectors[inst] = save_shared_var(assignment, res_vector);
+                        } else {
+                            frame.vectors[inst] = res_vector;
+                        }
                     } else {
                         UNREACHABLE("non-native pallas multiplication is not implemented");
                     }
@@ -241,8 +246,13 @@ namespace nil {
                             res.output.y[3]
                         };
 
-                        frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
-                            std::begin(res_vector), std::end(res_vector));
+                        if (next_prover) {
+                            frame.vectors[inst] = save_shared_var(assignment, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
+                                    std::begin(res_vector), std::end(res_vector)));
+                        } else {
+                            frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
+                                    std::begin(res_vector), std::end(res_vector));
+                        }
                     }
 
                     break;

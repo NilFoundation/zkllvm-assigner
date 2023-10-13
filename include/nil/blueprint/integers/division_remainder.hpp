@@ -51,8 +51,8 @@ namespace nil {
             std::size_t Bitness,
             llvm::Value *operand0, llvm::Value *operand1,
             typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
             std::uint32_t start_row) {
 
@@ -75,11 +75,11 @@ namespace nil {
         void handle_integer_division_remainder_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
             std::uint32_t start_row,
-            bool is_division) {
+            bool is_division, bool next_prover) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
@@ -90,15 +90,20 @@ namespace nil {
 
             std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
 
+            crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> res;
             if (is_division) {
-                frame.scalars[inst] = detail::handle_native_field_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
+                res = detail::handle_native_field_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
                                 bitness, operand0, operand1, frame.scalars, bp, assignment, start_row).quotient;
             }
             else {
-                frame.scalars[inst] = detail::handle_native_field_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
+                res = detail::handle_native_field_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
                                 bitness, operand0, operand1, frame.scalars, bp, assignment, start_row).remainder;
             }
-
+            if (next_prover) {
+                frame.scalars[inst] = save_shared_var(assignment, res);
+            } else {
+                frame.scalars[inst] = res;
+            }
         }
 
     }    // namespace blueprint

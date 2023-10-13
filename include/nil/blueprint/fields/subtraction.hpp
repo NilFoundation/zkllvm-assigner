@@ -58,8 +58,8 @@ namespace nil {
                 handle_native_field_subtraction_component(
                     llvm::Value *operand0, llvm::Value *operand1,
                     std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
-                    circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
                     std::uint32_t start_row) {
 
@@ -85,8 +85,8 @@ namespace nil {
                 handle_non_native_field_subtraction_component(
                     llvm::Value *operand0, llvm::Value *operand1,
                     std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
-                    circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
                     std::uint32_t start_row) {
 
@@ -122,10 +122,10 @@ namespace nil {
         void handle_field_subtraction_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, bool next_prover) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
@@ -143,10 +143,15 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::bls12<381>::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        frame.scalars[inst] = detail::handle_native_field_subtraction_component<BlueprintFieldType,
+                        const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                             ArithmetizationParams>(
                                               operand0, operand1, frame.scalars, bp, assignment, start_row)
                                               .output;
+                        if (next_prover) {
+                            frame.scalars[inst] = save_shared_var(assignment, res);
+                        } else {
+                            frame.scalars[inst] = res;
+                        }
                     } else {
                         // Non-native bls12-381 is undefined yet
                         // variables[inst] = detail::handle_non_native_field_subtraction_component<
@@ -161,10 +166,15 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::pallas::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        frame.scalars[inst] = detail::handle_native_field_subtraction_component<BlueprintFieldType,
+                        const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                             ArithmetizationParams>(
                                               operand0, operand1, frame.scalars, bp, assignment, start_row)
                                               .output;
+                        if (next_prover) {
+                            frame.scalars[inst] = save_shared_var(assignment, res);
+                        } else {
+                            frame.scalars[inst] = res;
+                        }
                     } else {
                         // Non-native pallas is undefined yet
                         // variables[inst] = detail::handle_non_native_field_subtraction_component<
@@ -179,10 +189,15 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        frame.scalars[inst] = detail::handle_native_field_subtraction_component<BlueprintFieldType,
+                        const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                             ArithmetizationParams>(
                                               operand0, operand1, frame.scalars, bp, assignment, start_row)
                                               .output;
+                        if (next_prover) {
+                            frame.scalars[inst] = save_shared_var(assignment, res);
+                        } else {
+                            frame.scalars[inst] = res;
+                        }
                     } else {
                         typename non_native_policy_type::template field<operating_field_type>::non_native_var_type
                             component_result = detail::handle_non_native_field_subtraction_component<
@@ -190,8 +205,13 @@ namespace nil {
                                                    operand0, operand1, frame.vectors, bp, assignment, start_row)
                                                    .output;
 
-                        frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
-                            std::begin(component_result), std::end(component_result));
+                        if (next_prover) {
+                            frame.vectors[inst] = save_shared_var(assignment, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
+                                    std::begin(component_result), std::end(component_result)));
+                        } else {
+                            frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
+                                    std::begin(component_result), std::end(component_result));
+                        }
                     }
 
                     break;

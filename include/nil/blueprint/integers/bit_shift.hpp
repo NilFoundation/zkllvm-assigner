@@ -50,8 +50,8 @@ namespace nil {
             std::size_t Bitness,
             llvm::Value *operand0, llvm::Value *operand1,
             typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
             std::uint32_t start_row,
             typename nil::blueprint::components::bit_shift_mode left_or_right) {
@@ -76,7 +76,6 @@ namespace nil {
 
             components::generate_circuit(component_instance, bp, assignment, {x}, start_row);
             return components::generate_assignments(component_instance, assignment, {x}, start_row);
-
             }
         }    // namespace detail
 
@@ -84,11 +83,11 @@ namespace nil {
         void handle_integer_bit_shift_constant_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
             std::uint32_t start_row,
-            typename nil::blueprint::components::bit_shift_mode left_or_right) {
+            typename nil::blueprint::components::bit_shift_mode left_or_right, bool next_prover) {
 
             llvm::Value *operand0 = inst->getOperand(0);
             llvm::Value *operand1 = inst->getOperand(1);
@@ -97,9 +96,13 @@ namespace nil {
 
             std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
 
-            frame.scalars[inst] = detail::handle_native_field_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
+            const auto res = detail::handle_native_field_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
                                 bitness, operand0, operand1, frame.scalars, bp, assignment, start_row, left_or_right).output;
-
+            if (next_prover) {
+                frame.scalars[inst] = save_shared_var(assignment, res);
+            } else {
+                frame.scalars[inst] = res;
+            }
         }
 
     }    // namespace blueprint
