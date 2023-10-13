@@ -50,10 +50,10 @@ namespace nil {
         void handle_sha2_256_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignmnt,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, bool next_prover) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             using component_type = components::sha256<
@@ -79,7 +79,12 @@ namespace nil {
                 components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
 
             std::vector<var> output(component_result.output.begin(), component_result.output.end());
-            frame.vectors[inst] = output;
+
+            if (next_prover) {
+                frame.vectors[inst] = save_shared_var(assignmnt, output);
+            } else {
+                frame.vectors[inst] = output;
+            }
         }
     }    // namespace blueprint
 }    // namespace nil

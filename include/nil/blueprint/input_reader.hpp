@@ -51,7 +51,7 @@ namespace nil {
             var put_into_assignment(InputType &input, bool is_private) {
                 if (is_private) {
                     assignmnt.private_storage(private_input_idx) = input;
-                    return var(Assignment::PRIVATE_STORAGE_INDEX, private_input_idx++, false, var::column_type::public_input);
+                    return var(Assignment::private_storage_index, private_input_idx++, false, var::column_type::public_input);
                 } else {
                     assignmnt.public_input(0, public_input_idx) = input;
                     return var(0, public_input_idx++, false, var::column_type::public_input);

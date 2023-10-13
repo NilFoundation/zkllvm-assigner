@@ -51,10 +51,10 @@ namespace nil {
         void handle_sha2_512_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignmnt,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, bool next_prover) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             using sha2_512_component_type = components::sha512<
@@ -107,7 +107,11 @@ namespace nil {
             typename reduction_component_type::result_type reduction_component_result =
                 components::generate_assignments(reduction_component_instance, assignmnt, reduction_instance_input, start_row);
 
-            frame.scalars[inst] = reduction_component_result.output;
+            if (next_prover) {
+                frame.scalars[inst] = save_shared_var(assignmnt, reduction_component_result.output);
+            } else {
+                frame.scalars[inst] = reduction_component_result.output;
+            }
         }
     }    // namespace blueprint
 }    // namespace nil
