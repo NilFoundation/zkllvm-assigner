@@ -1258,8 +1258,8 @@ namespace nil {
 
             template<typename InputType>
             var put_into_assignment(InputType input) {
-                assignmnt.private_storage(private_input_idx) = input;
-                return var(assignment<ArithmetizationType>::PRIVATE_STORAGE_INDEX, private_input_idx++, false, var::column_type::public_input);
+                assignmnt.constant(5, constant_idx) = input;
+                return var(5, constant_idx++, false, var::column_type::constant);
             }
 
         private:
@@ -1272,6 +1272,7 @@ namespace nil {
             bool finished = false;
             size_t public_input_idx = 0;
             size_t private_input_idx = 0;
+            size_t constant_idx = 0;
             std::unique_ptr<LayoutResolver> layout_resolver;
             var undef_var;
             var zero_var;
