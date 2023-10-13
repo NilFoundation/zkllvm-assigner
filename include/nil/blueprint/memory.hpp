@@ -42,23 +42,22 @@ namespace nil {
         struct cell {
             VarType v;
             size_t offset;
-            int8_t head;
+            int8_t size;
         };
 
         template<typename VarType>
         struct program_memory : public std::vector<cell<VarType>> {
         public:
-            program_memory(long stack_size) : stack_size(stack_size), heap_top(stack_size) {
-                // We cell's offset is (actual_offset + size), so we add initial cell with zero offset
-                // to easily compute a size of a cell as a difference with the previous one
-                this->push_back({VarType(), 0});
+            program_memory(size_t stack_size) : stack_size(stack_size), heap_top(stack_size) {
+                this->push_back({VarType(), 0, 0});
                 this->resize(heap_top);
+                this->push_back({VarType(), stack_size + 1, 0});
                 push_frame();
             }
-            void stack_push(unsigned offset) {
+            void stack_push(size_t offset, int8_t size) {
                 cell<VarType> &new_cell = this->operator[](stack_top++);
                 new_cell.offset = offset;
-                new_cell.head = 1;
+                new_cell.size = size;
             }
 
             void push_frame() {
@@ -72,16 +71,16 @@ namespace nil {
 
             ptr_type add_cells(const std::vector<unsigned> &layout) {
                 ptr_type res = stack_top;
-                unsigned acc = this->at(stack_top - 1).offset;
+                unsigned next_offset = this->at(stack_top - 1).offset + this->at(stack_top - 1).size;
                 for (unsigned cell_size : layout) {
-                    acc += cell_size;
-                    stack_push(acc);
+                    stack_push(next_offset, cell_size);
+                    next_offset += cell_size;
                 }
                 return res;
             }
 
             ptr_type malloc(size_t num_bytes) {
-                auto offset = this->back().offset;
+                auto offset = this->back().offset + this->back().size;
                 ptr_type res = this->size();
                 for (size_t i = 0; i < num_bytes; ++i) {
                     this->push_back(cell<VarType>{VarType(), offset++, 1});
@@ -97,8 +96,7 @@ namespace nil {
             }
 
             size_t ptrtoint(ptr_type ptr) {
-                // Actual offset is stored in the previous cell
-                return (*this)[ptr - 1].offset;
+                return (*this)[ptr].offset;
             }
 
             ptr_type inttoptr(size_t offset) {
@@ -115,8 +113,7 @@ namespace nil {
                 if (res == right) {
                     return 0;
                 }
-                // The operation is inverse to ptrtoint, so we need to add 1 to get the desired ptr
-                return res - left + 1;
+                return res - this->begin();
             }
 
         private:
