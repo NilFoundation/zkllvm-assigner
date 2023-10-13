@@ -308,7 +308,10 @@ namespace nil {
             template <typename NumberType>
             NumberType resolve_number(var scalar) {
                 auto scalar_value = var_value(assignmnt, scalar);
-                NumberType number = (NumberType)static_cast<typename BlueprintFieldType::integral_type>(scalar_value.data);
+                static constexpr auto limit_value = typename BlueprintFieldType::integral_type(std::numeric_limits<NumberType>::max());
+                auto integral_value = static_cast<typename BlueprintFieldType::integral_type>(scalar_value.data);
+                ASSERT_MSG(integral_value < limit_value, "");
+                NumberType number = static_cast<NumberType>(integral_value);
                 return number;
             }
 
@@ -373,11 +376,11 @@ namespace nil {
                 return res;
             }
 
-            void memcpy(ptr_type dst, ptr_type src, unsigned offset) {
-                size_t border = stack_memory[src - 1].offset + offset;
-                while (stack_memory[src - 1].offset < border) {
-                    ASSERT(stack_memory[dst].offset - stack_memory[dst - 1].offset ==
-                            stack_memory[src].offset - stack_memory[src - 1].offset);
+            void memcpy(ptr_type dst, ptr_type src, unsigned width) {
+                unsigned copied = 0;
+                while (copied < width) {
+                    ASSERT(stack_memory[dst].size == stack_memory[src].size);
+                    copied += stack_memory[dst].size;
                     stack_memory[dst++].v = stack_memory[src++].v;
                 }
             }
@@ -435,8 +438,8 @@ namespace nil {
                         llvm::Value *src_val = inst->getOperand(1);
                         ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
                         ptr_type src = resolve_number<ptr_type>(frame, src_val);
-                        unsigned offset = resolve_number<unsigned>(frame, inst->getOperand(2));
-                        memcpy(dst, src, offset);
+                        unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
+                        memcpy(dst, src, width);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_zkml_convolution: {
@@ -488,8 +491,40 @@ namespace nil {
                 return false;
             }
 
-            void handle_store(ptr_type ptr, const llvm::Value *val, stack_frame<var> & frame) {
-                stack_memory[ptr].v = frame.scalars[val];
+            void handle_store(ptr_type ptr, const llvm::Value *val, stack_frame<var> &frame) {
+                auto store_scalar = [this](ptr_type ptr, var v, size_t type_size) ->ptr_type {
+                    auto &cell = stack_memory[ptr];
+                    size_t cur_offset = cell.offset;
+                    size_t cell_size = cell.size;
+                    if (cell_size != type_size) {
+                        ASSERT_MSG(cell_size == 1, "Unequal stores are only supported for malloc case");
+                        cell.size = type_size;
+                        cell.v = v;
+
+                        for (int i = 1; i < type_size; ++i) {
+                            auto &idle_cell = stack_memory[ptr + i];
+                            ASSERT(idle_cell.offset == ++cur_offset);
+                            idle_cell.offset = cell.offset;
+                            idle_cell.size = 0;
+                        }
+                        return ptr + cell_size;
+                    } else {
+                        cell.v = v;
+                        return ptr + 1;
+                    }
+                };
+
+                if (auto vec_type = llvm::dyn_cast<llvm::FixedVectorType>(val->getType())) {
+                    std::vector<var> var_vec = frame.vectors[val];
+                    ASSERT_MSG(var_vec.size() == vec_type->getNumElements(), "Complex vectors are not supported");
+                    unsigned elem_size = layout_resolver->get_type_size(vec_type->getElementType());
+                    for (var v : var_vec) {
+                        ptr = store_scalar(ptr, v, elem_size);
+                    }
+                } else {
+                    unsigned type_size = layout_resolver->get_type_size(val->getType());
+                    store_scalar(ptr, frame.scalars[val], type_size);
+                }
             }
 
             void handle_load(ptr_type ptr, const llvm::Value *dest, stack_frame<var> &frame) {
@@ -506,16 +541,57 @@ namespace nil {
                 }
             }
 
+            ptr_type find_offset(ptr_type left_border, ptr_type right_border, size_t offset) {
+                for (ptr_type i = left_border; i <= right_border; ++i) {
+                    if (stack_memory[i].offset == offset) {
+                        return i;
+                    }
+                }
+                UNREACHABLE("Offset does not match memory");
+            }
+
+            // Handle pointer adjustment specified by the first GEP index
+            ptr_type handle_initial_gep_adjustment(const llvm::GetElementPtrInst *gep, stack_frame<var> &frame,
+                                                   llvm::Type *gep_ty) {
+                typename BlueprintFieldType::value_type base_ptr =
+                    var_value(assignmnt, frame.scalars[gep->getPointerOperand()]);
+                auto base_ptr_number = resolve_number<ptr_type>(frame.scalars[gep->getPointerOperand()]);
+                var gep_initial_idx = frame.scalars[gep->getOperand(1)];
+                size_t cells_for_type = layout_resolver->get_type_layout<BlueprintFieldType>(gep_ty).size();
+
+                auto naive_ptr_adjustment = cells_for_type * var_value(assignmnt, gep_initial_idx);
+                auto adjusted_ptr = base_ptr + naive_ptr_adjustment;
+                if (adjusted_ptr == base_ptr) {
+                    // The index is zero, the ptr remains unchanged
+                    return base_ptr_number;
+                }
+                int resolved_idx = 0;
+                // The index could be negative, so we need to take the difference with the modulus in this case
+                if (adjusted_ptr < base_ptr) {
+                    auto sub = BlueprintFieldType::modulus - static_cast<typename BlueprintFieldType::integral_type>(var_value(assignmnt, gep_initial_idx).data);
+                    resolved_idx = static_cast<int>(sub) * -1;
+                } else {
+                    resolved_idx = resolve_number<int>(gep_initial_idx);
+                }
+                size_t type_size = layout_resolver->get_type_size(gep_ty);
+                size_t offset_diff = resolved_idx * type_size;
+                size_t desired_offset = stack_memory[base_ptr_number].offset + offset_diff;
+
+                if (resolved_idx < 0) {
+                    ptr_type left_border = base_ptr_number + resolved_idx * type_size;
+                    ptr_type right_border = base_ptr_number;
+                    return find_offset(left_border, right_border, desired_offset);
+                } else {
+                    ptr_type left_border = base_ptr_number;
+                    ptr_type right_border = base_ptr_number + resolved_idx * type_size;
+                    return find_offset(left_border, right_border, desired_offset);
+                }
+            }
 
             typename BlueprintFieldType::value_type handle_gep(const llvm::GetElementPtrInst* gep, stack_frame<var> &frame) {
                 llvm::Type *gep_ty = gep->getSourceElementType();
-                typename BlueprintFieldType::value_type ptr =
-                    var_value(assignmnt, frame.scalars[gep->getPointerOperand()]);
-
-                var gep_initial_idx = frame.scalars[gep->getOperand(1)];
-                size_t cells_for_type = layout_resolver->get_type_layout<BlueprintFieldType>(gep_ty).size();
-                auto initial_ptr_adjustment = cells_for_type * var_value(assignmnt, gep_initial_idx);
-                ptr += initial_ptr_adjustment;
+                auto ptr_number = handle_initial_gep_adjustment(gep, frame, gep_ty);
+                ASSERT(stack_memory[ptr_number].size != 0);
 
                 if (gep->getNumIndices() > 1) {
                     if (!gep_ty->isAggregateType()) {
@@ -529,10 +605,16 @@ namespace nil {
                         int gep_index = resolve_number<int>(frame, gep->getOperand(i + 1));
                         gep_indices.push_back(gep_index);
                     }
-                    auto resolved_index = layout_resolver->get_flat_index<BlueprintFieldType>(gep_ty, gep_indices);
-                    ptr += resolved_index;
+                    auto [resolved_offset, hint] = layout_resolver->resolve_offset_with_index_hint<BlueprintFieldType>(gep_ty, gep_indices);
+                    size_t expected_offset = stack_memory[ptr_number].offset + resolved_offset;
+                    while (stack_memory[ptr_number + hint].size == 0) {
+                        ++hint;
+                    };
+                    size_t desired_offset = stack_memory[ptr_number].offset + resolved_offset;
+                    size_t type_size = layout_resolver->get_type_size(gep_ty);
+                    ptr_number = find_offset(ptr_number + hint, ptr_number + type_size, desired_offset);
                 }
-                return ptr;
+                return ptr_number;
             }
 
             void handle_ptrtoint(const llvm::Value *inst, llvm::Value *operand, stack_frame<var> &frame) {
@@ -993,8 +1075,9 @@ namespace nil {
                     case llvm::Instruction::InsertValue: {
                         auto *insert_inst = llvm::cast<llvm::InsertValueInst>(inst);
                         ptr_type ptr = resolve_number<ptr_type>(frame, insert_inst->getAggregateOperand());
-                        ptr += layout_resolver->get_flat_index<BlueprintFieldType>(
-                            insert_inst->getAggregateOperand()->getType(), insert_inst->getIndices());
+                        // TODO(maksenov): handle offset properly
+                        ptr += layout_resolver->resolve_offset_with_index_hint<BlueprintFieldType>(
+                            insert_inst->getAggregateOperand()->getType(), insert_inst->getIndices()).second;
                         stack_memory.store(ptr, frame.scalars[insert_inst->getInsertedValueOperand()]);
                         frame.scalars[inst] = frame.scalars[insert_inst->getAggregateOperand()];
                         return inst->getNextNonDebugInstruction();
@@ -1002,8 +1085,9 @@ namespace nil {
                     case llvm::Instruction::ExtractValue: {
                         auto *extract_inst = llvm::cast<llvm::ExtractValueInst>(inst);
                         ptr_type ptr = resolve_number<ptr_type>(frame, extract_inst->getAggregateOperand());
-                        ptr += layout_resolver->get_flat_index<BlueprintFieldType>(
-                            extract_inst->getAggregateOperand()->getType(), extract_inst->getIndices());
+                        // TODO(maksenov): handle offset properly
+                        ptr += layout_resolver->resolve_offset_with_index_hint<BlueprintFieldType>(
+                            extract_inst->getAggregateOperand()->getType(), extract_inst->getIndices()).second;
                         frame.scalars[inst] = stack_memory.load(ptr);
                         return inst->getNextNonDebugInstruction();
                     }

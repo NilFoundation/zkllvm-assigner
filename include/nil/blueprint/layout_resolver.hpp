@@ -113,24 +113,28 @@ namespace nil {
             struct Element {
                 const llvm::Type *type;
                 unsigned idx;
+                unsigned offset;
             };
             struct IndexMapping {
                 std::vector<Element> indices;
                 unsigned size;
+                unsigned width;
             };
 
         public:
             LayoutResolver(const llvm::DataLayout &layout): layout(layout) {}
             template <typename BlueprintFieldType, typename Array>
-            int get_flat_index(llvm::Type *type, const Array &gep_indices) {
+            std::pair<unsigned, int> resolve_offset_with_index_hint(llvm::Type *type, const Array &gep_indices) {
                 ASSERT(type->isAggregateType());
+                unsigned offset = 0;
                 if (type_cache.find(type) == type_cache.end())
                     resolve_type<BlueprintFieldType>(type);
                 auto *type_record = &type_cache[type];
                 for (unsigned i = 0; i < gep_indices.size() - 1; ++i) {
+                    offset += type_record->indices[gep_indices[i]].offset;
                     type_record = &type_cache[type_record->indices[gep_indices[i]].type];
                 }
-                return type_record->indices[gep_indices.back()].idx;
+                return {type_record->indices[gep_indices.back()].offset + offset, type_record->indices[gep_indices.back()].idx};
             }
 
             unsigned get_type_size(llvm::Type *type) {
@@ -199,55 +203,71 @@ namespace nil {
 
         private:
             template<typename BlueprintFieldType>
-            unsigned resolve_type(llvm::Type *type) {
+            IndexMapping &resolve_type(llvm::Type *type) {
                 if (type_cache.find(type) != type_cache.end()) {
-                    return type_cache[type].size;
+                    return type_cache[type];
                 }
-                IndexMapping cache_data {{}, 0};
+                IndexMapping cache_data {{}, 0, 0};
                 switch (type->getTypeID()) {
                 case llvm::Type::IntegerTyID:
                 case llvm::Type::PointerTyID:
-                    return 1;
+                    cache_data.size = 1;
+                    cache_data.width = get_type_size(type);
+                    break;
                 case llvm::Type::GaloisFieldTyID:
-                    return field_arg_num<BlueprintFieldType>(type);
+                    cache_data.size = field_arg_num<BlueprintFieldType>(type);
+                    cache_data.width = get_type_size(type);
+                    break;
                 case llvm::Type::EllipticCurveTyID:
-                    return curve_arg_num<BlueprintFieldType>(type);
+                    cache_data.size = curve_arg_num<BlueprintFieldType>(type);
+                    cache_data.width = get_type_size(type);
+                    break;
                 case llvm::Type::ArrayTyID: {
                     auto *array_ty = llvm::cast<llvm::ArrayType>(type);
                     llvm::Type *elem_ty = array_ty->getElementType();
-                    unsigned elem_size = resolve_type<BlueprintFieldType>(elem_ty);
+                    unsigned elem_size = resolve_type<BlueprintFieldType>(elem_ty).size;
+                    size_t elem_width = get_type_size(elem_ty);
                     cache_data.size = array_ty->getNumElements() * elem_size;
+                    cache_data.width = array_ty->getNumElements() * elem_width;
                     cache_data.indices.resize(array_ty->getNumElements());
                     for (unsigned i = 0; i < array_ty->getNumElements(); ++i) {
                         cache_data.indices[i].idx = i * elem_size;
                         cache_data.indices[i].type = elem_ty;
+                        cache_data.indices[i].offset = i * elem_width;
                     }
-                    type_cache[type] = cache_data;
-                    return cache_data.size;
+                    break;
                 }
                 case llvm::Type::StructTyID: {
                     auto *struct_ty = llvm::cast<llvm::StructType>(type);
 
-                    unsigned prev = 0;
+                    unsigned prev_idx = 0;
+                    unsigned prev_width = 0;
                     cache_data.indices.resize(struct_ty->getNumElements());
                     for (unsigned i = 0; i < struct_ty->getNumElements(); ++i) {
                         auto elem_ty = struct_ty->getElementType(i);
-                        cache_data.size += resolve_type<BlueprintFieldType>(elem_ty);
-                        cache_data.indices[i] = {elem_ty,prev};
-                        prev = cache_data.size;
+                        auto &resolved_element = resolve_type<BlueprintFieldType>(elem_ty);
+                        cache_data.size += resolved_element.size;
+                        cache_data.width += resolved_element.width;
+                        cache_data.indices[i] = {elem_ty, prev_idx, prev_width};
+                        prev_idx = cache_data.size;
+                        prev_width = cache_data.width;
                     }
-                    type_cache[type] = cache_data;
-                    return cache_data.size;
+                    break;
                 }
                 case llvm::Type::FixedVectorTyID: {
                     auto *vector_ty = llvm::cast<llvm::FixedVectorType>(type);
                     llvm::Type *elem_ty = vector_ty->getElementType();
-                    unsigned elem_size = resolve_type<BlueprintFieldType>(elem_ty);
-                    return vector_ty->getNumElements() * elem_size;
+                    auto &resolved_element = resolve_type<BlueprintFieldType>(elem_ty);
+                    unsigned elem_size = resolved_element.size;
+                    cache_data.size = vector_ty->getNumElements() * elem_size;
+                    cache_data.width = vector_ty->getNumElements() * resolved_element.width;
+                    break;
                 }
                 default:
                     UNREACHABLE("Unexpected type");
                 }
+                type_cache[type] = cache_data;
+                return type_cache[type];
             }
             std::unordered_map<const llvm::Type *, IndexMapping> type_cache;
             const llvm::DataLayout &layout;
