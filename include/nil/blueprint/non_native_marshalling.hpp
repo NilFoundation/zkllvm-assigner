@@ -179,9 +179,13 @@ namespace nil {
                 // TODO(maksenov): avoid copying here
                 const char *APIntData = reinterpret_cast<const char *>(int_val.getRawData());
                 std::vector<char> bytes(APIntData, APIntData + words * 8);
-                nil::marshalling::status_type status;
-                field_constant = nil::marshalling::pack<nil::marshalling::option::little_endian>(bytes, status);
-                ASSERT(status == nil::marshalling::status_type::success);
+                using marshalling_field_element = nil::crypto3::marshalling::types::field_element<
+                    nil::marshalling::field_type<nil::marshalling::option::little_endian>,
+                    nil::crypto3::algebra::fields::pallas_base_field::value_type>;
+                auto iter = bytes.cbegin();
+                field_constant = nil::crypto3::marshalling::processing::read_data<
+                    typename marshalling_field_element::value_type,
+                    typename marshalling_field_element::endian_type>(iter, bytes.size() * 8);    // size in bits
             }
             return value_into_vector<BlueprintFieldType, FieldType>(field_constant);
         }
