@@ -831,9 +831,7 @@ namespace nil {
                         const var &lhs = variables[inst->getOperand(0)];
                         const var &rhs = variables[inst->getOperand(1)];
 
-                        // variables[inst] = handle_bitwise_and_component<BlueprintFieldType, ArithmetizationParams>(
-                        //     lhs, rhs,
-                        //     bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                        // TODO: replace mock with component
 
                         typename BlueprintFieldType::integral_type x_integer(var_value(assignmnt, lhs).data);
                         typename BlueprintFieldType::integral_type y_integer(var_value(assignmnt, rhs).data);
@@ -847,9 +845,7 @@ namespace nil {
                         const var &lhs = variables[inst->getOperand(0)];
                         const var &rhs = variables[inst->getOperand(1)];
 
-                        // variables[inst] = handle_bitwise_or_component<BlueprintFieldType, ArithmetizationParams>(
-                        //     lhs, rhs,
-                        //     bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                        // TODO: replace mock with component
 
                         typename BlueprintFieldType::integral_type x_integer(var_value(assignmnt, lhs).data);
                         typename BlueprintFieldType::integral_type y_integer(var_value(assignmnt, rhs).data);
@@ -864,9 +860,7 @@ namespace nil {
                         const var &lhs = variables[inst->getOperand(0)];
                         const var &rhs = variables[inst->getOperand(1)];
 
-                        // variables[inst] = handle_bitwise_xor_component<BlueprintFieldType, ArithmetizationParams>(
-                        //     lhs, rhs,
-                        //     bp, assignmnt, assignmnt.allocated_rows(), public_input_idx);
+                        // TODO: replace mock with component
 
                         typename BlueprintFieldType::integral_type x_integer(var_value(assignmnt, lhs).data);
                         typename BlueprintFieldType::integral_type y_integer(var_value(assignmnt, rhs).data);
