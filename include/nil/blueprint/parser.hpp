@@ -87,6 +87,12 @@
 
 #include <nil/blueprint/policy/policy_manager.hpp>
 
+#include <nil/blueprint/components/systems/snark/plonk/placeholder/fri_lin_inter.hpp>
+#include <nil/blueprint/recursive_prover/fri_cosets.hpp>
+#include <nil/blueprint/recursive_prover/gate_arg_verifier.hpp>
+#include <nil/blueprint/recursive_prover/permutation_arg_verifier.hpp>
+// #include <nil/blueprint/recursive_prover/lookup_arg_verifier.hpp>
+
 namespace nil {
     namespace blueprint {
 
@@ -357,10 +363,14 @@ namespace nil {
             }
 
             bool handle_intrinsic(const llvm::CallInst *inst, llvm::Intrinsic::ID id, stack_frame<var> &frame, uint32_t start_row, bool next_prover) {
-                // Passing constants to component directly is only supported for bit decomposition
+                // Passing constants to component directly is only supported for components below
                 if (
                     id != llvm::Intrinsic::assigner_bit_decomposition &&
-                    id != llvm::Intrinsic::assigner_bit_composition
+                    id != llvm::Intrinsic::assigner_bit_composition &&
+                    id != llvm::Intrinsic::assigner_gate_arg_verifier &&
+                    id != llvm::Intrinsic::assigner_permutation_arg_verifier &&
+                    id != llvm::Intrinsic::assigner_lookup_arg_verifier &&
+                    id != llvm::Intrinsic::assigner_fri_cosets
                     ) {
                     for (int i = 0; i < inst->getNumOperands(); ++i) {
                         llvm::Value *op = inst->getOperand(i);
@@ -510,6 +520,52 @@ namespace nil {
 
                         return true;
                     }
+                    case llvm::Intrinsic::assigner_fri_lin_inter: {
+                        var s = frame.scalars[inst->getOperand(0)];
+                        var y0 = frame.scalars[inst->getOperand(1)];
+                        var y1 = frame.scalars[inst->getOperand(2)];
+                        var alpha = frame.scalars[inst->getOperand(3)];
+
+                        using component_type = components::fri_lin_inter<
+                            crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+
+                        component_type component_instance({0, 1, 2, 3, 4}, {}, {});
+
+                        components::generate_circuit(component_instance, circuits[currProverIdx], assignments[currProverIdx], {s, y0, y1, alpha}, start_row);
+                        frame.scalars[inst] = components::generate_assignments(component_instance, assignments[currProverIdx], {s, y0, y1, alpha}, start_row).output;
+
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_fri_cosets: {
+                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(1)), "result length must be constant");
+                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(2)), "omega must be constant");
+                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(3)), "total_bits must be constant");
+                        handle_fri_cosets_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_gate_arg_verifier: {
+                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(1)), "gates_sizes must be constant");
+                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(2)), "gates amount must be constant");
+                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(4)), "selectors amount must be constant");
+                        handle_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_permutation_arg_verifier: {
+                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(3)), "f, se, sigma size must be constant");
+                        handle_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_lookup_arg_verifier: {
+                        for (std::size_t i = 0; i < 13; i++) {
+                            if(!llvm::isa<llvm::Constant>(inst->getOperand(2*i + 1))) {
+                                std::cerr << "assigner_lookup_arg_verifier intrinsic operand " << 2*i + 1 << " must be constant\n";
+                                UNREACHABLE("constant expected");
+                            }
+                        }
+                        frame.vectors[inst] = {zero_var, zero_var, zero_var, zero_var};
+                        return true;
+                    }
+
                     default:
                         UNREACHABLE("Unexpected intrinsic!");
                 }
