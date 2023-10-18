@@ -270,9 +270,15 @@ namespace nil {
                     component_stack.pop();
                     llvm::Type *type = constant->getType();
                     if (type->isPointerTy()) {
-                        ASSERT_MSG(constant->isZeroValue(), "Only zero initializers are supported for pointers");
-                        stack_memory.store(ptr++, zero_var);
-                        continue;
+                        if (constant->isZeroValue()) {
+                            stack_memory.store(ptr++, zero_var);
+                            continue;
+                        }
+                        if (globals.find(constant) != globals.end()) {
+                            stack_memory.store(ptr++, globals[constant]);
+                            continue;
+                        }
+                        UNREACHABLE("Unsupported pointer initialization!");
                     }
                     if (!type->isAggregateType() && !type->isVectorTy()) {
                         std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val<BlueprintFieldType>(constant);
