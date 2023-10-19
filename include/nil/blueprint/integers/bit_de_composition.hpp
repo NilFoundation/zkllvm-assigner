@@ -37,6 +37,7 @@
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/non_native_marshalling.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
 
 namespace nil {
@@ -44,27 +45,26 @@ namespace nil {
         namespace detail {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
-        typename components::bit_decomposition<
-        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::result_type
-            handle_native_field_decomposition_component(
+        void handle_native_field_decomposition_component(
             std::size_t BitsAmount,
-            llvm::Value *operand0,
+            llvm::Value *result_value,
+            llvm::Value *input,
             llvm::Value *operand_sig_bit,
             typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
             typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
+            program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
             circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
             std::uint32_t start_row) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+            var component_input = variables[input];
 
+            auto marshalling_output_vector = marshal_field_val<BlueprintFieldType>(operand_sig_bit);
+            ASSERT(marshalling_output_vector.size() == 1);
+            bool is_msb = bool(typename BlueprintFieldType::integral_type(marshalling_output_vector[0].data));
             using mode = nil::blueprint::components::bit_composition_mode;
-
-            var component_input = variables[operand0];
-            var sig_bit_var = variables[operand_sig_bit]; // TODO should be input of blueprint component, not as there
-
-            bool is_msb = bool(typename BlueprintFieldType::integral_type(var_value(assignment, sig_bit_var).data));
             mode Mode = is_msb ? mode::MSB : mode::LSB;
 
             using component_type = nil::blueprint::components::bit_decomposition<
@@ -73,14 +73,19 @@ namespace nil {
             component_type component_instance =  component_type(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), BitsAmount, Mode);
 
             components::generate_circuit(component_instance, bp, assignment, {component_input}, start_row);
-            return components::generate_assignments(component_instance, assignment, {component_input}, start_row);
-
+            auto result = components::generate_assignments(component_instance, assignment, {component_input}, start_row).output;
+            ptr_type result_ptr = static_cast<ptr_type>(
+                typename BlueprintFieldType::integral_type(var_value(assignment, variables[result_value]).data));
+            for (var v : result) {
+                ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
+                memory.store(result_ptr++, v);
             }
+        }
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         typename components::bit_composition<
         crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::result_type
-            handle_native_field_bit_composition128_component(
+            handle_native_field_bit_composition_component(
             llvm::Value *operand0,
             llvm::Value *operand1,
             llvm::Value *operand_sig_bit,
@@ -117,6 +122,7 @@ namespace nil {
         void handle_integer_bit_decomposition_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
+            program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
             circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
@@ -124,19 +130,24 @@ namespace nil {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
-            llvm::Value *operand0 = inst->getOperand(0);
-            llvm::Value *operand_sig_bit = inst->getOperand(1);
+            llvm::Value *result_value = inst->getOperand(0);
+            llvm::Value *bitness_value = inst->getOperand(1);
+            llvm::Value *input = inst->getOperand(2);
+            llvm::Value *operand_sig_bit = inst->getOperand(3);
 
-            std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
+            auto marshalling_output_vector = marshal_field_val<BlueprintFieldType>(bitness_value);
+            ASSERT(marshalling_output_vector.size() == 1);
+            std::size_t bitness =
+                static_cast<size_t>(typename BlueprintFieldType::integral_type(marshalling_output_vector[0].data));
 
-            frame.vectors[inst] = detail::handle_native_field_decomposition_component<BlueprintFieldType, ArithmetizationParams>(
-                                bitness, operand0, operand_sig_bit, frame.vectors, frame.scalars, bp, assignment, start_row).output;
+            detail::handle_native_field_decomposition_component<BlueprintFieldType, ArithmetizationParams>(
+                                bitness, result_value, input, operand_sig_bit, frame.vectors, frame.scalars, memory, bp, assignment, start_row);
 
 
         }
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
-        void handle_integer_bit_composition128_component(
+        void handle_integer_bit_composition_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
@@ -150,7 +161,7 @@ namespace nil {
             llvm::Value *operand1 = inst->getOperand(1);
             llvm::Value *operand_sig_bit = inst->getOperand(2);
 
-            frame.scalars[inst] = detail::handle_native_field_bit_composition128_component<BlueprintFieldType, ArithmetizationParams>(
+            frame.scalars[inst] = detail::handle_native_field_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(
                                 operand0, operand1, operand_sig_bit, frame.vectors, frame.scalars, bp, assignment, start_row).output;
 
         }
