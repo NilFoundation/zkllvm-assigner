@@ -162,7 +162,83 @@ namespace nil {
                     UNREACHABLE("unsupported field operand type");
             }
         }
+        template<typename FieldType, typename BlueprintFieldType>
+        std::vector<typename BlueprintFieldType::value_type> field_dependent_marshal_val(const llvm::Value *val) {
+            ASSERT(llvm::isa<llvm::ConstantField>(val) || llvm::isa<llvm::ConstantInt>(val));
+            llvm::APInt int_val;
+            if (llvm::isa<llvm::ConstantField>(val)) {
+                int_val = llvm::cast<llvm::ConstantField>(val)->getValue();
+            } else {
+                int_val = llvm::cast<llvm::ConstantInt>(val)->getValue();
+            }
+            unsigned words = int_val.getNumWords();
+            typename FieldType::value_type field_constant;
+            if (words == 1) {
+                field_constant = int_val.getSExtValue();
+            } else {
+                // TODO(maksenov): avoid copying here
+                const char *APIntData = reinterpret_cast<const char *>(int_val.getRawData());
+                std::vector<char> bytes(APIntData, APIntData + words * 8);
+                nil::marshalling::status_type status;
+                field_constant = nil::marshalling::pack<nil::marshalling::option::little_endian>(bytes, status);
+                ASSERT(status == nil::marshalling::status_type::success);
+            }
+            return value_into_vector<BlueprintFieldType, FieldType>(field_constant);
+        }
 
+        template <typename BlueprintFieldType>
+        std::vector<typename BlueprintFieldType::value_type> marshal_field_val(const llvm::Value *val) {
+
+            ASSERT(llvm::isa<llvm::ConstantField>(val) || llvm::isa<llvm::ConstantInt>(val));
+            if (llvm::isa<llvm::ConstantInt>(val)) {
+                return field_dependent_marshal_val<BlueprintFieldType, BlueprintFieldType>(val);
+            } else {
+                switch (llvm::cast<llvm::GaloisFieldType>(val->getType())->getFieldKind()) {
+                    case llvm::GALOIS_FIELD_CURVE25519_BASE: {
+                        using operating_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
+                        return field_dependent_marshal_val<operating_field_type, BlueprintFieldType>(val);
+                    }
+                    case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
+                        using operating_field_type = typename nil::crypto3::algebra::curves::ed25519::scalar_field_type;
+                        return field_dependent_marshal_val<operating_field_type, BlueprintFieldType>(val);
+                    }
+                    case llvm::GALOIS_FIELD_PALLAS_BASE: {
+                        using operating_field_type = typename nil::crypto3::algebra::curves::pallas::base_field_type;
+                        return field_dependent_marshal_val<operating_field_type, BlueprintFieldType>(val);
+                    }
+                    case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
+                        using operating_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
+                        return field_dependent_marshal_val<operating_field_type, BlueprintFieldType>(val);
+                    }
+                    default:
+                        UNREACHABLE("unsupported field operand type");
+                }
+            }
+        }
+
+        template <typename BlueprintFieldType>
+        typename BlueprintFieldType::integral_type unmarshal_field_val(const llvm::GaloisFieldKind field_type, std::vector<typename BlueprintFieldType::value_type> input) {
+            switch (field_type) {
+                case llvm::GALOIS_FIELD_CURVE25519_BASE: {
+                    using operating_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
+                    return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                }
+                case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
+                    using operating_field_type = typename nil::crypto3::algebra::curves::ed25519::scalar_field_type;
+                    return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                }
+                case llvm::GALOIS_FIELD_PALLAS_BASE: {
+                    using operating_field_type = typename nil::crypto3::algebra::curves::pallas::base_field_type;
+                    return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                }
+                case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
+                    using operating_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
+                    return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                }
+                default:
+                    UNREACHABLE("unsupported field operand type");
+            }
+        }
     }    // namespace blueprint
 }    // namespace nil
 
