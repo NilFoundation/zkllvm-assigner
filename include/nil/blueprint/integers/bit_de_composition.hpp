@@ -49,7 +49,7 @@ namespace nil {
             std::size_t BitsAmount,
             llvm::Value *result_value,
             llvm::Value *input,
-            llvm::Value *operand_sig_bit,
+            bool is_msb,
             typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
             typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
@@ -61,9 +61,6 @@ namespace nil {
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             var component_input = variables[input];
 
-            auto marshalling_output_vector = marshal_field_val<BlueprintFieldType>(operand_sig_bit);
-            ASSERT(marshalling_output_vector.size() == 1);
-            bool is_msb = bool(typename BlueprintFieldType::integral_type(marshalling_output_vector[0].data));
             using mode = nil::blueprint::components::bit_composition_mode;
             mode Mode = is_msb ? mode::MSB : mode::LSB;
 
@@ -86,11 +83,12 @@ namespace nil {
         typename components::bit_composition<
         crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::result_type
             handle_native_field_bit_composition_component(
-            llvm::Value *operand0,
-            llvm::Value *operand1,
+            llvm::Value *input_value,
+            llvm::Value *bitness_value,
             llvm::Value *operand_sig_bit,
             typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
             typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
+            program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
             circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
@@ -101,16 +99,27 @@ namespace nil {
             using component_type = nil::blueprint::components::bit_composition<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
+            auto marshalled_msb = marshal_field_val<BlueprintFieldType>(operand_sig_bit);
+            ASSERT(marshalled_msb.size() == 1);
+            bool is_msb = bool(typename BlueprintFieldType::integral_type(marshalled_msb[0].data));
             using mode = nil::blueprint::components::bit_composition_mode;
-
-            std::vector<var> component_input = vectors[operand0];
-            component_input.insert(component_input.end(), vectors[operand1].begin(), vectors[operand1].end());
-            var sig_bit_var = variables[operand_sig_bit]; // TODO should be input of blueprint component, not as there
-
-            bool is_msb = bool(typename BlueprintFieldType::integral_type(var_value(assignment, sig_bit_var).data));
             mode Mode = is_msb ? mode::MSB : mode::LSB;
-            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, 128, true));
-            component_type component_instance =  component_type(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), 128, true, Mode);
+
+            auto marshalled_bitness = marshal_field_val<BlueprintFieldType>(bitness_value);
+            ASSERT(marshalled_bitness.size() == 1);
+            std::size_t bitness_from_intrinsic = int(typename BlueprintFieldType::integral_type(marshalled_bitness[0].data));
+
+            std::vector<var> component_input = {};
+            ptr_type component_input_ptr = static_cast<ptr_type>(
+                typename BlueprintFieldType::integral_type(var_value(assignment, variables[input_value]).data));
+            for(std::size_t i = 0; i < bitness_from_intrinsic; i++) {
+                    ASSERT(memory[component_input_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
+                    component_input.push_back(memory.load(component_input_ptr++));
+            }
+
+
+            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, bitness_from_intrinsic, true));
+            component_type component_instance =  component_type(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), bitness_from_intrinsic, true, Mode);
 
             components::generate_circuit(component_instance, bp, assignment, {component_input}, start_row);
             return components::generate_assignments(component_instance, assignment, {component_input}, start_row);
@@ -128,8 +137,6 @@ namespace nil {
                 &assignment,
             std::uint32_t start_row) {
 
-            using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
-
             llvm::Value *result_value = inst->getOperand(0);
             llvm::Value *bitness_value = inst->getOperand(1);
             llvm::Value *input = inst->getOperand(2);
@@ -137,11 +144,16 @@ namespace nil {
 
             auto marshalling_output_vector = marshal_field_val<BlueprintFieldType>(bitness_value);
             ASSERT(marshalling_output_vector.size() == 1);
-            std::size_t bitness =
+            std::size_t bitness_from_intrinsic =
                 static_cast<size_t>(typename BlueprintFieldType::integral_type(marshalling_output_vector[0].data));
 
+            auto sig_bit_marshalled = marshal_field_val<BlueprintFieldType>(operand_sig_bit);
+            ASSERT(sig_bit_marshalled.size() == 1);
+            bool is_msb =
+                static_cast<bool>(typename BlueprintFieldType::integral_type(sig_bit_marshalled[0].data));
+
             detail::handle_native_field_decomposition_component<BlueprintFieldType, ArithmetizationParams>(
-                                bitness, result_value, input, operand_sig_bit, frame.vectors, frame.scalars, memory, bp, assignment, start_row);
+                                bitness_from_intrinsic, result_value, input, is_msb, frame.vectors, frame.scalars, memory, bp, assignment, start_row);
 
 
         }
@@ -150,6 +162,7 @@ namespace nil {
         void handle_integer_bit_composition_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
+            program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
             circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
@@ -157,12 +170,12 @@ namespace nil {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
-            llvm::Value *operand0 = inst->getOperand(0);
-            llvm::Value *operand1 = inst->getOperand(1);
+            llvm::Value *result_value = inst->getOperand(0);
+            llvm::Value *bitness_value = inst->getOperand(1);
             llvm::Value *operand_sig_bit = inst->getOperand(2);
 
             frame.scalars[inst] = detail::handle_native_field_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, operand_sig_bit, frame.vectors, frame.scalars, bp, assignment, start_row).output;
+                                result_value, bitness_value, operand_sig_bit, frame.vectors, frame.scalars, memory,  bp, assignment, start_row).output;
 
         }
 

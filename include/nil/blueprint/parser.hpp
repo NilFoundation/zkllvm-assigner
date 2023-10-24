@@ -311,7 +311,10 @@ namespace nil {
 
             bool handle_intrinsic(const llvm::CallInst *inst, llvm::Intrinsic::ID id, stack_frame<var> &frame, uint32_t start_row) {
                 // Passing constants to component directly is only supported for bit decomposition
-                if (id != llvm::Intrinsic::assigner_bit_decomposition) {
+                if (
+                    id != llvm::Intrinsic::assigner_bit_decomposition &&
+                    id != llvm::Intrinsic::assigner_bit_composition
+                    ) {
                     for (int i = 0; i < inst->getNumOperands(); ++i) {
                         llvm::Value *op = inst->getOperand(i);
                         if (llvm::isa<llvm::Constant>(op)) {
@@ -362,11 +365,14 @@ namespace nil {
                     }
                     case llvm::Intrinsic::assigner_bit_decomposition: {
                         ASSERT(llvm::isa<llvm::Constant>(inst->getOperand(1)));
+                        ASSERT(llvm::isa<llvm::Constant>(inst->getOperand(3)));
                         handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, bp, assignmnt, start_row);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_bit_composition: {
-                        handle_integer_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, bp, assignmnt, start_row);
+                        ASSERT(llvm::isa<llvm::Constant>(inst->getOperand(1)));
+                        ASSERT(llvm::isa<llvm::Constant>(inst->getOperand(2)));
+                        handle_integer_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, bp, assignmnt, start_row);
                         return true;
                     }
                     case llvm::Intrinsic::memcpy: {
