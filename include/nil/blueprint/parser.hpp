@@ -375,6 +375,12 @@ namespace nil {
                         handle_integer_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, bp, assignmnt, start_row);
                         return true;
                     }
+                    case llvm::Intrinsic::assigner_print_native_pallas_field: {
+                        llvm::Value *input = inst->getOperand(0);
+                        ASSERT(field_arg_num<BlueprintFieldType>(input->getType()) == 1);
+                        std::cout << var_value(assignmnt, frame.scalars[input]).data << std::endl;
+                        return true;
+                    }
                     case llvm::Intrinsic::memcpy: {
                         llvm::Value *src_val = inst->getOperand(1);
                         ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
