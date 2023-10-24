@@ -60,6 +60,9 @@ namespace nil {
                 // to easily compute a size of a cell as a difference with the previous one
                 this->push_back({VarType(), 0});
                 this->resize(heap_top);
+                // also push an initial cell with heap_top offset to make inttoptr and ptrtoint work correctly
+                // for values on the heap
+                this->push_back({VarType(), heap_top});
                 push_frame();
             }
             void stack_push(unsigned offset) {
@@ -118,6 +121,7 @@ namespace nil {
                 // Find the corresponding cell using binary search
                 auto left = this->begin();
                 auto right = this->end();
+                // do we search on the stack or the heap?
                 if (offset < stack_size) {
                     right = left + stack_top;
                 } else {
@@ -129,7 +133,12 @@ namespace nil {
                     return 0;
                 }
                 // The operation is inverse to ptrtoint, so we need to add 1 to get the desired ptr
-                return res - left + 1;
+                // we also need to again distinguish the stack and the heap case
+                if (offset < stack_size) {
+                    return res - left + 1;
+                } else {
+                    return res - left + 1 + stack_size;
+                }
             }
 
         private:
