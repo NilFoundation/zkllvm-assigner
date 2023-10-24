@@ -27,6 +27,7 @@
 #ifndef CRYPTO3_ASSIGNER_MEMORY_HPP
 #define CRYPTO3_ASSIGNER_MEMORY_HPP
 
+#include <cstddef>
 #include <unordered_map>
 #include <vector>
 #include <stack>
@@ -49,6 +50,12 @@ namespace nil {
         struct program_memory : public std::vector<cell<VarType>> {
         public:
             program_memory(long stack_size) : stack_size(stack_size), heap_top(stack_size) {
+                // pad stack size to multiple of alignof(std::max_align_t), so heap_top is aligned correctly
+                constexpr auto alignment = alignof(std::max_align_t);
+                this->stack_size += alignment - 1;
+                this->stack_size = (this->stack_size / alignment) * alignment;
+                this->heap_top = this->stack_size;
+
                 // We cell's offset is (actual_offset + size), so we add initial cell with zero offset
                 // to easily compute a size of a cell as a difference with the previous one
                 this->push_back({VarType(), 0});
@@ -81,10 +88,16 @@ namespace nil {
             }
 
             ptr_type malloc(size_t num_bytes) {
+                // pad malloc size to multiple of alignof(std::max_align_t)
+                // so following mallocs are aligned correctly
+                constexpr auto alignment = alignof(std::max_align_t);
+                num_bytes += alignment - 1;
+                num_bytes = (num_bytes / alignment) * alignment;
+
                 auto offset = this->back().offset;
                 ptr_type res = this->size();
                 for (size_t i = 0; i < num_bytes; ++i) {
-                    this->push_back(cell<VarType>{VarType(), offset++, 1});
+                    this->push_back(cell<VarType> {VarType(), offset++, 1});
                 }
                 return res;
             }
@@ -129,4 +142,4 @@ namespace nil {
     }    // namespace blueprint
 }    // namespace nil
 
-#endif  // CRYPTO3_ASSIGNER_MEMORY_HPP
+#endif    // CRYPTO3_ASSIGNER_MEMORY_HPP
