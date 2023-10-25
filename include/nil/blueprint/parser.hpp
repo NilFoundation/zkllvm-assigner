@@ -1124,7 +1124,6 @@ namespace nil {
                                 memcpy(allocated_copy, ret_ptr, size);
                                 auto &upper_frame_variables = call_stack.top().scalars;
 
-                                upper_frame_variables[extracted_frame.caller] = extracted_frame.scalars[ret_val];
                                 upper_frame_variables[extracted_frame.caller] = put_into_assignment(allocated_copy);
                             } else {
                                 auto &upper_frame_variables = call_stack.top().scalars;
