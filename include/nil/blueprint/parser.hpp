@@ -781,6 +781,13 @@ namespace nil {
                             UNREACHABLE("Function " + fun_name.str() + " has no implementation.");
                         }
                         stack_frame<var> new_frame;
+                        // if the return type is an aggregate type, we already allocate memory for it here
+                        // then on the return from the function we will copy the result to the caller's frame
+                        if (fun->getReturnType()->isAggregateType()) {
+                            new_frame.ret_ptr = stack_memory.add_cells(layout_resolver->get_type_layout<BlueprintFieldType>(fun->getReturnType()));
+                        } else {
+                            new_frame.ret_ptr = 0;
+                        }
                         auto &new_variables = new_frame.scalars;
                         for (int i = 0; i < fun->arg_size(); ++i) {
                             llvm::Argument *arg = fun->getArg(i);
@@ -1116,15 +1123,11 @@ namespace nil {
                                 upper_frame_vectors[extracted_frame.caller] = res;
                             } else if (ret_type->isAggregateType()) {
                                 ptr_type ret_ptr = resolve_number<ptr_type>(extracted_frame, ret_val);
-                                ptr_type allocated_copy = stack_memory.add_cells(
-                                    layout_resolver->get_type_layout<BlueprintFieldType>(ret_type));
                                 auto size = layout_resolver->get_type_size(ret_type);
-                                // TODO(maksenov): check if overwriting is possible here
-                                //                 (looks like it is not)
-                                memcpy(allocated_copy, ret_ptr, size);
+                                memcpy(extracted_frame.ret_ptr, ret_ptr, size);
                                 auto &upper_frame_variables = call_stack.top().scalars;
-
-                                upper_frame_variables[extracted_frame.caller] = put_into_assignment(allocated_copy);
+                                upper_frame_variables[extracted_frame.caller] = put_into_assignment(extracted_frame.ret_ptr);
+                                extracted_frame.ret_ptr = 0;
                             } else {
                                 auto &upper_frame_variables = call_stack.top().scalars;
                                 upper_frame_variables[extracted_frame.caller] = extracted_frame.scalars[ret_val];

@@ -49,6 +49,8 @@ namespace nil {
             std::map<const llvm::Value *, VarType> scalars;
             std::map<const llvm::Value *, std::vector<VarType>> vectors;
             const llvm::CallInst *caller;
+            // a pointer to the memory allocated for the return value of our callee
+            ptr_type ret_ptr;
         };
 
     }    // namespace blueprint
