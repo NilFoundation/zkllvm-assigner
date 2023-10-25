@@ -127,10 +127,13 @@ namespace nil {
                 if (type_cache.find(type) == type_cache.end())
                     resolve_type<BlueprintFieldType>(type);
                 auto *type_record = &type_cache[type];
+                unsigned offset = 0;
                 for (unsigned i = 0; i < gep_indices.size() - 1; ++i) {
-                    type_record = &type_cache[type_record->indices[gep_indices[i]].type];
+                    auto layout_element = type_record->indices[gep_indices[i]];
+                    offset += layout_element.idx;
+                    type_record = &type_cache[layout_element.type];
                 }
-                return type_record->indices[gep_indices.back()].idx;
+                return offset + type_record->indices[gep_indices.back()].idx;
             }
 
             unsigned get_type_size(llvm::Type *type) {
