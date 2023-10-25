@@ -65,9 +65,12 @@ namespace nil {
                     for (auto it = witness_amount_ptr->begin();
                          it != witness_amount_ptr->end(); it++) {
                         const auto witness_amount = *it;
+                        const auto rows_amount = ComponentType::get_rows_amount(witness_amount,
+                                                                                args...);
+                        const auto total_amount_rows_power_two = std::pow(2, std::ceil(std::log2(rows_amount)));
+                        const auto total_amount_of_gates = ComponentType::get_gate_manifest(witness_amount, args...).get_gates_amount();
                         values.emplace_back(witness_amount,
-                                            ComponentType::get_rows_amount(witness_amount,
-                                                                           args...));
+                                            total_amount_rows_power_two + total_amount_of_gates);
                     }
                     ASSERT(values.size() > 0);
                     return values;
