@@ -488,20 +488,37 @@ namespace nil {
                 return false;
             }
 
-            void handle_store(ptr_type ptr, const llvm::Value *val, stack_frame<var> & frame) {
-                stack_memory[ptr].v = frame.scalars[val];
+            void handle_store(ptr_type dst_ptr, const llvm::Value *val, stack_frame<var> & frame) {
+                size_t num_cells = layout_resolver->get_type_layout<BlueprintFieldType>(val->getType()).size();
+                if (num_cells == 1) {
+                    stack_memory[dst_ptr].v = frame.scalars[val];
+                } else {
+                    if (val->getType()->isStructTy()) {
+                        ptr_type src_ptr = resolve_number<ptr_type>(frame.scalars[val]);
+                        memcpy(dst_ptr, src_ptr, num_cells);
+                    } else {
+                        UNREACHABLE("Store type not supported yet");
+                    }
+                }
             }
 
-            void handle_load(ptr_type ptr, const llvm::Value *dest, stack_frame<var> &frame) {
-                auto &cell = stack_memory[ptr];
-                size_t num_cells = layout_resolver->get_type_layout<BlueprintFieldType>(dest->getType()).size();
+            void handle_load(ptr_type src_ptr, const llvm::Value *dest, stack_frame<var> &frame) {
+                auto &cell = stack_memory[src_ptr];
+                auto layout = layout_resolver->get_type_layout<BlueprintFieldType>(dest->getType());
+                size_t num_cells = layout.size();
                 if (num_cells == 1)
                     frame.scalars[dest] = cell.v;
                 else {
-                    std::vector<var> res;
-                    for (size_t i = 0; i < num_cells; ++i) {
-                        res.push_back(stack_memory[ptr + i].v);
-                        frame.vectors[dest] = res;
+                    if (dest->getType()->isStructTy()) {
+                        ptr_type dst_ptr = stack_memory.add_cells(layout);
+                        memcpy(dst_ptr, src_ptr, num_cells);
+                        frame.scalars[dest] = put_into_assignment(dst_ptr);
+                    } else {
+                        std::vector<var> res;
+                        for (size_t i = 0; i < num_cells; ++i) {
+                            res.push_back(stack_memory[src_ptr + i].v);
+                            frame.vectors[dest] = res;
+                        }
                     }
                 }
             }
