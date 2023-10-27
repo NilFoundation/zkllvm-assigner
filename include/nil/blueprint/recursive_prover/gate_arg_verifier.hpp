@@ -38,6 +38,7 @@
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/extract_constructor_parameters.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -64,29 +65,17 @@ namespace nil {
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
                 var theta = variables[theta_value];
 
-                auto marshalling_vector_gates_amount = marshal_field_val<BlueprintFieldType>(gates_amount_value);
-                ASSERT(marshalling_vector_gates_amount.size() == 1);
-                std::size_t gates_amount = std::size_t(typename BlueprintFieldType::integral_type(marshalling_vector_gates_amount[0].data));
+                std::size_t gates_amount = extract_component_constructor_parameter_size_t<BlueprintFieldType>(gates_amount_value);
 
-                auto marshalling_vector_constraints_amount = marshal_field_val<BlueprintFieldType>(constraints_amount_value);
-                ASSERT(marshalling_vector_constraints_amount.size() == 1);
-                std::size_t constraints_amount = std::size_t(typename BlueprintFieldType::integral_type(marshalling_vector_constraints_amount[0].data));
+                std::size_t constraints_amount = extract_component_constructor_parameter_size_t<BlueprintFieldType>(constraints_amount_value);
+
+                std::vector<std::size_t> gates_sizes =
+                    extract_component_constructor_parameter_vector<BlueprintFieldType>(gates_sizes_value);
+
+                ASSERT(gates_sizes.size() == gates_amount);
 
                 size_t gates_sizes_sum = 0;
-                std::vector<std::size_t> gates_sizes = std::vector<std::size_t>(gates_amount);
-
-                ASSERT(gates_sizes_value->getType()->isPointerTy());
-                ASSERT(llvm::isa<llvm::GlobalValue>(gates_sizes_value));
-                auto gv = llvm::cast<llvm::GlobalVariable>(gates_sizes_value);
-                auto struct_constant = gv->getInitializer();
-                ASSERT(struct_constant->getType()->getStructNumElements() == 1);
-                auto array_constant = struct_constant->getAggregateElement(0u);
-                ASSERT(array_constant->getType()->isArrayTy());
-                for (unsigned i = 0; i < array_constant->getType()->getArrayNumElements(); ++i) {
-                    auto elem_constant = array_constant->getAggregateElement(i);
-                    auto marshalling_output_vector = marshal_field_val<BlueprintFieldType>(elem_constant);
-                    ASSERT(marshalling_output_vector.size() == 1);
-                    gates_sizes[i] = (std::size_t)typename BlueprintFieldType::integral_type(marshalling_output_vector[0].data);
+                for(std::size_t i = 0; i < gates_sizes.size(); i++) {
                     gates_sizes_sum += gates_sizes[i];
                 }
 
@@ -101,22 +90,11 @@ namespace nil {
                 }
 
 
-                std::vector<var> selectors;
-                ptr_type selectors_ptr = static_cast<ptr_type>(
-                    typename BlueprintFieldType::integral_type(var_value(assignment, variables[selectors_value]).data));
-                for(std::size_t i = 0; i < gates_amount; i++) {
-                        ASSERT(memory[selectors_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                        selectors.push_back(memory.load(selectors_ptr++));
-                }
+                std::vector<var> selectors = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
+                    selectors_value, gates_amount, variables, memory, assignment);
 
-                std::vector<var> constraints;
-                ptr_type constraints_ptr = static_cast<ptr_type>(
-                    typename BlueprintFieldType::integral_type(var_value(assignment, variables[constraints_value]).data));
-                for(std::size_t i = 0; i < constraints_amount; i++) {
-                        ASSERT(memory[constraints_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                        constraints.push_back(memory.load(constraints_ptr++));
-                }
-
+                std::vector<var> constraints = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
+                    constraints_value, constraints_amount, variables, memory, assignment);
 
                 using component_type = components::basic_constraints_verifier<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;

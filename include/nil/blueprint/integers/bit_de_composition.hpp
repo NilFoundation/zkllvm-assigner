@@ -39,6 +39,7 @@
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/extract_constructor_parameters.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -99,24 +100,14 @@ namespace nil {
             using component_type = nil::blueprint::components::bit_composition<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
-            auto marshalled_msb = marshal_field_val<BlueprintFieldType>(operand_sig_bit);
-            ASSERT(marshalled_msb.size() == 1);
-            bool is_msb = bool(typename BlueprintFieldType::integral_type(marshalled_msb[0].data));
+            bool is_msb = extract_component_constructor_parameter_bool<BlueprintFieldType>(operand_sig_bit);
             using mode = nil::blueprint::components::bit_composition_mode;
             mode Mode = is_msb ? mode::MSB : mode::LSB;
 
-            auto marshalled_bitness = marshal_field_val<BlueprintFieldType>(bitness_value);
-            ASSERT(marshalled_bitness.size() == 1);
-            std::size_t bitness_from_intrinsic = int(typename BlueprintFieldType::integral_type(marshalled_bitness[0].data));
+            std::size_t bitness_from_intrinsic = extract_component_constructor_parameter_size_t<BlueprintFieldType>(bitness_value);
 
-            std::vector<var> component_input = {};
-            ptr_type component_input_ptr = static_cast<ptr_type>(
-                typename BlueprintFieldType::integral_type(var_value(assignment, variables[input_value]).data));
-            for(std::size_t i = 0; i < bitness_from_intrinsic; i++) {
-                    ASSERT(memory[component_input_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                    component_input.push_back(memory.load(component_input_ptr++));
-            }
-
+            std::vector<var> component_input = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
+                    input_value, bitness_from_intrinsic, variables, memory, assignment);
 
             const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, bitness_from_intrinsic, true));
             component_type component_instance =  component_type(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), bitness_from_intrinsic, true, Mode);
@@ -142,10 +133,7 @@ namespace nil {
             llvm::Value *input = inst->getOperand(2);
             llvm::Value *operand_sig_bit = inst->getOperand(3);
 
-            auto marshalling_output_vector = marshal_field_val<BlueprintFieldType>(bitness_value);
-            ASSERT(marshalling_output_vector.size() == 1);
-            std::size_t bitness_from_intrinsic =
-                static_cast<size_t>(typename BlueprintFieldType::integral_type(marshalling_output_vector[0].data));
+            std::size_t bitness_from_intrinsic = nil::blueprint::detail::extract_component_constructor_parameter_size_t<BlueprintFieldType>(bitness_value);
 
             auto sig_bit_marshalled = marshal_field_val<BlueprintFieldType>(operand_sig_bit);
             ASSERT(sig_bit_marshalled.size() == 1);
