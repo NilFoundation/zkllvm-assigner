@@ -38,6 +38,7 @@
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/extract_constructor_parameters.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -74,34 +75,16 @@ namespace nil {
                 ASSERT(vectors[thetas_value].size() == 2);
                 std::array<var, 2> thetas = {vectors[thetas_value][0], vectors[thetas_value][1]};
 
-                auto marshalling_vector_input_length = marshal_field_val<BlueprintFieldType>(input_length_value);
-                ASSERT(marshalling_vector_input_length.size() == 1);
-                std::size_t input_length = std::size_t(typename BlueprintFieldType::integral_type(marshalling_vector_input_length[0].data));
+                std::size_t input_length = extract_component_constructor_parameter_size_t<BlueprintFieldType>(input_length_value);
 
+                std::vector<var> Ssigma = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
+                    Ssigma_value, input_length, variables, memory, assignment);
 
-                std::vector<var> Ssigma;
-                ptr_type Ssigma_ptr = static_cast<ptr_type>(
-                    typename BlueprintFieldType::integral_type(var_value(assignment, variables[Ssigma_value]).data));
-                for(std::size_t i = 0; i < input_length; i++) {
-                        ASSERT(memory[Ssigma_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                        Ssigma.push_back(memory.load(Ssigma_ptr++));
-                }
+                std::vector<var> f = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
+                    f_value, input_length, variables, memory, assignment);
 
-                std::vector<var> f;
-                ptr_type f_ptr = static_cast<ptr_type>(
-                    typename BlueprintFieldType::integral_type(var_value(assignment, variables[f_value]).data));
-                for(std::size_t i = 0; i < input_length; i++) {
-                        ASSERT(memory[f_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                        f.push_back(memory.load(f_ptr++));
-                }
-
-                std::vector<var> Se;
-                ptr_type Se_ptr = static_cast<ptr_type>(
-                    typename BlueprintFieldType::integral_type(var_value(assignment, variables[Se_value]).data));
-                for(std::size_t i = 0; i < input_length; i++) {
-                        ASSERT(memory[Se_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                        Se.push_back(memory.load(Se_ptr++));
-                }
+                std::vector<var> Se = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
+                    Se_value, input_length, variables, memory, assignment);
 
 
                 using component_type = components::permutation_verifier<

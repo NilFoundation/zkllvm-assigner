@@ -38,6 +38,7 @@
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/extract_constructor_parameters.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -61,18 +62,9 @@ namespace nil {
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             var component_input = variables[input];
 
-            auto marshalling_vector_omega = marshal_field_val<BlueprintFieldType>(omega_value);
-            ASSERT(marshalling_vector_omega.size() == 1);
-            typename BlueprintFieldType::value_type omega = marshalling_vector_omega[0].data;
-
-            auto marshalling_vector_total_bits = marshal_field_val<BlueprintFieldType>(total_bits_value);
-            ASSERT(marshalling_vector_total_bits.size() == 1);
-            std::size_t total_bits = std::size_t(typename BlueprintFieldType::integral_type(marshalling_vector_total_bits[0].data));
-
-            auto marshalling_vector_res_length = marshal_field_val<BlueprintFieldType>(result_length_value);
-            ASSERT(marshalling_vector_res_length.size() == 1);
-            std::size_t res_length = std::size_t(typename BlueprintFieldType::integral_type(marshalling_vector_res_length[0].data));
-
+            typename BlueprintFieldType::value_type omega = extract_component_constructor_parameter_field<BlueprintFieldType>(omega_value);
+            std::size_t total_bits = extract_component_constructor_parameter_size_t<BlueprintFieldType>(total_bits_value);
+            std::size_t res_length = extract_component_constructor_parameter_size_t<BlueprintFieldType>(result_length_value);
 
             using component_type = components::fri_cosets<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
