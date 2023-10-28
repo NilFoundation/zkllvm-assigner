@@ -91,7 +91,8 @@
 #include <nil/blueprint/recursive_prover/fri_cosets.hpp>
 #include <nil/blueprint/recursive_prover/gate_arg_verifier.hpp>
 #include <nil/blueprint/recursive_prover/permutation_arg_verifier.hpp>
-// #include <nil/blueprint/recursive_prover/lookup_arg_verifier.hpp>
+#include <nil/blueprint/recursive_prover/lookup_arg_verifier.hpp>
+#include <nil/blueprint/recursive_prover/fri_array_swap.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -370,6 +371,7 @@ namespace nil {
                     id != llvm::Intrinsic::assigner_gate_arg_verifier &&
                     id != llvm::Intrinsic::assigner_permutation_arg_verifier &&
                     id != llvm::Intrinsic::assigner_lookup_arg_verifier &&
+                    id != llvm::Intrinsic::assigner_fri_array_swap &&
                     id != llvm::Intrinsic::assigner_fri_cosets
                     ) {
                     for (int i = 0; i < inst->getNumOperands(); ++i) {
@@ -562,7 +564,12 @@ namespace nil {
                                 UNREACHABLE("constant expected");
                             }
                         }
-                        frame.vectors[inst] = {zero_var, zero_var, zero_var, zero_var};
+                        handle_lookup_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_fri_array_swap: {
+                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(1)), "array size must be constant");
+                        handle_fri_array_swap_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
                         return true;
                     }
 
