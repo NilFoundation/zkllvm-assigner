@@ -97,6 +97,28 @@
 namespace nil {
     namespace blueprint {
 
+        bool check_operands_constantness(const llvm::CallInst *inst, std::vector<std::size_t> constants_positions) {
+            bool is_const;
+            for (std::size_t i = 0; i < inst->getNumOperands() - 1; i++) {
+                is_const = false;
+                for (std::size_t j = 0; j < constants_positions.size(); j++) {
+                    if(i == constants_positions[j]) {
+                        ASSERT(constants_positions[j] < inst->getNumOperands() - 1);
+                        is_const = true;
+                        if(!llvm::isa<llvm::Constant>(inst->getOperand(i))) {
+                            std::cerr << "\noperand " << i << " must be constant, but it is not\n";
+                            return false;
+                        }
+                    }
+                }
+                if(!is_const && llvm::isa<llvm::Constant>(inst->getOperand(i))) {
+                    std::cerr << "\noperand " << i << " must NOT be constant, but it is\n";
+                    return false;
+                }
+            }
+            return true;
+        }
+
         template<typename BlueprintFieldType, typename ArithmetizationParams, bool PrintCircuitOutput>
         struct parser {
 
@@ -442,14 +464,12 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_bit_decomposition: {
-                        ASSERT(llvm::isa<llvm::Constant>(inst->getOperand(1)));
-                        ASSERT(llvm::isa<llvm::Constant>(inst->getOperand(3)));
+                        ASSERT(check_operands_constantness(inst, {1, 3}));
                         handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, next_prover);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_bit_composition: {
-                        ASSERT(llvm::isa<llvm::Constant>(inst->getOperand(1)));
-                        ASSERT(llvm::isa<llvm::Constant>(inst->getOperand(2)));
+                        ASSERT(check_operands_constantness(inst, {1, 2}));
                         handle_integer_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, next_prover);
                         return true;
                     }
@@ -539,36 +559,30 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_cosets: {
-                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(1)), "result length must be constant");
-                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(2)), "omega must be constant");
-                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(3)), "total_bits must be constant");
+                        ASSERT_MSG(check_operands_constantness(inst, {1, 2, 3}), "result length, omega and total_bits must be constants");
                         handle_fri_cosets_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_gate_arg_verifier: {
-                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(1)), "gates_sizes must be constant");
-                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(2)), "gates amount must be constant");
-                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(4)), "selectors amount must be constant");
+                        ASSERT_MSG(check_operands_constantness(inst, {1, 2, 4}), "gates_sizes, gates and selectors amount must be constants");
                         handle_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_permutation_arg_verifier: {
-                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(3)), "f, se, sigma size must be constant");
+                        ASSERT_MSG(check_operands_constantness(inst, {3}), "f, se, sigma size must be constant");
                         handle_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_lookup_arg_verifier: {
-                        for (std::size_t i = 0; i < 13; i++) {
-                            if(!llvm::isa<llvm::Constant>(inst->getOperand(2*i + 1))) {
-                                std::cerr << "assigner_lookup_arg_verifier intrinsic operand " << 2*i + 1 << " must be constant\n";
-                                UNREACHABLE("constant expected");
-                            }
-                        }
+                        std::vector<std::size_t> constants_positions = {};
+                        for (std::size_t i = 0; i < 8; i++) { constants_positions.push_back(i);}
+                        for (std::size_t i = 4; i < 13; i++) { constants_positions.push_back(2*i + 1);}
+                        ASSERT_MSG(check_operands_constantness(inst, constants_positions), "vectors sizes must be constants");
                         handle_lookup_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_array_swap: {
-                        ASSERT_MSG(llvm::isa<llvm::Constant>(inst->getOperand(1)), "array size must be constant");
+                        ASSERT_MSG(check_operands_constantness(inst, {1}), "array size must be constant");
                         handle_fri_array_swap_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
                         return true;
                     }
@@ -1296,9 +1310,8 @@ namespace nil {
                                     } else if (ret_val->getType()->isVectorTy()) {
                                         std::vector<var> res = extracted_frame.vectors[ret_val];
                                         for (var x : res) {
-                                            std::cout << var_value(assignments[currProverIdx], x).data << " ";
+                                            std::cout << var_value(assignments[currProverIdx], x).data << std::endl;
                                         }
-                                        std::cout << std::endl;
                                     } else if (ret_val->getType()->isFieldTy() && field_arg_num<BlueprintFieldType>(ret_val->getType()) > 1) {
                                         std::vector<var> res = extracted_frame.vectors[ret_val];
                                         std::vector<typename BlueprintFieldType::value_type> chopped_field;
