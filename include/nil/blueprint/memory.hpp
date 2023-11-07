@@ -43,6 +43,7 @@ namespace nil {
             VarType v;
             size_t offset;
             int8_t size;
+            int8_t following;
         };
 
         template<typename VarType>
@@ -54,10 +55,11 @@ namespace nil {
                 this->push_back({VarType(), stack_size + 1, 0});
                 push_frame();
             }
-            void stack_push(size_t offset, int8_t size) {
+            void stack_push(size_t offset, int8_t size, int8_t following) {
                 cell<VarType> &new_cell = this->operator[](stack_top++);
                 new_cell.offset = offset;
                 new_cell.size = size;
+                new_cell.following = following;
             }
 
             void push_frame() {
@@ -69,11 +71,14 @@ namespace nil {
                 frames.pop();
             }
 
-            ptr_type add_cells(const std::vector<unsigned> &layout) {
+            ptr_type add_cells(const std::vector<std::pair<unsigned, unsigned>> &layout) {
                 ptr_type res = stack_top;
                 unsigned next_offset = this->at(stack_top - 1).offset + this->at(stack_top - 1).size;
-                for (unsigned cell_size : layout) {
-                    stack_push(next_offset, cell_size);
+                for (auto [cell_size, following] : layout) {
+                    stack_push(next_offset, cell_size, following);
+                    for (unsigned i = 1; i <= following; ++i) {
+                        stack_push(next_offset, 0, following - i);
+                    }
                     next_offset += cell_size;
                 }
                 return res;
