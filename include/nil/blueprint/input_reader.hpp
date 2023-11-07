@@ -393,25 +393,27 @@ namespace nil {
             bool fill_public_input(const llvm::Function &function, const boost::json::array &public_input) {
                 size_t ret_gap = 0;
                 for (size_t i = 0; i < function.arg_size(); ++i) {
+                    llvm::Argument *current_arg = function.getArg(i);
+                    llvm::Type *arg_type = current_arg->getType();
+                    if (current_arg->hasStructRetAttr()) {
+                        ASSERT(llvm::isa<llvm::PointerType>(arg_type));
+                        auto pointee = current_arg->getAttribute(llvm::Attribute::StructRet).getValueAsType();
+                        ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(pointee));
+                        frame.scalars[current_arg] = put_into_assignment(ptr, false);
+                        ret_gap += 1;
+                        continue;
+                    }
+
                     if (public_input.size() <= i - ret_gap || !public_input[i - ret_gap].is_object()) {
                         error = "not enough values in the input file.";
                         return false;
                     }
 
-                    llvm::Argument *current_arg = function.getArg(i);
                     const boost::json::object &current_value = public_input[i - ret_gap].as_object();
-                    llvm::Type *arg_type = current_arg->getType();
 
                     bool is_private = current_arg->hasAttribute(llvm::Attribute::PrivateInput);
 
                     if (llvm::isa<llvm::PointerType>(arg_type)) {
-                        if (current_arg->hasStructRetAttr()) {
-                            auto pointee = current_arg->getAttribute(llvm::Attribute::StructRet).getValueAsType();
-                            ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(pointee));
-                            frame.scalars[current_arg] = pointer_into_assignment(ptr);
-                            ret_gap += 1;
-                            continue;
-                        }
                         if (current_arg->hasAttribute(llvm::Attribute::ByVal)) {
                             auto pointee = current_arg->getAttribute(llvm::Attribute::ByVal).getValueAsType();
                             if (pointee->isStructTy()) {
