@@ -277,7 +277,9 @@ namespace nil {
                     return false;
                 }
                 const auto &json_str = value.at("string").as_string();
-                ptr_type ptr = memory.add_cells(std::vector<unsigned>(json_str.size() + 1, 1));
+                size_t string_size = json_str.size() + 1;  // add memory for '\0'
+                type_layout string_layout(string_size, {1,0});
+                ptr_type ptr = memory.add_cells(string_layout);
                 auto pointer_var = pointer_into_assignment(ptr);
                 frame.scalars[arg] = pointer_var;
 

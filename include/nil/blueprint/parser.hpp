@@ -377,8 +377,13 @@ namespace nil {
                 unsigned copied = 0;
                 while (copied < width) {
                     ASSERT(stack_memory[dst].size == stack_memory[src].size);
+                    unsigned following = stack_memory[dst].following;
                     copied += stack_memory[dst].size;
                     stack_memory[dst++].v = stack_memory[src++].v;
+                    while (following != 0) {
+                        stack_memory[dst++].v = stack_memory[src++].v;
+                        --following;
+                    }
                 }
             }
 
@@ -791,7 +796,7 @@ namespace nil {
 
             void handle_load(ptr_type ptr, const llvm::Value *dest, stack_frame<var> &frame) {
                 auto &cell = stack_memory[ptr];
-                size_t num_cells = layout_resolver->get_type_layout<BlueprintFieldType>(dest->getType()).size();
+                size_t num_cells = layout_resolver->get_cells_num<BlueprintFieldType>(dest->getType());
                 if (num_cells == 1)
                     frame.scalars[dest] = cell.v;
                 else {
@@ -817,10 +822,10 @@ namespace nil {
                                                    stack_frame<var> &frame,
                                                    llvm::Type *gep_ty) {
                 typename BlueprintFieldType::value_type base_ptr =
-                        var_value(assignments[currProverIdx], frame.scalars[pointer_operand]);
+                    var_value(assignments[currProverIdx], frame.scalars[pointer_operand]);
                 auto base_ptr_number = resolve_number<ptr_type>(frame.scalars[pointer_operand]);
                 var gep_initial_idx = frame.scalars[initial_idx_operand];
-                size_t cells_for_type = layout_resolver->get_type_layout<BlueprintFieldType>(gep_ty).size();
+                size_t cells_for_type = layout_resolver->get_cells_num<BlueprintFieldType>(gep_ty);
 
                 auto naive_ptr_adjustment = cells_for_type * var_value(assignments[currProverIdx], gep_initial_idx);
                 auto adjusted_ptr = base_ptr + naive_ptr_adjustment;
@@ -884,6 +889,29 @@ namespace nil {
                 frame.scalars[inst] = put_into_assignment(offset, next_prover);
             }
 
+            void put_global(const llvm::GlobalVariable *global) {
+                if (globals.find(global) != globals.end()) {
+                    return;
+                }
+                const llvm::Constant *initializer = global->getInitializer();
+                if (initializer->getType()->isAggregateType()) {
+                    ptr_type ptr = store_constant<var>(initializer, true);
+                    globals[global] = put_into_assignment(ptr, true);
+                } else if (initializer->getType()->isIntegerTy() ||
+                    (initializer->getType()->isFieldTy() && field_arg_num<BlueprintFieldType>(initializer->getType()) == 1)) {
+                    ptr_type ptr = stack_memory.add_cells({layout_resolver->get_type_size(initializer->getType())});
+                    std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val<BlueprintFieldType>(initializer);
+                    stack_memory.store(ptr, put_into_assignment(marshalled_field_val[0], true));
+                    globals[global] = put_into_assignment(ptr, true);
+                } else if (llvm::isa<llvm::ConstantPointerNull>(initializer)) {
+                    ptr_type ptr = stack_memory.add_cells({layout_resolver->get_type_size(initializer->getType())});
+                    stack_memory.store(ptr, zero_var);
+                    globals[global] = put_into_assignment(ptr, true);
+                } else {
+                    UNREACHABLE("Unhandled global variable");
+                }
+            }
+
             void put_constant(llvm::Constant *c, stack_frame<var> &frame, bool next_prover) {
                 if (llvm::isa<llvm::ConstantField>(c) || llvm::isa<llvm::ConstantInt>(c)) {
                     std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val<BlueprintFieldType>(c);
@@ -907,7 +935,7 @@ namespace nil {
                         ASSERT(undef_type->isAggregateType());
                         auto layout = layout_resolver->get_type_layout<BlueprintFieldType>(undef_type);
                         ptr_type ptr = stack_memory.add_cells(layout);
-                        for (size_t i = 0; i < layout.size(); ++i) {
+                        for (size_t i = 0; i < layout_resolver->get_cells_num<BlueprintFieldType>(undef_type); ++i) {
                             stack_memory.store(ptr+i, undef_var);
                         }
                         frame.scalars[c] = put_into_assignment(ptr, next_prover);
@@ -1593,24 +1621,7 @@ namespace nil {
                 constant_idx = input_reader.get_idx();
 
                 for (const llvm::GlobalVariable &global : module.getGlobalList()) {
-
-                    const llvm::Constant *initializer = global.getInitializer();
-                    if (initializer->getType()->isAggregateType()) {
-                        ptr_type ptr = store_constant<var>(initializer, true);
-                        globals[&global] = put_into_assignment(ptr, true);
-                    } else if (initializer->getType()->isIntegerTy() ||
-                        (initializer->getType()->isFieldTy() && field_arg_num<BlueprintFieldType>(initializer->getType()) == 1)) {
-                        ptr_type ptr = stack_memory.add_cells({layout_resolver->get_type_size(initializer->getType())});
-                        std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val<BlueprintFieldType>(initializer);
-                        stack_memory.store(ptr, put_into_assignment(marshalled_field_val[0], true));
-                        globals[&global] = put_into_assignment(ptr, true);
-                    } else if (llvm::isa<llvm::ConstantPointerNull>(initializer)) {
-                        ptr_type ptr = stack_memory.add_cells({layout_resolver->get_type_size(initializer->getType())});
-                        stack_memory.store(ptr, zero_var);
-                        globals[&global] = put_into_assignment(ptr, true);
-                    } else {
-                        UNREACHABLE("Unhandled global variable");
-                    }
+                    put_global(&global);
                 }
 
                 // Collect all the possible labels that could be an argument in IndirectBrInst
@@ -1627,7 +1638,7 @@ namespace nil {
                                 }
                                 auto label_type = llvm::Type::getInt8PtrTy(module.getContext());
                                 unsigned label_type_size = layout_resolver->get_type_size(label_type);
-                                ptr_type ptr = stack_memory.add_cells({label_type_size});
+                                ptr_type ptr = stack_memory.add_cells({{label_type_size, 0}});
 
                                 // Store the pointer to BasicBlock to memory
                                 // TODO(maksenov): avoid C++ pointers in assignment table

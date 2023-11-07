@@ -49,6 +49,8 @@
 
 namespace nil {
     namespace blueprint {
+        using type_layout = std::vector<std::pair<unsigned, unsigned>>;
+
         // This class is intended to compute flat offsets for GEP instruction
         // to put elements of struct/array into a chunk with a correct index.
         // For example, if we have a type { i32, [2 x i32], %pointer* }
@@ -87,33 +89,23 @@ namespace nil {
             }
 
             template <typename BlueprintFieldType>
-            std::vector<unsigned> get_type_layout(llvm::Type *type) {
+            type_layout get_type_layout(llvm::Type *type) {
                 // TODO(maksenov): add type cache
                 switch (type->getTypeID()) {
                 case llvm::Type::IntegerTyID:
                 case llvm::Type::PointerTyID:
-                    return {get_type_size(type)};
+                    return {{get_type_size(type), 0}};
                 case llvm::Type::GaloisFieldTyID: {
-                    std::vector<unsigned> res;
-                    res.push_back(get_type_size(type));
-                    for (int i = 1; i < field_arg_num<BlueprintFieldType>(type); ++i) {
-                        res.push_back(0);
-                    }
-                    return res;
+                    return {{get_type_size(type), field_arg_num<BlueprintFieldType>(type) - 1}};
                 }
                 case llvm::Type::EllipticCurveTyID: {
-                    std::vector<unsigned> res;
-                    res.push_back(get_type_size(type));
-                    for (int i = 1; i < curve_arg_num<BlueprintFieldType>(type); ++i) {
-                        res.push_back(0);
-                    }
-                    return res;
+                    return {{get_type_size(type), curve_arg_num<BlueprintFieldType>(type) - 1}};
                 }
                 case llvm::Type::StructTyID: {
                     auto *struct_ty = llvm::cast<llvm::StructType>(type);
-                    std::vector<unsigned> res;
+                    type_layout res;
                     for (size_t i = 0; i < struct_ty->getNumElements(); ++i) {
-                        auto offf = get_type_layout<BlueprintFieldType>(struct_ty->getElementType(i));
+                        type_layout offf = get_type_layout<BlueprintFieldType>(struct_ty->getElementType(i));
                         res.insert(res.end(), offf.begin(), offf.end());
                     }
                     return res;
@@ -121,8 +113,8 @@ namespace nil {
                 case llvm::Type::ArrayTyID: {
                     auto *array_ty = llvm::cast<llvm::ArrayType>(type);
                     llvm::Type *elem_ty = array_ty->getElementType();
-                    std::vector<unsigned> elem_layout = get_type_layout<BlueprintFieldType>(elem_ty);
-                    std::vector<unsigned> res;
+                    type_layout elem_layout = get_type_layout<BlueprintFieldType>(elem_ty);
+                    type_layout res;
                     for (size_t i = 0; i < array_ty->getNumElements(); ++i) {
                         res.insert(res.end(), elem_layout.begin(), elem_layout.end());
                     }
@@ -131,8 +123,8 @@ namespace nil {
                 case llvm::Type::FixedVectorTyID: {
                     auto *vec_ty = llvm::cast<llvm::FixedVectorType>(type);
                     llvm::Type *elem_ty = vec_ty->getElementType();
-                    std::vector<unsigned> elem_layout = get_type_layout<BlueprintFieldType>(elem_ty);
-                    std::vector<unsigned> res;
+                    type_layout elem_layout = get_type_layout<BlueprintFieldType>(elem_ty);
+                    type_layout res;
                     for (size_t i = 0; i < vec_ty->getNumElements(); ++i) {
                         res.insert(res.end(), elem_layout.begin(), elem_layout.end());
                     }
@@ -141,6 +133,16 @@ namespace nil {
                 default:
                     UNREACHABLE("Unsupported type");
                 }
+            }
+
+            template<typename BlueprintFieldType>
+            size_t get_cells_num(llvm::Type *type) {
+                type_layout layout = get_type_layout<BlueprintFieldType>(type);
+                size_t num = 0;
+                for (auto &layout_pair : layout) {
+                    num += 1 + layout_pair.second;
+                }
+                return num;
             }
 
             LayoutResolver(const LayoutResolver &) = delete;
