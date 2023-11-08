@@ -1395,8 +1395,8 @@ namespace nil {
 
             template<typename InputType>
             var put_into_assignment(InputType input) {
-                assignments[currProverIdx].public_input(0, public_input_idx) = input;
-                return var(0, public_input_idx++, false, var::column_type::public_input);
+                assignments[currProverIdx].constant(1, constant_idx) = input;
+                return var(1, constant_idx++, false, var::column_type::constant);
             }
 
         private:
@@ -1408,6 +1408,7 @@ namespace nil {
             std::unordered_map<const llvm::BasicBlock *, var> labels;
             bool finished = false;
             size_t public_input_idx = 0;
+            size_t constant_idx = 0;
             std::unique_ptr<LayoutResolver> layout_resolver;
             var undef_var;
             var zero_var;
