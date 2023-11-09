@@ -170,7 +170,7 @@ namespace nil {
                         UNREACHABLE("Unsupported icmp predicate");
                         break;
                     }
-                    variables[inst] = put_into_assignment(res);
+                    variables[inst] = put_into_assignment(res, next_prover);
                 }
             }
 
@@ -236,7 +236,7 @@ namespace nil {
                 }
             }
 
-            void handle_ptr_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
+            void handle_ptr_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame, bool next_prover) {
                 ptr_type lhs = resolve_number<ptr_type>(frame, inst->getOperand(0));
                 ASSERT(frame.scalars.find(inst->getOperand(1)) != frame.scalars.end());
                 ptr_type rhs = resolve_number<ptr_type>(frame, inst->getOperand(1));
@@ -252,7 +252,7 @@ namespace nil {
                         UNREACHABLE("Unsupported predicate");
                         break;
                 }
-                frame.scalars[inst] = put_into_assignment(res);
+                frame.scalars[inst] = put_into_assignment(res, next_prover);
             }
 
             template <typename NumberType>
@@ -272,7 +272,7 @@ namespace nil {
             }
 
             template<typename VarType>
-            ptr_type store_constant(const llvm::Constant *constant_init) {
+            ptr_type store_constant(const llvm::Constant *constant_init, bool next_prover) {
                 if (auto operation = llvm::dyn_cast<llvm::ConstantExpr>(constant_init)) {
                     if (operation->isCast())
                         constant_init = operation->getOperand(0);
@@ -315,7 +315,7 @@ namespace nil {
                     if (!type->isAggregateType() && !type->isVectorTy()) {
                         std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val<BlueprintFieldType>(constant);
                         for (int i = 0; i < marshalled_field_val.size(); i++) {
-                            auto variable = put_into_assignment(marshalled_field_val[i]);
+                            auto variable = put_into_assignment(marshalled_field_val[i], next_prover);
                             stack_memory.store(ptr++, variable);
                         }
                         continue;
@@ -356,7 +356,7 @@ namespace nil {
                     for (int i = 0; i < inst->getNumOperands(); ++i) {
                         llvm::Value *op = inst->getOperand(i);
                         if (llvm::isa<llvm::Constant>(op)) {
-                            put_constant(llvm::cast<llvm::Constant>(op), frame);
+                            put_constant(llvm::cast<llvm::Constant>(op), frame, next_prover);
                         }
                     }
                 }
@@ -364,7 +364,7 @@ namespace nil {
                 switch (id) {
                     case llvm::Intrinsic::assigner_malloc: {
                         size_t bytes = resolve_number<size_t>(frame, inst->getOperand(0));
-                        frame.scalars[inst] = put_into_assignment(stack_memory.malloc(bytes));
+                        frame.scalars[inst] = put_into_assignment(stack_memory.malloc(bytes), next_prover);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_free: {
@@ -608,23 +608,23 @@ namespace nil {
                 return ptr_number;
             }
 
-            void handle_ptrtoint(const llvm::Value *inst, llvm::Value *operand, stack_frame<var> &frame) {
+            void handle_ptrtoint(const llvm::Value *inst, llvm::Value *operand, stack_frame<var> &frame, bool next_prover) {
                 ptr_type ptr = resolve_number<ptr_type>(frame, operand);
                 size_t offset = stack_memory.ptrtoint(ptr);
                 log.debug("PtrToInt {} {}", ptr, offset);
-                frame.scalars[inst] = put_into_assignment(offset);
+                frame.scalars[inst] = put_into_assignment(offset, next_prover);
             }
 
-            void put_constant(llvm::Constant *c, stack_frame<var> &frame) {
+            void put_constant(llvm::Constant *c, stack_frame<var> &frame, bool next_prover) {
                 if (llvm::isa<llvm::ConstantField>(c) || llvm::isa<llvm::ConstantInt>(c)) {
                     std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val<BlueprintFieldType>(c);
                     if (marshalled_field_val.size() == 1) {
-                        frame.scalars[c] = put_into_assignment(marshalled_field_val[0]);
+                        frame.scalars[c] = put_into_assignment(marshalled_field_val[0], next_prover);
                     }
                     else {
                         frame.vectors[c] = {};
                         for (std::size_t i = 0; i < marshalled_field_val.size(); i++) {
-                            frame.vectors[c].push_back(put_into_assignment(marshalled_field_val[i]));
+                            frame.vectors[c].push_back(put_into_assignment(marshalled_field_val[i], next_prover));
                         }
                     }
                 } else if (llvm::isa<llvm::UndefValue>(c)) {
@@ -641,7 +641,7 @@ namespace nil {
                         for (size_t i = 0; i < layout.size(); ++i) {
                             stack_memory.store(ptr+i, undef_var);
                         }
-                        frame.scalars[c] = put_into_assignment(ptr);
+                        frame.scalars[c] = put_into_assignment(ptr, next_prover);
                     }
                 } else if (llvm::isa<llvm::ConstantPointerNull>(c)) {
                     frame.scalars[c] = zero_var;
@@ -658,18 +658,18 @@ namespace nil {
                             continue;
                         std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val<BlueprintFieldType>(elem);
                         for (std::size_t j = 0; j < marshalled_field_val.size(); j++) {
-                            result_vector[i * arg_num + j] = put_into_assignment(marshalled_field_val[j]);
+                            result_vector[i * arg_num + j] = put_into_assignment(marshalled_field_val[j], next_prover);
                         }
 
                     }
                     frame.vectors[c] = result_vector;
                 } else if (auto expr = llvm::dyn_cast<llvm::ConstantExpr>(c)) {
                     for (int i = 0; i < expr->getNumOperands(); ++i) {
-                        put_constant(expr->getOperand(i), frame);
+                        put_constant(expr->getOperand(i), frame, next_prover);
                     }
                     switch (expr->getOpcode()) {
                     case llvm::Instruction::PtrToInt:
-                        handle_ptrtoint(expr, expr->getOperand(0), frame);
+                        handle_ptrtoint(expr, expr->getOperand(0), frame, next_prover);
                         break;
                     case llvm::Instruction::GetElementPtr: {
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(expr);
@@ -713,25 +713,6 @@ namespace nil {
                 auto &variables = frame.scalars;
                 std::uint32_t start_row = assignments[currProverIdx].allocated_rows();
 
-                // Put constant operands to public input
-                for (int i = 0; i < inst->getNumOperands(); ++i) {
-                    llvm::Value *op = inst->getOperand(i);
-                    if (variables.find(op) != variables.end()) {
-                        continue;
-                    }
-                    if (llvm::isa<llvm::GlobalValue>(op)) {
-                        frame.scalars[op] = globals[op];
-                    } else if (llvm::isa<llvm::Constant>(op)) {
-                        // We are replacing constant handling with passing them directly to a component
-                        // For now this functionality is supported only for intrinsics
-                        // In other cases the logic remains unchanged
-                        if (inst->getOpcode() != llvm::Instruction::Call ||
-                            !llvm::cast<llvm::CallInst>(inst)->getCalledFunction()->isIntrinsic()) {
-                            put_constant(llvm::cast<llvm::Constant>(op), frame);
-                        }
-                    }
-                }
-
                 // extract zk related metadata
                 const std::string metadataStr = extract_metadata(inst);
                 std::uint32_t userProverIdx = currProverIdx;
@@ -763,6 +744,25 @@ namespace nil {
                         next_prover = currProverIdx != nextUserProverIdx;
                     } catch(...) {
                         next_prover = false;
+                    }
+                }
+
+                // Put constant operands to public input
+                for (int i = 0; i < inst->getNumOperands(); ++i) {
+                    llvm::Value *op = inst->getOperand(i);
+                    if (variables.find(op) != variables.end()) {
+                        continue;
+                    }
+                    if (llvm::isa<llvm::GlobalValue>(op)) {
+                        frame.scalars[op] = globals[op];
+                    } else if (llvm::isa<llvm::Constant>(op)) {
+                        // We are replacing constant handling with passing them directly to a component
+                        // For now this functionality is supported only for intrinsics
+                        // In other cases the logic remains unchanged
+                        if (inst->getOpcode() != llvm::Instruction::Call ||
+                            !llvm::cast<llvm::CallInst>(inst)->getCalledFunction()->isIntrinsic()) {
+                            put_constant(llvm::cast<llvm::Constant>(op), frame, next_prover);
+                        }
                     }
                 }
 
@@ -941,7 +941,7 @@ namespace nil {
                         if (cmp_type->isIntegerTy()|| cmp_type->isFieldTy())
                             handle_scalar_cmp(cmp_inst, variables, next_prover);
                         else if (cmp_type->isPointerTy())
-                            handle_ptr_cmp(cmp_inst, frame);
+                            handle_ptr_cmp(cmp_inst, frame, next_prover);
                         else if (cmp_type->isVectorTy())
                             handle_vector_cmp(cmp_inst, frame, next_prover);
                         else if (cmp_type->isCurveTy())
@@ -973,7 +973,7 @@ namespace nil {
                         typename BlueprintFieldType::integral_type x_integer(var_value(assignments[currProverIdx], lhs).data);
                         typename BlueprintFieldType::integral_type y_integer(var_value(assignments[currProverIdx], rhs).data);
                         typename BlueprintFieldType::value_type res = (x_integer & y_integer);
-                        variables[inst] = put_into_assignment(res);
+                        variables[inst] = put_into_assignment(res, next_prover);
 
                         return inst->getNextNonDebugInstruction();
                     }
@@ -987,7 +987,7 @@ namespace nil {
                         typename BlueprintFieldType::integral_type x_integer(var_value(assignments[currProverIdx], lhs).data);
                         typename BlueprintFieldType::integral_type y_integer(var_value(assignments[currProverIdx], rhs).data);
                         typename BlueprintFieldType::value_type res = (x_integer | y_integer);
-                        variables[inst] = put_into_assignment(res);
+                        variables[inst] = put_into_assignment(res, next_prover);
 
                         return inst->getNextNonDebugInstruction();
                     }
@@ -1001,7 +1001,7 @@ namespace nil {
                         typename BlueprintFieldType::integral_type x_integer(var_value(assignments[currProverIdx], lhs).data);
                         typename BlueprintFieldType::integral_type y_integer(var_value(assignments[currProverIdx], rhs).data);
                         typename BlueprintFieldType::value_type res = (x_integer ^ y_integer);
-                        variables[inst] = put_into_assignment(res);
+                        variables[inst] = put_into_assignment(res, next_prover);
 
                         return inst->getNextNonDebugInstruction();
                     }
@@ -1095,7 +1095,7 @@ namespace nil {
 
                         ptr_type res_ptr = stack_memory.add_cells(vec);
                         log.debug("Alloca: {}", res_ptr);
-                        frame.scalars[inst] = put_into_assignment(res_ptr);
+                        frame.scalars[inst] = put_into_assignment(res_ptr, next_prover);
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::GetElementPtr: {
@@ -1114,7 +1114,7 @@ namespace nil {
                         std::ostringstream oss;
                         oss << gep_res.data;
                         log.debug("GEP: {}", oss.str());
-                        frame.scalars[gep] = put_into_assignment(gep_res);
+                        frame.scalars[gep] = put_into_assignment(gep_res, next_prover);
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Load: {
@@ -1159,7 +1159,7 @@ namespace nil {
                         return &bb->front();
                     }
                     case llvm::Instruction::PtrToInt: {
-                        handle_ptrtoint(inst, inst->getOperand(0), frame);
+                        handle_ptrtoint(inst, inst->getOperand(0), frame, next_prover);
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::IntToPtr: {
@@ -1169,7 +1169,7 @@ namespace nil {
                         ptr_type ptr = stack_memory.inttoptr(offset);
                         log.debug("IntToPtr: {} {}", oss.str(), ptr);
                         ASSERT(ptr != 0);
-                        frame.scalars[inst] = put_into_assignment(ptr);
+                        frame.scalars[inst] = put_into_assignment(ptr, next_prover);
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Trunc: {
@@ -1269,7 +1269,7 @@ namespace nil {
                                 auto &upper_frame_variables = call_stack.top().scalars;
 
                                 upper_frame_variables[extracted_frame.caller] = extracted_frame.scalars[ret_val];
-                                upper_frame_variables[extracted_frame.caller] = put_into_assignment(allocated_copy);
+                                upper_frame_variables[extracted_frame.caller] = put_into_assignment(allocated_copy, next_prover);
                             } else {
                                 auto &upper_frame_variables = call_stack.top().scalars;
                                 upper_frame_variables[extracted_frame.caller] = extracted_frame.scalars[ret_val];
@@ -1334,18 +1334,18 @@ namespace nil {
 
                     const llvm::Constant *initializer = global.getInitializer();
                     if (initializer->getType()->isAggregateType()) {
-                        ptr_type ptr = store_constant<var>(initializer);
-                        globals[&global] = put_into_assignment(ptr);
+                        ptr_type ptr = store_constant<var>(initializer, true);
+                        globals[&global] = put_into_assignment(ptr, true);
                     } else if (initializer->getType()->isIntegerTy() ||
                         (initializer->getType()->isFieldTy() && field_arg_num<BlueprintFieldType>(initializer->getType()) == 1)) {
                         ptr_type ptr = stack_memory.add_cells({layout_resolver->get_type_size(initializer->getType())});
                         std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val<BlueprintFieldType>(initializer);
-                        stack_memory.store(ptr, put_into_assignment(marshalled_field_val[0]));
-                        globals[&global] = put_into_assignment(ptr);
+                        stack_memory.store(ptr, put_into_assignment(marshalled_field_val[0], true));
+                        globals[&global] = put_into_assignment(ptr, true);
                     } else if (llvm::isa<llvm::ConstantPointerNull>(initializer)) {
                         ptr_type ptr = stack_memory.add_cells({layout_resolver->get_type_size(initializer->getType())});
                         stack_memory.store(ptr, zero_var);
-                        globals[&global] = put_into_assignment(ptr);
+                        globals[&global] = put_into_assignment(ptr, true);
                     } else {
                         UNREACHABLE("Unhandled global variable");
                     }
@@ -1369,17 +1369,17 @@ namespace nil {
 
                                 // Store the pointer to BasicBlock to memory
                                 // TODO(maksenov): avoid C++ pointers in assignment table
-                                stack_memory.store(ptr, put_into_assignment((const uintptr_t)succ));
+                                stack_memory.store(ptr, put_into_assignment((const uintptr_t)succ, true));
 
-                                labels[succ] = put_into_assignment(ptr);
+                                labels[succ] = put_into_assignment(ptr, true);
                             }
                         }
                     }
                 }
 
                 // Initialize undef and zero vars once
-                undef_var = put_into_assignment(typename BlueprintFieldType::value_type());
-                zero_var = put_into_assignment(typename BlueprintFieldType::value_type(0));
+                undef_var = put_into_assignment(typename BlueprintFieldType::value_type(), true);
+                zero_var = put_into_assignment(typename BlueprintFieldType::value_type(0), true);
 
                 const llvm::Instruction *next_inst = &function.begin()->front();
                 while (true) {
@@ -1394,9 +1394,13 @@ namespace nil {
             }
 
             template<typename InputType>
-            var put_into_assignment(InputType input) {
+            var put_into_assignment(InputType input, bool next_prover) {
                 assignments[currProverIdx].constant(1, constant_idx) = input;
-                return var(1, constant_idx++, false, var::column_type::constant);
+                if (next_prover) {
+                    return save_shared_var(assignments[currProverIdx], var(1, constant_idx++, false, var::column_type::constant));
+                } else {
+                    return var(1, constant_idx++, false, var::column_type::constant);
+                }
             }
 
         private:
