@@ -47,7 +47,6 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/GetElementPtrTypeIterator.h"
 
 #include <nil/blueprint/logger.hpp>
 #include <nil/blueprint/layout_resolver.hpp>
@@ -544,13 +543,12 @@ namespace nil {
             }
 
             // Handle pointer adjustment specified by the first GEP index
-            ptr_type handle_initial_gep_adjustment(const llvm::Value *pointer_operand, const llvm::Value *initial_idx_operand,
-                                                   stack_frame<var> &frame,
+            ptr_type handle_initial_gep_adjustment(const llvm::GetElementPtrInst *gep, stack_frame<var> &frame,
                                                    llvm::Type *gep_ty) {
                 typename BlueprintFieldType::value_type base_ptr =
-                        var_value(assignments[currProverIdx], frame.scalars[pointer_operand]);
-                auto base_ptr_number = resolve_number<ptr_type>(frame.scalars[pointer_operand]);
-                var gep_initial_idx = frame.scalars[initial_idx_operand];
+                    var_value(assignments[currProverIdx], frame.scalars[gep->getPointerOperand()]);
+                auto base_ptr_number = resolve_number<ptr_type>(frame.scalars[gep->getPointerOperand()]);
+                var gep_initial_idx = frame.scalars[gep->getOperand(1)];
                 size_t cells_for_type = layout_resolver->get_type_layout<BlueprintFieldType>(gep_ty).size();
 
                 auto naive_ptr_adjustment = cells_for_type * var_value(assignments[currProverIdx], gep_initial_idx);
@@ -582,19 +580,22 @@ namespace nil {
                 }
             }
 
-            typename BlueprintFieldType::value_type handle_gep(const llvm::Value *pointer_operand,
-                                                               const llvm::Value *initial_idx_operand,
-                                                               llvm::Type* gep_ty,
-                                                               const std::vector<int> &gep_indices,
-                                                               stack_frame<var> &frame) {
-                auto ptr_number = handle_initial_gep_adjustment(pointer_operand, initial_idx_operand, frame, gep_ty);
+            typename BlueprintFieldType::value_type handle_gep(const llvm::GetElementPtrInst* gep, stack_frame<var> &frame) {
+                llvm::Type *gep_ty = gep->getSourceElementType();
+                auto ptr_number = handle_initial_gep_adjustment(gep, frame, gep_ty);
                 ASSERT(stack_memory[ptr_number].size != 0);
 
-                if (gep_indices.size() > 1) {
+                if (gep->getNumIndices() > 1) {
                     if (!gep_ty->isAggregateType()) {
                         std::cerr << "GEP instruction with > 1 indices must operate on aggregate type!"
-                                  << std::endl;
+                                    << std::endl;
                         return 0;
+                    }
+                    // Collect GEP indices
+                    std::vector<int> gep_indices;
+                    for (unsigned i = 1; i < gep->getNumIndices(); ++i) {
+                        int gep_index = resolve_number<int>(frame, gep->getOperand(i + 1));
+                        gep_indices.push_back(gep_index);
                     }
                     auto [resolved_offset, hint] = layout_resolver->resolve_offset_with_index_hint<BlueprintFieldType>(gep_ty, gep_indices);
                     size_t expected_offset = stack_memory[ptr_number].offset + resolved_offset;
@@ -671,34 +672,11 @@ namespace nil {
                     case llvm::Instruction::PtrToInt:
                         handle_ptrtoint(expr, expr->getOperand(0), frame, next_prover);
                         break;
-                    case llvm::Instruction::GetElementPtr: {
-                        std::vector<int> gep_indices;
-                        for (unsigned i = 2; i < expr->getNumOperands(); ++i) {
-                            int gep_index = resolve_number<int>(frame, expr->getOperand(i));
-                            gep_indices.push_back(gep_index);
-                        }
-
-                        // getSourceElementType for ConstantExpr
-                        llvm::gep_type_iterator type_it = gep_type_begin(expr);
-                        llvm::Type* source_element_type = type_it.getIndexedType();
-                        if (source_element_type == nullptr) {
-                            std::cerr << "Can't extract source element type for GetElementPtr constant expression!"
-                                      << std::endl;
-                            ASSERT(false);
-                        }
-
-                        auto gep_res = handle_gep(expr->getOperand(0), expr->getOperand(1), source_element_type, gep_indices, frame);
-                        ASSERT(gep_res != 0);
-                        frame.scalars[c] = put_into_assignment(gep_res, next_prover);
-                        break;
-                    }
                     default:
                         UNREACHABLE(std::string("Unhandled constant expression: ") + expr->getOpcodeName());
                     }
                 } else if (auto addr = llvm::dyn_cast<llvm::BlockAddress>(c)) {
                     frame.scalars[c] = labels[addr->getBasicBlock()];
-                } else if (llvm::isa<llvm::GlobalValue>(c)) {
-                    frame.scalars[c] = globals[c];
                 } else {
                     // The only other known constant is an address of a function in CallInst,
                     // but there is no way to distinguish it
@@ -1099,13 +1077,7 @@ namespace nil {
                     }
                     case llvm::Instruction::GetElementPtr: {
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(inst);
-                        std::vector<int> gep_indices;
-                        for (unsigned i = 1; i < gep->getNumIndices(); ++i) {
-                            int gep_index = resolve_number<int>(frame, gep->getOperand(i + 1));
-                            gep_indices.push_back(gep_index);
-                        }
-                        auto gep_res = handle_gep(gep->getPointerOperand(), gep->getOperand(1),
-                                                  gep->getSourceElementType(), gep_indices, frame);
+                        auto gep_res = handle_gep(gep, frame);
                         if (gep_res == 0) {
                             std::cerr << "Incorrect GEP result!" << std::endl;
                             return nullptr;
