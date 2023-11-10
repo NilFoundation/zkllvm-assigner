@@ -690,7 +690,7 @@ namespace nil {
 
                         auto gep_res = handle_gep(expr->getOperand(0), expr->getOperand(1), source_element_type, gep_indices, frame);
                         ASSERT(gep_res != 0);
-                        frame.scalars[c] = put_into_assignment(gep_res);
+                        frame.scalars[c] = put_into_assignment(gep_res, next_prover);
                         break;
                     }
                     default:
@@ -1395,10 +1395,12 @@ namespace nil {
 
             template<typename InputType>
             var put_into_assignment(InputType input, bool next_prover) {
-                assignments[currProverIdx].constant(1, constant_idx) = input;
-                if (next_prover) {
-                    return save_shared_var(assignments[currProverIdx], var(1, constant_idx++, false, var::column_type::constant));
+                if (next_prover && maxNumProvers > 1) {
+                    const auto shared_idx = assignments[currProverIdx].shared_column_size(0);
+                    assignments[currProverIdx].shared(0, shared_idx) = input;
+                    return var(1, shared_idx, false, var::column_type::public_input);
                 } else {
+                    assignments[currProverIdx].constant(1, constant_idx) = input;
                     return var(1, constant_idx++, false, var::column_type::constant);
                 }
             }
