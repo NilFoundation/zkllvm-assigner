@@ -73,6 +73,26 @@ namespace nil {
             component_type component_instance(p.witness, detail::ManifestReader<component_type, ArithmetizationParams>::get_constants(),
                                               detail::ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
 
+            if constexpr( nil::blueprint::use_lookups<component_type>() ){
+                auto lookup_tables = component_instance.component_lookup_tables();
+                for(auto &[k,v]:lookup_tables){
+                    bp.reserve_table(k);
+                }
+            };
+
+            nil::crypto3::zk::snark::plonk_table_description<BlueprintFieldType, ArithmetizationParams> desc;
+
+            std::vector<size_t> lookup_columns_indices;
+            for( std::size_t i = 2; i < ArithmetizationParams::constant_columns; i++ )  lookup_columns_indices.push_back(i);
+            desc.usable_rows_amount = nil::crypto3::zk::snark::pack_lookup_tables_horizontal(
+                bp.get_reserved_indices(),
+                bp.get_reserved_tables(),
+                bp, assignmnt, lookup_columns_indices,
+                desc.usable_rows_amount,
+                500000
+            );
+
+
             components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
 
             typename component_type::result_type component_result =
