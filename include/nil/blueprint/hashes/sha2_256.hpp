@@ -89,7 +89,7 @@ namespace nil {
                 bp.get_reserved_tables(),
                 bp, assignmnt, lookup_columns_indices,
                 desc.usable_rows_amount,
-                500000
+                131070
             );
 
 
