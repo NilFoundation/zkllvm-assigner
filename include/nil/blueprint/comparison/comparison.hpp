@@ -49,8 +49,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-                std::uint32_t start_row,
-                std::size_t &public_input_idx) {
+                std::uint32_t start_row) {
 
             using eq_component_type = components::equality_flag<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
