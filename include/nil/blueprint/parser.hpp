@@ -136,7 +136,7 @@ namespace nil {
                     const auto start_row = assignments[currProverIdx].allocated_rows();
                     const auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
                         p, lhs, rhs, bitness,
-                        circuits[currProverIdx], assignments[currProverIdx], start_row, public_input_idx);
+                        circuits[currProverIdx], assignments[currProverIdx], start_row);
                     if (next_prover) {
                         variables[inst] = save_shared_var(assignments[currProverIdx], v);
                     } else {
@@ -192,7 +192,7 @@ namespace nil {
                     const auto start_row = assignments[currProverIdx].allocated_rows();
                     auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
                         inst->getPredicate(), lhs[i], rhs[i], bitness,
-                        circuits[currProverIdx], assignments[currProverIdx], start_row, public_input_idx);
+                        circuits[currProverIdx], assignments[currProverIdx], start_row);
 
                     res.emplace_back(v);
                 }
@@ -218,7 +218,7 @@ namespace nil {
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
                         inst->getPredicate(), lhs[i], rhs[i], 0,
-                        circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows(), public_input_idx);
+                        circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows());
                     res.emplace_back(v);
                 }
 
@@ -227,7 +227,7 @@ namespace nil {
                 for (size_t i = 1; i < lhs.size(); ++i) {
                     are_curves_equal = handle_logic_and<BlueprintFieldType, ArithmetizationParams>(
                         are_curves_equal, res[i], circuits[currProverIdx], assignments[currProverIdx],
-                        assignments[currProverIdx].allocated_rows(), public_input_idx);
+                        assignments[currProverIdx].allocated_rows());
                 }
                 if (next_prover) {
                     frame.scalars[inst] = save_shared_var(assignments[currProverIdx], are_curves_equal);
@@ -468,7 +468,7 @@ namespace nil {
 
                         var comparison_result = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
                             llvm::CmpInst::ICMP_EQ, logical_statement, zero_var, bitness,
-                            circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows(), public_input_idx);
+                            circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows());
 
                         circuits[currProverIdx].add_copy_constraint({comparison_result, zero_var});
 
@@ -1327,8 +1327,8 @@ namespace nil {
                     std::cout << std::endl;
                     return false;
                 }
-                public_input_idx = input_reader.get_idx();
                 call_stack.emplace(std::move(base_frame));
+                constant_idx = input_reader.get_idx();
 
                 for (const llvm::GlobalVariable &global : module.getGlobalList()) {
 
@@ -1394,7 +1394,7 @@ namespace nil {
             }
 
             template<typename InputType>
-            var put_into_assignment(InputType input, bool next_prover) {
+            var put_into_assignment(InputType input, bool next_prover) { // TODO: column index is hardcoded but shouldn't be in the future
                 if (next_prover && maxNumProvers > 1) {
                     const auto shared_idx = assignments[currProverIdx].shared_column_size(0);
                     assignments[currProverIdx].shared(0, shared_idx) = input;
@@ -1413,7 +1413,6 @@ namespace nil {
             std::unordered_map<const llvm::Value *, var> globals;
             std::unordered_map<const llvm::BasicBlock *, var> labels;
             bool finished = false;
-            size_t public_input_idx = 0;
             size_t constant_idx = 0;
             std::unique_ptr<LayoutResolver> layout_resolver;
             var undef_var;

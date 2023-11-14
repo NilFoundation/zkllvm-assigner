@@ -45,7 +45,7 @@ namespace nil {
         public:
             InputReader(stack_frame<var> &frame, program_memory<var> &memory, Assignment &assignmnt, LayoutResolver &layout_resolver) :
                 frame(frame), layout_resolver(layout_resolver), memory(memory),
-                assignmnt(assignmnt), public_input_idx(0), private_input_idx(0) {}
+                assignmnt(assignmnt), public_input_idx(0), private_input_idx(0), constant_idx(0) {}
 
             template<typename InputType>
             var put_into_assignment(InputType &input, bool is_private) {
@@ -56,6 +56,12 @@ namespace nil {
                     assignmnt.public_input(0, public_input_idx) = input;
                     return var(0, public_input_idx++, false, var::column_type::public_input);
                 }
+            }
+
+            template<typename InputType>
+            var pointer_into_assignment(InputType &ptr) {
+                assignmnt.constant(1, constant_idx) = ptr; // TODO: column index is hardcoded but shouldn't be in the future
+                return var(1, constant_idx++, false, var::column_type::constant);
             }
 
             std::vector<var> process_curve (llvm::EllipticCurveType *curve_type, const boost::json::object &value, bool is_private) {
@@ -272,7 +278,7 @@ namespace nil {
                 }
                 const auto &json_str = value.at("string").as_string();
                 ptr_type ptr = memory.add_cells(std::vector<unsigned>(json_str.size() + 1, 1));
-                auto pointer_var = put_into_assignment(ptr, is_private);
+                auto pointer_var = pointer_into_assignment(ptr);
                 frame.scalars[arg] = pointer_var;
 
                 for (char c : json_str) {
@@ -290,7 +296,7 @@ namespace nil {
             bool try_struct(llvm::Value *arg, llvm::StructType *struct_type, const boost::json::object &value, bool is_private) {
                 ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(struct_type));
                 process_struct(struct_type, value, ptr, is_private);
-                auto variable = put_into_assignment(ptr, is_private);
+                auto variable = pointer_into_assignment(ptr);
                 frame.scalars[arg] = variable;
                 return true;
             }
@@ -298,7 +304,7 @@ namespace nil {
             bool try_array(llvm::Value *arg, llvm::ArrayType *array_type, const boost::json::object &value, bool is_private) {
                 ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(array_type));
                 process_array(array_type, value, ptr, is_private);
-                auto variable = put_into_assignment(ptr, is_private);;
+                auto variable = pointer_into_assignment(ptr);
                 frame.scalars[arg] = variable;
                 return true;
             }
@@ -402,7 +408,7 @@ namespace nil {
                         if (current_arg->hasStructRetAttr()) {
                             auto pointee = current_arg->getAttribute(llvm::Attribute::StructRet).getValueAsType();
                             ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(pointee));
-                            frame.scalars[current_arg] = put_into_assignment(ptr, is_private);
+                            frame.scalars[current_arg] = pointer_into_assignment(ptr);
                             ret_gap += 1;
                             continue;
                         }
@@ -448,7 +454,7 @@ namespace nil {
                 return true;
             }
             size_t get_idx() const {
-                return public_input_idx;
+                return constant_idx;
             }
 
             const std::string &get_error() const {
@@ -462,6 +468,7 @@ namespace nil {
             LayoutResolver &layout_resolver;
             size_t public_input_idx;
             size_t private_input_idx;
+            size_t constant_idx;
             std::string error;
         };
     }   // namespace blueprint
