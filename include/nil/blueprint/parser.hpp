@@ -1394,7 +1394,7 @@ namespace nil {
             }
 
             template<typename InputType>
-            var put_into_assignment(InputType input, bool next_prover) {
+            var put_into_assignment(InputType input, bool next_prover) { // TODO: column index is hardcoded but shouldn't be in the future
                 if (next_prover && maxNumProvers > 1) {
                     const auto shared_idx = assignments[currProverIdx].shared_column_size(0);
                     assignments[currProverIdx].shared(0, shared_idx) = input;
