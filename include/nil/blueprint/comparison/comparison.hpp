@@ -35,6 +35,7 @@
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/policy/policy_manager.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -57,13 +58,19 @@ namespace nil {
             // TODO(maksenov): replace naive handling with the component
             switch (p) {
                 case llvm::CmpInst::ICMP_EQ: {
-                    eq_component_type component_instance = eq_component_type({0, 1, 2, 3, 4}, {0}, {0}, false);
+                    const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<eq_component_type, ArithmetizationParams>::get_witness(0, false));
+                    eq_component_type component_instance = eq_component_type(p.witness,
+                                                                             detail::ManifestReader<eq_component_type, ArithmetizationParams>::get_constants(),
+                                                                             detail::ManifestReader<eq_component_type, ArithmetizationParams>::get_public_inputs(), false);
                     components::generate_circuit(component_instance, bp, assignment, {x, y}, start_row);
                     return components::generate_assignments(component_instance, assignment, {x, y}, start_row).output;
                     break;
                 }
                 case llvm::CmpInst::ICMP_NE:{
-                    eq_component_type component_instance = eq_component_type({0, 1, 2, 3, 4}, {0}, {0}, true);
+                    const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<eq_component_type, ArithmetizationParams>::get_witness(0, true));
+                    eq_component_type component_instance = eq_component_type(p.witness,
+                                                                             detail::ManifestReader<eq_component_type, ArithmetizationParams>::get_constants(),
+                                                                             detail::ManifestReader<eq_component_type, ArithmetizationParams>::get_public_inputs(), true);
                     components::generate_circuit(component_instance, bp, assignment, {x, y}, start_row);
                     return components::generate_assignments(component_instance, assignment, {x, y}, start_row).output;
                     break;

@@ -347,6 +347,14 @@ namespace nil {
                 }
             }
 
+            void memset(ptr_type dst, var val, unsigned width) {
+                unsigned filled = 0;
+                while (filled < width) {
+                    filled += stack_memory[dst].size;
+                    stack_memory[dst++].v = val;
+                }
+            }
+
             bool handle_intrinsic(const llvm::CallInst *inst, llvm::Intrinsic::ID id, stack_frame<var> &frame, uint32_t start_row, bool next_prover) {
                 // Passing constants to component directly is only supported for bit decomposition
                 if (
@@ -429,6 +437,14 @@ namespace nil {
                         ptr_type src = resolve_number<ptr_type>(frame, src_val);
                         unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
                         memcpy(dst, src, width);
+                        return true;
+                    }
+                    case llvm::Intrinsic::memset: {
+                        ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
+                        unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
+                        ASSERT(frame.scalars.find(inst->getOperand(1)) != frame.scalars.end());
+                        const auto value_var = frame.scalars[inst->getOperand(1)];
+                        memset(dst, value_var, width);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_zkml_convolution: {
