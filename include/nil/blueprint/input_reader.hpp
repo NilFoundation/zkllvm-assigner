@@ -374,6 +374,11 @@ namespace nil {
                 case llvm::Type::EllipticCurveTyID:
                 case llvm::Type::IntegerTyID:
                 case llvm::Type::FixedVectorTyID:{
+                    if (!value.is_object()) {
+                        std::ostringstream error;
+                        error << "Unexpected JSON element: expected object, got " << value;
+                        UNREACHABLE(error.str().c_str());
+                    }
                     auto flat_components = process_leaf_type(type, value.as_object(), is_private);
                     ASSERT(!flat_components.empty());
                     for (auto num : flat_components) {
