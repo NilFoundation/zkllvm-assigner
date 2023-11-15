@@ -899,12 +899,14 @@ namespace nil {
                     globals[global] = put_into_assignment(ptr, true);
                 } else if (initializer->getType()->isIntegerTy() ||
                     (initializer->getType()->isFieldTy() && field_arg_num<BlueprintFieldType>(initializer->getType()) == 1)) {
-                    ptr_type ptr = stack_memory.add_cells({layout_resolver->get_type_size(initializer->getType())});
+                    unsigned constant_width = layout_resolver->get_type_size(initializer->getType());
+                    ptr_type ptr = stack_memory.add_cells({{constant_width, 0}});
                     std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val<BlueprintFieldType>(initializer);
                     stack_memory.store(ptr, put_into_assignment(marshalled_field_val[0], true));
                     globals[global] = put_into_assignment(ptr, true);
                 } else if (llvm::isa<llvm::ConstantPointerNull>(initializer)) {
-                    ptr_type ptr = stack_memory.add_cells({layout_resolver->get_type_size(initializer->getType())});
+                    unsigned ptr_width = layout_resolver->get_type_size(initializer->getType());
+                    ptr_type ptr = stack_memory.add_cells({{ptr_width, 0}});
                     stack_memory.store(ptr, zero_var);
                     globals[global] = put_into_assignment(ptr, true);
                 } else {
@@ -994,7 +996,8 @@ namespace nil {
                     }
                 } else if (auto addr = llvm::dyn_cast<llvm::BlockAddress>(c)) {
                     frame.scalars[c] = labels[addr->getBasicBlock()];
-                } else if (llvm::isa<llvm::GlobalValue>(c)) {
+                } else if (auto *gv = llvm::dyn_cast<llvm::GlobalVariable>(c)) {
+                    put_global(gv);
                     frame.scalars[c] = globals[c];
                 } else {
                     // The only other known constant is an address of a function in CallInst,
@@ -1038,7 +1041,8 @@ namespace nil {
                     if (variables.find(op) != variables.end()) {
                         continue;
                     }
-                    if (llvm::isa<llvm::GlobalValue>(op)) {
+                    if (auto *gv = llvm::dyn_cast<llvm::GlobalVariable>(op)) {
+                        put_global(gv);
                         frame.scalars[op] = globals[op];
                     } else if (llvm::isa<llvm::Constant>(op)) {
                         // We are replacing constant handling with passing them directly to a component
@@ -1619,10 +1623,6 @@ namespace nil {
                 }
                 call_stack.emplace(std::move(base_frame));
                 constant_idx = input_reader.get_idx();
-
-                for (const llvm::GlobalVariable &global : module.getGlobalList()) {
-                    put_global(&global);
-                }
 
                 // Collect all the possible labels that could be an argument in IndirectBrInst
                 for (const llvm::Function &function : module) {
