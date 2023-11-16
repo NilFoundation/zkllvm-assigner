@@ -49,7 +49,6 @@ namespace nil {
             llvm::Value *result_value,
             llvm::Value *result_length_value,
             llvm::Value *omega_value,
-            llvm::Value *total_bits_value,
             llvm::Value *input,
             typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
             typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
@@ -63,16 +62,15 @@ namespace nil {
             var component_input = variables[input];
 
             typename BlueprintFieldType::value_type omega = extract_component_constructor_parameter_field<BlueprintFieldType>(omega_value);
-            std::size_t total_bits = extract_component_constructor_parameter_size_t<BlueprintFieldType>(total_bits_value);
             std::size_t res_length = extract_component_constructor_parameter_size_t<BlueprintFieldType>(result_length_value);
 
             using component_type = components::fri_cosets<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
 
-            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, res_length, total_bits));
+            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, res_length));
             component_type component_instance =  component_type(p.witness,
                 ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type,
-                    ArithmetizationParams>::get_public_inputs(), res_length, total_bits, omega);
+                    ArithmetizationParams>::get_public_inputs(), res_length, omega);
 
             components::generate_circuit(component_instance, bp, assignment, {component_input}, start_row);
             std::vector<std::array<var, 3>> result = components::generate_assignments(component_instance, assignment, {component_input}, start_row).output;
@@ -102,11 +100,10 @@ namespace nil {
             llvm::Value *result_value = inst->getOperand(0);
             llvm::Value *result_length_value = inst->getOperand(1);
             llvm::Value *omega_value = inst->getOperand(2);
-            llvm::Value *total_bits_value = inst->getOperand(3);
-            llvm::Value *input = inst->getOperand(4);
+            llvm::Value *input = inst->getOperand(3);
 
             detail::handle_native_fri_cosets_component<BlueprintFieldType, ArithmetizationParams>(
-                result_value, result_length_value, omega_value, total_bits_value, input, frame.vectors, frame.scalars, memory, bp, assignment, start_row);
+                result_value, result_length_value, omega_value, input, frame.vectors, frame.scalars, memory, bp, assignment, start_row);
 
         }
 
