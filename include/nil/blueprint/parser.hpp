@@ -559,7 +559,7 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_cosets: {
-                        ASSERT_MSG(check_operands_constantness(inst, {1, 2, 3}), "result length, omega and total_bits must be constants");
+                        ASSERT_MSG(check_operands_constantness(inst, {1, 2}), "result length, omega and total_bits must be constants");
                         handle_fri_cosets_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
                         return true;
                     }
