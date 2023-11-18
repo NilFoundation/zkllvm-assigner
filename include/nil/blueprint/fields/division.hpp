@@ -70,6 +70,13 @@ namespace nil {
                 const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0));
                 component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
 
+                if constexpr( use_lookups<component_type>() ){
+                    auto lookup_tables = component_instance.component_lookup_tables();
+                    for(auto &[k,v]:lookup_tables){
+                        bp.reserve_table(k);
+                    }
+                };
+
                 var x = variables[operand0];
                 var y = variables[operand1];
 

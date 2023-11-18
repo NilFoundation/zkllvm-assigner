@@ -396,6 +396,13 @@ namespace nil {
                         component_type component_instance(p.witness, detail::ManifestReader<component_type, ArithmetizationParams>::get_constants(),
                                                           detail::ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
 
+                        if constexpr( use_lookups<component_type>() ){
+                            auto lookup_tables = component_instance.component_lookup_tables();
+                            for(auto &[k,v]:lookup_tables){
+                                circuits[currProverIdx].reserve_table(k);
+                            }
+                        };
+
                         components::generate_circuit(component_instance, circuits[currProverIdx], assignments[currProverIdx], instance_input, start_row);
 
                         typename component_type::result_type component_result =
@@ -411,7 +418,11 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_sha2_256: {
-                        handle_sha2_256_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, next_prover);
+                        handle_sha2_256_component<BlueprintFieldType, ArithmetizationParams>(inst, frame,
+                                                                                             circuits[currProverIdx],
+                                                                                             assignments[currProverIdx],
+                                                                                             start_row,
+                                                                                             next_prover);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_sha2_512: {

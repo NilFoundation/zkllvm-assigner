@@ -56,6 +56,13 @@ namespace nil {
             using arithmetization_type = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
             components::logic_and<arithmetization_type> component_instance(witnesses);
 
+            if constexpr( use_lookups<components::logic_and<arithmetization_type>>() ){
+                auto lookup_tables = component_instance.component_lookup_tables();
+                for(auto &[k,v]:lookup_tables){
+                    bp.reserve_table(k);
+                }
+            };
+
             typename components::logic_and<arithmetization_type>::input_type instance_input;
             instance_input.input[0] = x;
             instance_input.input[1] = y;
