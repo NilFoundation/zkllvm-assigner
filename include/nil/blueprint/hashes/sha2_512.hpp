@@ -83,6 +83,13 @@ namespace nil {
                                                                 detail::ManifestReader<sha2_512_component_type, ArithmetizationParams>::get_constants(),
                                                                 detail::ManifestReader<sha2_512_component_type, ArithmetizationParams>::get_public_inputs());
 
+            if constexpr( use_lookups<sha2_512_component_type>() ){
+                auto lookup_tables = sha2_512_component_instance.component_lookup_tables();
+                for(auto &[k,v]:lookup_tables){
+                    bp.reserve_table(k);
+                }
+            };
+
             components::generate_circuit(sha2_512_component_instance, bp, assignmnt, sha2_512_instance_input, start_row);
 
             typename sha2_512_component_type::result_type sha2_512_component_result =
@@ -97,6 +104,13 @@ namespace nil {
             reduction_component_type reduction_component_instance(p.witness,
                                                                   detail::ManifestReader<reduction_component_type, ArithmetizationParams>::get_constants(),
                                                                   detail::ManifestReader<reduction_component_type, ArithmetizationParams>::get_public_inputs());
+
+            if constexpr( use_lookups<reduction_component_type>() ){
+                auto lookup_tables = reduction_component_instance.component_lookup_tables();
+                for(auto &[k,v]:lookup_tables){
+                    bp.reserve_table(k);
+                }
+            };
 
             start_row = assignmnt.allocated_rows();
 
