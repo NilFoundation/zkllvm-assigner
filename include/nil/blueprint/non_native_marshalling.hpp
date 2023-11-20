@@ -30,62 +30,112 @@ namespace nil {
     namespace blueprint {
 
         template<typename BlueprintFieldType>
-        std::size_t curve_arg_num(llvm::Type *arg_type) {
+        struct field_size_struct;
+
+        template<>
+        struct field_size_struct<typename nil::crypto3::algebra::curves::pallas::base_field_type> {
+            using BlueprintFieldType = nil::crypto3::algebra::curves::pallas::base_field_type;
+
+            constexpr static const std::size_t base_pallas =
+                nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType,
+                typename nil::crypto3::algebra::curves::pallas::base_field_type>::ratio;
+            constexpr static const std::size_t scalar_pallas =
+                nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType,
+                typename nil::crypto3::algebra::curves::pallas::scalar_field_type>::ratio;
+            constexpr static const std::size_t base_25519 =
+                nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType,
+                typename nil::crypto3::algebra::curves::ed25519::base_field_type>::ratio;
+            constexpr static const std::size_t scalar_25519 =
+                nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType,
+                typename nil::crypto3::algebra::curves::ed25519::scalar_field_type>::ratio;
+            constexpr static const std::size_t base_12381 = 0;
+            constexpr static const std::size_t scalar_12381 = 0;
+            constexpr static const std::size_t base_vesta = 0;
+            constexpr static const std::size_t scalar_vesta = 0;
+        };
+
+
+        template<>
+        struct field_size_struct<typename nil::crypto3::algebra::fields::bls12_base_field<381>> {
+            using BlueprintFieldType = nil::crypto3::algebra::fields::bls12_base_field<381>;
+
+            constexpr static const std::size_t base_pallas = 0;
+            constexpr static const std::size_t scalar_pallas = 0;
+            constexpr static const std::size_t base_25519 = 0;
+            constexpr static const std::size_t scalar_25519 = 0;
+            constexpr static const std::size_t base_12381 =
+                nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType,
+                typename nil::crypto3::algebra::fields::bls12_base_field<381>>::ratio;
+            constexpr static const std::size_t scalar_12381 =
+                nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType,
+                typename nil::crypto3::algebra::fields::bls12_scalar_field<381>>::ratio;
+            constexpr static const std::size_t base_vesta = 0;
+            constexpr static const std::size_t scalar_vesta = 0;
+
+
+        };
+
+        template<typename BlueprintFieldType>
+        std::size_t field_kind_size (llvm::GaloisFieldKind field_kind) {
+
             std::size_t size = 0;
 
-            switch (llvm::cast<llvm::EllipticCurveType>(arg_type)->getCurveKind()) {
-                case llvm::ELLIPTIC_CURVE_PALLAS: {
-                    return 2;
+            switch (field_kind) {
+                case llvm::GALOIS_FIELD_PALLAS_BASE: {
+                    size = field_size_struct<BlueprintFieldType>::base_pallas;
+                    break;
                 }
-                case llvm::ELLIPTIC_CURVE_VESTA: {
-                    UNREACHABLE("vesta curve is not supported for used native field yet");
+                case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
+                    size = field_size_struct<BlueprintFieldType>::scalar_pallas;
+                    break;
                 }
-                case llvm::ELLIPTIC_CURVE_CURVE25519: {
-                    return 2 * nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::base_field_type>::ratio;
+                case llvm::GALOIS_FIELD_VESTA_BASE: {
+                    size = field_size_struct<BlueprintFieldType>::base_vesta;
+                    break;
                 }
-                case llvm::ELLIPTIC_CURVE_BLS12381: {
-                    UNREACHABLE("bls12381 is not supported for used native field yet");
+                case llvm::GALOIS_FIELD_VESTA_SCALAR: {
+                    size = field_size_struct<BlueprintFieldType>::scalar_vesta;
+                    break;
                 }
-                default:
-                    UNREACHABLE("unsupported curve type");
-                    return 0;
-            };
+                case llvm::GALOIS_FIELD_BLS12381_BASE: {
+                    size = field_size_struct<BlueprintFieldType>::base_12381;
+                    break;
+                }
+                case llvm::GALOIS_FIELD_BLS12381_SCALAR: {
+                    size = field_size_struct<BlueprintFieldType>::scalar_12381;
+                    break;
+                }
+                case llvm::GALOIS_FIELD_CURVE25519_BASE: {
+                    size = field_size_struct<BlueprintFieldType>::base_25519;
+                    break;
+                }
+                case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
+                    size = field_size_struct<BlueprintFieldType>::scalar_25519;
+                    break;
+                }
+
+                default: {
+                    UNREACHABLE("unsupported field operand type");
+                    break;
+                }
+
+            }
+            ASSERT_MSG(size != 0, "Field type is not supported for used native field yet");
+            return size;
+
         }
 
         template<typename BlueprintFieldType>
         std::size_t field_arg_num(llvm::Type *arg_type) {
-            std::size_t size = 0;
-            switch (llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind()) {
-                case llvm::GALOIS_FIELD_PALLAS_BASE: {
-                    return 1;
-                }
-                case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
-                    return nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::pallas::scalar_field_type>::ratio;
-                }
-                case llvm::GALOIS_FIELD_VESTA_BASE: {
-                    UNREACHABLE("vesta base field is not supported for used native field yet");
-                }
-                case llvm::GALOIS_FIELD_VESTA_SCALAR: {
-                    UNREACHABLE("vesta scalar field is not supported for used native field yet");
-                }
-                case llvm::GALOIS_FIELD_BLS12381_BASE: {
-                    UNREACHABLE("bls12381 base field is not supported for used native field yet");
-                }
-                case llvm::GALOIS_FIELD_BLS12381_SCALAR: {
-                    UNREACHABLE("bls12381 scalar field is not supported for used native field yet");
-                }
-                case llvm::GALOIS_FIELD_CURVE25519_BASE: {
-                    return nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::base_field_type>::ratio;
-                }
-                case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
-                    return nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::scalar_field_type>::ratio;
-                }
-
-                default:
-                    UNREACHABLE("unsupported field operand type");
-            }
+            ASSERT_MSG(llvm::isa<llvm::GaloisFieldType>(arg_type), "only fields can be handled here");
+            return field_kind_size<BlueprintFieldType>(llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind());
         }
 
+        template<typename BlueprintFieldType>
+        std::size_t curve_arg_num(llvm::Type *arg_type) {
+            ASSERT_MSG(llvm::isa<llvm::EllipticCurveType>(arg_type), "only curves can be handled here");
+            return 2 * field_kind_size<BlueprintFieldType>(llvm::cast<llvm::EllipticCurveType>(arg_type)->GetBaseFieldKind());
+        }
 
         template<typename BlueprintFieldType, typename NonNativeFieldType>
         std::vector<typename BlueprintFieldType::value_type> value_into_vector (typename NonNativeFieldType::value_type input) {
@@ -157,6 +207,14 @@ namespace nil {
                     using non_native_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
                     return check_modulus_and_chop<BlueprintFieldType, non_native_field_type>(glued_non_native);
                 }
+                case llvm::GALOIS_FIELD_BLS12381_BASE: {
+                    using non_native_field_type = typename nil::crypto3::algebra::fields::bls12_base_field<381>;
+                    return check_modulus_and_chop<BlueprintFieldType, non_native_field_type>(glued_non_native);
+                }
+                case llvm::GALOIS_FIELD_BLS12381_SCALAR: {
+                    using non_native_field_type = typename nil::crypto3::algebra::fields::bls12_scalar_field<381>;
+                    return check_modulus_and_chop<BlueprintFieldType, non_native_field_type>(glued_non_native);
+                }
 
                 default:
                     UNREACHABLE("unsupported field operand type");
@@ -214,6 +272,11 @@ namespace nil {
                         using operating_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
                         return field_dependent_marshal_val<operating_field_type, BlueprintFieldType>(val);
                     }
+                    case llvm::GALOIS_FIELD_BLS12381_BASE: {
+                        using operating_field_type = typename nil::crypto3::algebra::curves::bls12<381>::base_field_type;
+                        return field_dependent_marshal_val<operating_field_type, BlueprintFieldType>(val);
+                    }
+
                     default:
                         UNREACHABLE("unsupported field operand type");
                 }
@@ -237,6 +300,10 @@ namespace nil {
                 }
                 case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
                     using operating_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
+                    return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                }
+                case llvm::GALOIS_FIELD_BLS12381_BASE: {
+                    using operating_field_type = typename nil::crypto3::algebra::curves::bls12<381>::base_field_type;
                     return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
                 }
                 default:
