@@ -45,62 +45,7 @@
 
 #include <nil/blueprint/asserts.hpp>
 
-template<typename BlueprintFieldType>
-        std::size_t curve_arg_num(llvm::Type *arg_type) {
-            std::size_t size = 0;
-
-            switch (llvm::cast<llvm::EllipticCurveType>(arg_type)->getCurveKind()) {
-                case llvm::ELLIPTIC_CURVE_PALLAS: {
-                    return 2;
-                }
-                case llvm::ELLIPTIC_CURVE_VESTA: {
-                    UNREACHABLE("vesta curve is not supported for used native field yet");
-                }
-                case llvm::ELLIPTIC_CURVE_CURVE25519: {
-                    return 2 * nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::base_field_type>::ratio;
-                }
-                case llvm::ELLIPTIC_CURVE_BLS12381: {
-                    UNREACHABLE("bls12381 is not supported for used native field yet");
-                }
-                default:
-                    UNREACHABLE("unsupported curve type");
-                    return 0;
-            };
-        }
-
-        template<typename BlueprintFieldType>
-        std::size_t field_arg_num(llvm::Type *arg_type) {
-            std::size_t size = 0;
-            switch (llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind()) {
-                case llvm::GALOIS_FIELD_PALLAS_BASE: {
-                    return 1;
-                }
-                case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
-                    return nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::pallas::scalar_field_type>::ratio;
-                }
-                case llvm::GALOIS_FIELD_VESTA_BASE: {
-                    UNREACHABLE("vesta base field is not supported for used native field yet");
-                }
-                case llvm::GALOIS_FIELD_VESTA_SCALAR: {
-                    UNREACHABLE("vesta scalar field is not supported for used native field yet");
-                }
-                case llvm::GALOIS_FIELD_BLS12381_BASE: {
-                    UNREACHABLE("bls12381 base field is not supported for used native field yet");
-                }
-                case llvm::GALOIS_FIELD_BLS12381_SCALAR: {
-                    UNREACHABLE("bls12381 scalar field is not supported for used native field yet");
-                }
-                case llvm::GALOIS_FIELD_CURVE25519_BASE: {
-                    return nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::base_field_type>::ratio;
-                }
-                case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
-                    return nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, typename nil::crypto3::algebra::curves::ed25519::scalar_field_type>::ratio;
-                }
-
-                default:
-                    UNREACHABLE("unsupported field operand type");
-            }
-        }
+#include <nil/blueprint/non_native_marshalling.hpp>
 
 namespace nil {
     namespace blueprint {
