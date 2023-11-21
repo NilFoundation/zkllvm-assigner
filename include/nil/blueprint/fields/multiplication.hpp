@@ -156,22 +156,23 @@ namespace nil {
                 case llvm::GALOIS_FIELD_BLS12381_BASE: {
                     using operating_field_type = typename crypto3::algebra::curves::bls12<381>::base_field_type;
 
-                    if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
-                                                                                               ArithmetizationParams>(
-                                              operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                              .output;
-                        if (next_prover) {
-                            frame.scalars[inst] = save_shared_var(assignment, res);
+                    if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
+                        if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
+                            const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
+                                                                                                   ArithmetizationParams>(
+                                                  operand0, operand1, frame.scalars, bp, assignment, start_row)
+                                                  .output;
+                            if (next_prover) {
+                                frame.scalars[inst] = save_shared_var(assignment, res);
+                            } else {
+                                frame.scalars[inst] = res;
+                            }
                         } else {
-                            frame.scalars[inst] = res;
+                            UNREACHABLE("non-native bls12-381 base field mul not implemented yet");
                         }
-                    } else {
-                        // Non-native bls12-381 is undefined yet
-                        // variables[inst] = detail::handle_non_native_field_multiplication_component<
-                        //                       BlueprintFieldType, ArithmetizationParams, operating_field_type>(
-                        //                       operand0, operand1, frame.vectors, bp, assignment, start_row)
-                        //                       .output;
+                    }
+                    else {
+                        UNREACHABLE("non_native_policy is not implemented yet");
                     }
 
                     break;
@@ -179,22 +180,23 @@ namespace nil {
                 case llvm::GALOIS_FIELD_PALLAS_BASE: {
                     using operating_field_type = typename crypto3::algebra::curves::pallas::base_field_type;
 
-                    if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
-                                                                                               ArithmetizationParams>(
-                                              operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                              .output;
-                        if (next_prover) {
-                            frame.scalars[inst] = save_shared_var(assignment, res);
+                    if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
+                        if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
+                            const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
+                                                                                                   ArithmetizationParams>(
+                                                  operand0, operand1, frame.scalars, bp, assignment, start_row)
+                                                  .output;
+                            if (next_prover) {
+                                frame.scalars[inst] = save_shared_var(assignment, res);
+                            } else {
+                                frame.scalars[inst] = res;
+                            }
                         } else {
-                            frame.scalars[inst] = res;
+                            UNREACHABLE("non-native pallas base field mul not implemented yet");
                         }
-                    } else {
-                        // Non-native pallas is undefined yet
-                        // variables[inst] = detail::handle_non_native_field_multiplication_component<
-                        //                       BlueprintFieldType, ArithmetizationParams, operating_field_type>(
-                        //                       operand0, operand1, frame.vectors, bp, assignment, start_row)
-                        //                       .output;
+                    }
+                    else {
+                        UNREACHABLE("non native policy is not implemented yet");
                     }
 
                     break;
@@ -202,30 +204,35 @@ namespace nil {
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
                     using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
 
-                    if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
-                                                                                               ArithmetizationParams>(
-                                              operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                              .output;
-                        if (next_prover) {
-                            frame.scalars[inst] = save_shared_var(assignment, res);
+                    if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
+                        if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
+                            const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
+                                                                                                   ArithmetizationParams>(
+                                                  operand0, operand1, frame.scalars, bp, assignment, start_row)
+                                                  .output;
+                            if (next_prover) {
+                                frame.scalars[inst] = save_shared_var(assignment, res);
+                            } else {
+                                frame.scalars[inst] = res;
+                            }
                         } else {
-                            frame.scalars[inst] = res;
-                        }
-                    } else {
-                        typename non_native_policy_type::template field<operating_field_type>::non_native_var_type
-                            component_result = detail::handle_non_native_field_multiplication_component<
-                                                   BlueprintFieldType, ArithmetizationParams, operating_field_type>(
-                                                   operand0, operand1, frame.vectors, bp, assignment, start_row)
-                                                   .output;
+                            typename non_native_policy_type::template field<operating_field_type>::non_native_var_type
+                                component_result = detail::handle_non_native_field_multiplication_component<
+                                                       BlueprintFieldType, ArithmetizationParams, operating_field_type>(
+                                                       operand0, operand1, frame.vectors, bp, assignment, start_row)
+                                                       .output;
 
-                        if (next_prover) {
-                            frame.vectors[inst] = save_shared_var(assignment, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
-                                    std::begin(component_result), std::end(component_result)));
-                        } else {
-                            frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
-                                    std::begin(component_result), std::end(component_result));
+                            if (next_prover) {
+                                frame.vectors[inst] = save_shared_var(assignment, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
+                                        std::begin(component_result), std::end(component_result)));
+                            } else {
+                                frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
+                                        std::begin(component_result), std::end(component_result));
+                            }
                         }
+                    }
+                    else {
+                        UNREACHABLE("non_native_policy is not implemented yet");
                     }
 
                     break;

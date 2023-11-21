@@ -200,22 +200,28 @@ namespace nil {
                     using operating_curve_type = crypto3::algebra::curves::pallas;
                     using operating_field_type = operating_curve_type::base_field_type;
 
-                    if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
-                        using component_type = components::curve_element_variable_base_scalar_mul<
-                                ArithmetizationType, operating_curve_type>;
-                        typename component_type::result_type res =
-                            detail::handle_native_curve_non_native_scalar_multiplication_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
-                                operand_curve, operand_field, frame.vectors, bp, assignment, start_row);
-                        std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = {res.X, res.Y};
-                        if (next_prover) {
-                            std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector;
-                            frame.vectors[inst] = save_shared_var(assignment, res_vector);
+                    if constexpr (non_native_policy_type::template field<operating_field_type>::ratio == 0) {
+                        UNREACHABLE("non_native_policy is not implemented yet");
+                    }
+                    else {
+
+                        if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
+                            using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
+                            using component_type = components::curve_element_variable_base_scalar_mul<
+                                    ArithmetizationType, operating_curve_type>;
+                            typename component_type::result_type res =
+                                detail::handle_native_curve_non_native_scalar_multiplication_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
+                                    operand_curve, operand_field, frame.vectors, bp, assignment, start_row);
+                            std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = {res.X, res.Y};
+                            if (next_prover) {
+                                std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector;
+                                frame.vectors[inst] = save_shared_var(assignment, res_vector);
+                            } else {
+                                frame.vectors[inst] = res_vector;
+                            }
                         } else {
-                            frame.vectors[inst] = res_vector;
+                            UNREACHABLE("non-native pallas multiplication is not implemented");
                         }
-                    } else {
-                        UNREACHABLE("non-native pallas multiplication is not implemented");
                     }
 
                     break;
@@ -227,45 +233,43 @@ namespace nil {
                     using operating_curve_type = typename crypto3::algebra::curves::ed25519;
                     using operating_field_type = operating_curve_type::base_field_type;
 
-                    using pallas_curve_type = typename crypto3::algebra::curves::pallas;
-                    if (!std::is_same<BlueprintFieldType, pallas_curve_type::base_field_type>::value) {
-                        UNREACHABLE("pallas_curve_type is used as template parameter, if BlueprintFieldType is not pallas::base_field_type, then code must be re-written");
+                    if constexpr (non_native_policy_type::template field<operating_field_type>::ratio == 0) {
+                        UNREACHABLE("non_native_policy is not implemented yet");
                     }
+                    else {
 
-                    if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        UNREACHABLE("native curve25519 multiplication is not implemented");
-                    } else {
-                        using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
-                        using component_type = components::variable_base_multiplication<ArithmetizationType, pallas_curve_type,
-                            operating_curve_type, basic_non_native_policy<BlueprintFieldType>>;
-                        typename component_type::result_type res =
-                            detail::handle_non_native_curve_native_scalar_multiplication_component<BlueprintFieldType, ArithmetizationParams, pallas_curve_type, operating_curve_type>(
-                                operand_curve,
-                                operand_field,
-                                frame.vectors,
-                                frame.scalars,
-                                bp,
-                                assignment,
-                                start_row);
+                        using pallas_curve_type = typename crypto3::algebra::curves::pallas;
+                        if (!std::is_same<BlueprintFieldType, pallas_curve_type::base_field_type>::value) {
+                            UNREACHABLE("pallas_curve_type is used as template parameter, if BlueprintFieldType is not pallas::base_field_type, then code must be re-written");
+                        }
 
-                        std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector =
-                        {
-                            res.output.x[0],
-                            res.output.x[1],
-                            res.output.x[2],
-                            res.output.x[3],
-                            res.output.y[0],
-                            res.output.y[1],
-                            res.output.y[2],
-                            res.output.y[3]
-                        };
-
-                        if (next_prover) {
-                            frame.vectors[inst] = save_shared_var(assignment, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
-                                    std::begin(res_vector), std::end(res_vector)));
+                        if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
+                            UNREACHABLE("native curve25519 multiplication is not implemented");
                         } else {
-                            frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
-                                    std::begin(res_vector), std::end(res_vector));
+                            using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
+                            using component_type = components::variable_base_multiplication<ArithmetizationType, pallas_curve_type,
+                                operating_curve_type, basic_non_native_policy<BlueprintFieldType>>;
+                            typename component_type::result_type res =
+                                detail::handle_non_native_curve_native_scalar_multiplication_component<BlueprintFieldType, ArithmetizationParams, pallas_curve_type, operating_curve_type>(
+                                    operand_curve,
+                                    operand_field,
+                                    frame.vectors,
+                                    frame.scalars,
+                                    bp,
+                                    assignment,
+                                    start_row);
+
+                            std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = {};
+                            res_vector.insert(res_vector.end(), res.output.x.begin(), res.output.x.end());
+                            res_vector.insert(res_vector.end(), res.output.y.begin(), res.output.y.end());
+
+                            if (next_prover) {
+                                frame.vectors[inst] = save_shared_var(assignment, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
+                                        std::begin(res_vector), std::end(res_vector)));
+                            } else {
+                                frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
+                                        std::begin(res_vector), std::end(res_vector));
+                            }
                         }
                     }
 

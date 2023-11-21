@@ -416,6 +416,8 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_poseidon: {
+                        if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::curves::pallas::base_field_type>::value) {
+
                         using component_type = components::poseidon<ArithmetizationType, BlueprintFieldType>;
 
                         auto &input_block = frame.vectors[inst->getOperand(0)];
@@ -451,6 +453,10 @@ namespace nil {
                             frame.vectors[inst] = output;
                         }
                         return true;
+                        }
+                        else {
+                            UNREACHABLE("poseidon is implemented only for pallas native field");
+                        }
                     }
                     case llvm::Intrinsic::assigner_sha2_256: {
                         handle_sha2_256_component<BlueprintFieldType, ArithmetizationParams>(inst, frame,
@@ -461,8 +467,13 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_sha2_512: {
-                        handle_sha2_512_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, next_prover);
-                        return true;
+                        if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::curves::pallas::base_field_type>::value) {
+                            handle_sha2_512_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, next_prover);
+                            return true;
+                        }
+                        else {
+                            UNREACHABLE("sha512 is implemented only for pallas native field");
+                        }
                     }
                     case llvm::Intrinsic::assigner_bit_decomposition: {
                         ASSERT(check_operands_constantness(inst, {1, 3}, frame, next_prover));

@@ -141,15 +141,21 @@ namespace nil {
         std::vector<typename BlueprintFieldType::value_type> value_into_vector (typename NonNativeFieldType::value_type input) {
             using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, NonNativeFieldType>;
 
-            if constexpr (non_native_policy::ratio == 1) {
-                std::vector<typename BlueprintFieldType::value_type> res;
-                res.push_back(typename BlueprintFieldType::value_type(typename BlueprintFieldType::integral_type(input.data)));
-                return res;
+            if constexpr (non_native_policy::ratio == 0) {
+                UNREACHABLE("non_native_policy is not implemented yet");
             }
             else {
-                auto res_arr = non_native_policy::chop_non_native(input);
-                return std::vector<typename BlueprintFieldType::value_type>(std::begin(res_arr), std::end(res_arr));
+                if constexpr (non_native_policy::ratio == 1) {
+                    std::vector<typename BlueprintFieldType::value_type> res;
+                    res.push_back(typename BlueprintFieldType::value_type(typename BlueprintFieldType::integral_type(input.data)));
+                    return res;
+                }
+                else {
+                    auto res_arr = non_native_policy::chop_non_native(input);
+                    return std::vector<typename BlueprintFieldType::value_type>(std::begin(res_arr), std::end(res_arr));
+                }
             }
+
         }
 
         template<typename BlueprintFieldType, typename NonNativeFieldType>
@@ -162,17 +168,21 @@ namespace nil {
                 UNREACHABLE("input.size() != non_native_policy::ratio");
             }
 
-
-            if constexpr (non_native_policy::ratio == 1) {
-                UNREACHABLE("scalar, no need to use vector, conversion for ratio==1 is not implemented");
+            if constexpr (non_native_policy::ratio == 0) {
+                UNREACHABLE("non_native_policy is not implemented yet");
             }
             else {
-                typename non_native_policy::chopped_value_type chopped_field;
-                for (std::size_t i = 0; i < non_native_policy::ratio; i++) {
-                    chopped_field[i] = input[i];
+                if constexpr (non_native_policy::ratio == 1) {
+                    UNREACHABLE("scalar, no need to use vector, conversion for ratio==1 is not implemented");
                 }
-                typename NonNativeFieldType::value_type res = non_native_policy::glue_non_native(chopped_field);
-                return res;
+                else {
+                    typename non_native_policy::chopped_value_type chopped_field;
+                    for (std::size_t i = 0; i < non_native_policy::ratio; i++) {
+                        chopped_field[i] = input[i];
+                    }
+                    typename NonNativeFieldType::value_type res = non_native_policy::glue_non_native(chopped_field);
+                    return res;
+                }
             }
         }
 
