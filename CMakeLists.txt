@@ -35,7 +35,6 @@ if(NOT Boost_FOUND AND NOT CMAKE_CROSSCOMPILING)
 endif()
 
 cm_find_package(CM)
-find_package(spdlog REQUIRED)
 include(CMDeploy)
 include(FindPkgConfig)
 
@@ -98,8 +97,7 @@ target_link_libraries(${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME} INTERFACE
                       marshalling::core
                       marshalling::crypto3_algebra
                       marshalling::crypto3_multiprecision
-                      marshalling::crypto3_zk
-                      spdlog::spdlog_header_only)
+                      marshalling::crypto3_zk)
 
 cm_deploy(TARGETS ${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME}
           INCLUDE include
