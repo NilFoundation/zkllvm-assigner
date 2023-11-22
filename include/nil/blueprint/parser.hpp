@@ -29,6 +29,9 @@
 #include <variant>
 #include <stack>
 
+#include <boost/format.hpp>
+#include <boost/log/trivial.hpp>
+
 #include <nil/blueprint/blueprint/plonk/assignment_proxy.hpp>
 #include <nil/blueprint/blueprint/plonk/circuit_proxy.hpp>
 #include <nil/blueprint/components/hashes/poseidon/plonk/poseidon.hpp>
@@ -90,13 +93,11 @@ namespace nil {
         template<typename BlueprintFieldType, typename ArithmetizationParams, bool PrintCircuitOutput>
         struct parser {
 
-            parser(long stack_size, bool detailed_logging, std::uint32_t max_num_provers, const std::string &kind = "") :
+            parser(long stack_size, boost::log::trivial::severity_level log_level, std::uint32_t max_num_provers, const std::string &kind = "") :
                 stack_memory(stack_size),
                 maxNumProvers(max_num_provers),
-                currProverIdx(0) {
-                if (detailed_logging) {
-                    log.set_level(logger::level::DEBUG);
-                }
+                currProverIdx(0),
+                log(log_level) {
 
                 detail::PolicyManager::set_policy(kind);
 
@@ -627,7 +628,7 @@ namespace nil {
             void handle_ptrtoint(const llvm::Value *inst, llvm::Value *operand, stack_frame<var> &frame, bool next_prover) {
                 ptr_type ptr = resolve_number<ptr_type>(frame, operand);
                 size_t offset = stack_memory.ptrtoint(ptr);
-                log.debug("PtrToInt {} {}", ptr, offset);
+                log.debug(boost::format("PtrToInt %1% %2%") % ptr % offset);
                 frame.scalars[inst] = put_into_assignment(offset, next_prover);
             }
 
@@ -1110,7 +1111,7 @@ namespace nil {
                         auto vec = layout_resolver->get_type_layout<BlueprintFieldType>(alloca->getAllocatedType());
 
                         ptr_type res_ptr = stack_memory.add_cells(vec);
-                        log.debug("Alloca: {}", res_ptr);
+                        log.debug(boost::format("Alloca: %1%") % res_ptr);
                         frame.scalars[inst] = put_into_assignment(res_ptr, next_prover);
                         return inst->getNextNonDebugInstruction();
                     }
@@ -1129,21 +1130,21 @@ namespace nil {
                         }
                         std::ostringstream oss;
                         oss << gep_res.data;
-                        log.debug("GEP: {}", oss.str());
+                        log.debug(boost::format("GEP: %1%") % oss.str());
                         frame.scalars[gep] = put_into_assignment(gep_res, next_prover);
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Load: {
                         auto *load_inst = llvm::cast<llvm::LoadInst>(inst);
                         ptr_type ptr = resolve_number<ptr_type>(frame, load_inst->getPointerOperand());
-                        log.debug("Load: {}", ptr);
+                        log.debug(boost::format("Load: %1%") % ptr);
                         handle_load(ptr, load_inst, frame);
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Store: {
                         auto *store_inst = llvm::cast<llvm::StoreInst>(inst);
                         ptr_type ptr = resolve_number<ptr_type>(frame, store_inst->getPointerOperand());
-                        log.debug("Store: {}", ptr);
+                        log.debug(boost::format("Store: %1%") % ptr);
                         const llvm::Value *val = store_inst->getValueOperand();
                         handle_store(ptr, val, frame);
                         return inst->getNextNonDebugInstruction();
@@ -1183,7 +1184,7 @@ namespace nil {
                         size_t offset = resolve_number<size_t>(frame, inst->getOperand(0));
                         oss << var_value(assignments[currProverIdx], frame.scalars[inst->getOperand(0)]).data;
                         ptr_type ptr = stack_memory.inttoptr(offset);
-                        log.debug("IntToPtr: {} {}", oss.str(), ptr);
+                        log.debug(boost::format("IntToPtr %1% %2%") % oss.str() % ptr);
                         ASSERT(ptr != 0);
                         frame.scalars[inst] = put_into_assignment(ptr, next_prover);
                         return inst->getNextNonDebugInstruction();

@@ -26,69 +26,57 @@
 #ifndef CRYPTO3_ASSIGNER_NIL_BLUEPRINT_LOGGER_HPP
 #define CRYPTO3_ASSIGNER_NIL_BLUEPRINT_LOGGER_HPP
 
-#include <llvm/IR/Instructions.h>
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
 
-#include <spdlog/spdlog.h>
+#include <llvm/IR/Instructions.h>
 
 namespace nil {
     namespace blueprint {
         class logger {
+            const llvm::BasicBlock *current_block = nullptr;
+            const llvm::Function *current_function = nullptr;
         public:
-            enum class level {
-                DEBUG,
-                INFO,
-                ERROR,
-            };
 
-            logger() {
-                spdlog::set_pattern("%L %v");
-                spdlog::set_level(spdlog::level::info);
+            logger(boost::log::trivial::severity_level lvl = boost::log::trivial::info) {
+                boost::log::core::get()->set_filter(boost::log::trivial::severity >= lvl);
             }
 
-            void set_level(level lvl) {
-                this->lvl = lvl;
-                switch (lvl) {
-                case level::DEBUG:
-                    spdlog::set_level(spdlog::level::debug);
-                    break;
-                case level::INFO:
-                    spdlog::set_level(spdlog::level::info);
-                    break;
-                case level::ERROR:
-                    spdlog::set_level(spdlog::level::err);
-                    break;
-                }
+            void set_level(boost::log::trivial::severity_level lvl) {
+                boost::log::core::get()->set_filter(boost::log::trivial::severity >= lvl);
             }
 
-            template<typename... Args>
-            void debug(std::string_view fmt, const Args &...args) {
-                spdlog::debug(fmt, args...);
+            // TODO: these two functions can be substituted by one when std::format is widely supported
+            void debug(boost::basic_format<char> formated_debug_message) {
+                BOOST_LOG_TRIVIAL(debug) << boost::str(formated_debug_message);
+            }
+
+            void debug(std::string_view debug_message) {
+                BOOST_LOG_TRIVIAL(debug) << debug_message;
             }
 
             void log_instruction(const llvm::Instruction *inst) {
-                if (lvl != level::DEBUG) {
-                    return;
-                }
                 if (inst->getFunction() != current_function) {
                     current_function = inst->getFunction();
-                    spdlog::debug("{}:", current_function->getName().str());
+
+                    BOOST_LOG_TRIVIAL(debug) << current_function->getName().str();
                 }
                 if (inst->getParent() != current_block) {
                     current_block = inst->getParent();
-                    spdlog::debug("\t{}: ", current_block->getNameOrAsOperand());
+
+                    BOOST_LOG_TRIVIAL(debug) << current_block->getNameOrAsOperand();
                 }
-                std::string str;
-                llvm::raw_string_ostream ss(str);
-                inst->print(ss);
-                spdlog::debug("\t\t{}", str);
+                std::string inst_name = inst->getNameOrAsOperand();
+                const char *opcode_name = inst->getOpcodeName();
+                if (inst_name == "<badref>") {
+                    BOOST_LOG_TRIVIAL(debug) << "\t\t" << opcode_name;
+                } else {
+                    BOOST_LOG_TRIVIAL(debug) << "\t\t" << opcode_name << " -> " << inst_name;
+                }
             }
-
-        private:
-            const llvm::BasicBlock *current_block = nullptr;
-            const llvm::Function *current_function = nullptr;
-            level lvl = level::INFO;
         };
-    }
-}
+    }    // namespace blueprint
+}    // namespace nil
 
-#endif  // CRYPTO3_ASSIGNER_NIL_BLUEPRINT_LOGGER_HPP
+#endif    // CRYPTO3_ASSIGNER_NIL_BLUEPRINT_LOGGER_HPP
