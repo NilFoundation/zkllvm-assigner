@@ -30,6 +30,10 @@ endmacro()
 
 cm_project(assigner WORKSPACE_NAME ${CMAKE_WORKSPACE_NAME} LANGUAGES C CXX)
 
+if(NOT Boost_FOUND AND NOT CMAKE_CROSSCOMPILING)
+    cm_find_package(Boost COMPONENTS REQUIRED filesystem log log_setup program_options thread system)
+endif()
+
 cm_find_package(CM)
 find_package(spdlog REQUIRED)
 include(CMDeploy)
