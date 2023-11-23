@@ -55,25 +55,20 @@ namespace nil {
             void debug(std::string_view debug_message) {
                 BOOST_LOG_TRIVIAL(debug) << debug_message;
             }
-
+            
             void log_instruction(const llvm::Instruction *inst) {
                 if (inst->getFunction() != current_function) {
                     current_function = inst->getFunction();
-
                     BOOST_LOG_TRIVIAL(debug) << current_function->getName().str();
                 }
                 if (inst->getParent() != current_block) {
                     current_block = inst->getParent();
-
-                    BOOST_LOG_TRIVIAL(debug) << current_block->getNameOrAsOperand();
+                    BOOST_LOG_TRIVIAL(debug) << "\t" << current_block->getNameOrAsOperand();
                 }
-                std::string inst_name = inst->getNameOrAsOperand();
-                const char *opcode_name = inst->getOpcodeName();
-                if (inst_name == "<badref>") {
-                    BOOST_LOG_TRIVIAL(debug) << "\t\t" << opcode_name;
-                } else {
-                    BOOST_LOG_TRIVIAL(debug) << "\t\t" << opcode_name << " -> " << inst_name;
-                }
+                std::string str;
+                llvm::raw_string_ostream ss(str);
+                inst->print(ss);
+                BOOST_LOG_TRIVIAL(debug) << "\t\t" << str;
             }
         };
     }    // namespace blueprint
