@@ -475,6 +475,86 @@ namespace nil {
                             UNREACHABLE("sha512 is implemented only for pallas native field");
                         }
                     }
+                    case llvm::Intrinsic::assigner_optimal_ate_pairing: {
+                        if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::fields::bls12_base_field<381>>::value) {
+
+                            std::cerr << "warning: __builtin_assigner_bls12_optimal_ate_pairing is an experimental feature, may be not stable\n";
+
+                            if (next_prover) {
+                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], frame.vectors[inst->getOperand(0)]);
+                            } else {
+                                frame.vectors[inst] = frame.vectors[inst->getOperand(0)];
+                            }
+                            return true;
+                        }
+                        else {
+                            UNREACHABLE("bls12_optimal_ate_pairing is implemented only for bls12381_base native field");
+                        }
+                    }
+                    case llvm::Intrinsic::assigner_hash_to_curve: {
+                        if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::fields::bls12_base_field<381>>::value) {
+
+                            std::cerr << "warning: __builtin_assigner_hash_to_curve             is an experimental feature, may be not stable\n";
+
+                            if (next_prover) {
+                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], frame.vectors[inst->getOperand(0)]);
+                            } else {
+                                frame.vectors[inst] = frame.vectors[inst->getOperand(0)];
+                            }
+                            return true;
+                        }
+                        else {
+                            UNREACHABLE("assigner_hash_to_curve is implemented only for bls12381_base native field");
+                        }
+                    }
+                    case llvm::Intrinsic::assigner_is_in_g1_check: {
+                        if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::fields::bls12_base_field<381>>::value) {
+
+                            std::cerr << "warning: __builtin_assigner_is_in_g1_check            is an experimental feature, may be not stable\n";
+
+                            if (next_prover) {
+                                frame.scalars[inst] = save_shared_var(assignments[currProverIdx], zero_var);
+                            } else {
+                                frame.scalars[inst] = zero_var;
+                            }
+                            return true;
+                        }
+                        else {
+                            UNREACHABLE("__builtin_assigner_is_in_g1_check is implemented only for bls12381_base native field");
+                        }
+                    }
+                    case llvm::Intrinsic::assigner_is_in_g2_check: {
+                        if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::fields::bls12_base_field<381>>::value) {
+
+                            std::cerr << "warning: __builtin_assigner_is_in_g2_check            is an experimental feature, may be not stable\n";
+
+                            if (next_prover) {
+                                frame.scalars[inst] = save_shared_var(assignments[currProverIdx], zero_var);
+                            } else {
+                                frame.scalars[inst] = zero_var;
+                            }
+                            return true;
+                        }
+                        else {
+                            UNREACHABLE("__builtin_assigner_is_in_g2_check is implemented only for bls12381_base native field");
+                        }
+                    }
+                    case llvm::Intrinsic::assigner_gt_multiplication: {
+                        if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::fields::bls12_base_field<381>>::value) {
+
+                            std::cerr << "warning: __builtin_assigner_gt_multiplication         is an experimental feature, may be not stable\n";
+
+                            if (next_prover) {
+                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], frame.vectors[inst->getOperand(0)]);
+                            } else {
+                                frame.vectors[inst] = frame.vectors[inst->getOperand(0)];
+                            }
+                            return true;
+                        }
+                        else {
+                            UNREACHABLE("__builtin_assigner_gt_multiplication is implemented only for bls12381_base native field");
+                        }
+                    }
                     case llvm::Intrinsic::assigner_bit_decomposition: {
                         ASSERT(check_operands_constantness(inst, {1, 3}, frame, next_prover));
                         handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, next_prover);
