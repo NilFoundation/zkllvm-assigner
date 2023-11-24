@@ -384,13 +384,17 @@ namespace nil {
                         using component_type = components::poseidon<ArithmetizationType, BlueprintFieldType>;
 
                         auto &input_block = frame.vectors[inst->getOperand(0)];
+                        ASSERT(input_block.size() == component_type::state_size);
+
                         std::array<var, component_type::state_size> input_state_var;
                         std::copy(input_block.begin(), input_block.end(), input_state_var.begin());
 
                         typename component_type::input_type instance_input = {input_state_var};
 
-                        component_type component_instance({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {},
-                                                            {});
+                        const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<component_type, ArithmetizationParams>::get_witness(0));
+
+                        component_type component_instance(p.witness, detail::ManifestReader<component_type, ArithmetizationParams>::get_constants(),
+                                                          detail::ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
 
                         components::generate_circuit(component_instance, circuits[currProverIdx], assignments[currProverIdx], instance_input, start_row);
 
