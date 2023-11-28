@@ -240,11 +240,17 @@ namespace nil {
 
                 const std::vector<var> &lhs = frame.vectors[inst->getOperand(0)];
                 const std::vector<var> &rhs = frame.vectors[inst->getOperand(1)];
-                ASSERT(lhs.size() != 0 && lhs.size() == rhs.size());
+
+                if (lhs.size() == 0 || lhs.size() != rhs.size() || lhs.size() != curve_arg_num<BlueprintFieldType>(inst->getOperand(0)->getType())) {
+                    std::cerr << "operand 0 size: " << lhs.size() << "\n";
+                    std::cerr << "operand 1 size: " << rhs.size() << "\n";
+                    std::cerr << "curve_arg_num: " << rhs.size() << "\n";
+                    UNREACHABLE("operand sizes mismatch!");
+                }
 
                 ASSERT_MSG(inst->getPredicate() == llvm::CmpInst::ICMP_EQ, "only == comparison is implemented for curve elements");
 
-                std::vector<var> res;
+                std::vector<var> res = {};
 
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
@@ -480,10 +486,16 @@ namespace nil {
 
                             std::cerr << "warning: __builtin_assigner_bls12_optimal_ate_pairing is an experimental feature, may be not stable\n";
 
+                            std::vector<var> res = {
+                                zero_var, zero_var, zero_var, zero_var,
+                                zero_var, zero_var, zero_var, zero_var,
+                                zero_var, zero_var, zero_var, zero_var
+                            };
+
                             if (next_prover) {
-                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], frame.vectors[inst->getOperand(0)]);
+                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], res);
                             } else {
-                                frame.vectors[inst] = frame.vectors[inst->getOperand(0)];
+                                frame.vectors[inst] = res;
                             }
                             return true;
                         }
@@ -614,6 +626,18 @@ namespace nil {
                         return true;
                     case llvm::Intrinsic::assigner_curve_init: {
                         handle_curve_init<var, BlueprintFieldType>(inst, frame);
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_g2_curve_init: {
+                        frame.vectors[inst] = {zero_var, zero_var, zero_var, zero_var};
+                        return true;
+                    }
+                    case llvm::Intrinsic::assigner_gt_curve_init: {
+                        frame.vectors[inst] = {
+                            zero_var, zero_var, zero_var, zero_var,
+                            zero_var, zero_var, zero_var, zero_var,
+                            zero_var, zero_var, zero_var, zero_var
+                        };
                         return true;
                     }
 
@@ -1116,8 +1140,13 @@ namespace nil {
                     case llvm::Instruction::ICmp: {
                         auto cmp_inst = llvm::cast<const llvm::ICmpInst>(inst);
                         llvm::Type *cmp_type = cmp_inst->getOperand(0)->getType();
-                        if (cmp_type->isIntegerTy()|| cmp_type->isFieldTy())
-                            handle_scalar_cmp(cmp_inst, variables, next_prover);
+                        if (cmp_type->isIntegerTy()|| (cmp_type->isFieldTy())) {
+                            if (field_arg_num<BlueprintFieldType>(cmp_type) == 1)
+                                handle_scalar_cmp(cmp_inst, variables, next_prover);
+                            else {
+                                UNREACHABLE("non-native fields comparison is not implemented yet\n");
+                            }
+                        }
                         else if (cmp_type->isPointerTy())
                             handle_ptr_cmp(cmp_inst, frame, next_prover);
                         else if (cmp_type->isVectorTy())
