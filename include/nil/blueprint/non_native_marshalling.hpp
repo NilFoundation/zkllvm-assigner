@@ -127,9 +127,6 @@ namespace nil {
 
         template<typename BlueprintFieldType>
         std::size_t field_arg_num(llvm::Type *arg_type) {
-            if(arg_type->isIntegerTy()) {
-                return 1;
-            }
             ASSERT_MSG(llvm::isa<llvm::GaloisFieldType>(arg_type), "only fields can be handled here");
             return field_kind_size<BlueprintFieldType>(llvm::cast<llvm::GaloisFieldType>(arg_type)->getFieldKind());
         }
@@ -137,21 +134,7 @@ namespace nil {
         template<typename BlueprintFieldType>
         std::size_t curve_arg_num(llvm::Type *arg_type) {
             ASSERT_MSG(llvm::isa<llvm::EllipticCurveType>(arg_type), "only curves can be handled here");
-            bool is_bls = std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::curves::bls12<381>::base_field_type>::value;
-
-            switch (llvm::cast<llvm::EllipticCurveType>(arg_type)->getCurveKind()) {
-                case llvm::ELLIPTIC_CURVE_BLS12381_G2: {
-                    ASSERT_MSG(is_bls, "g2 type is defined only for native bls12381 base field");
-                    return 4;
-                }
-                case llvm::ELLIPTIC_CURVE_BLS12381_GT: {
-                    ASSERT_MSG(is_bls, "gt type is defined only for native bls12381 base field");
-                    return 12;
-                }
-
-                default:
-                    return 2 * field_kind_size<BlueprintFieldType>(llvm::cast<llvm::EllipticCurveType>(arg_type)->GetBaseFieldKind());
-            };
+            return 2 * field_kind_size<BlueprintFieldType>(llvm::cast<llvm::EllipticCurveType>(arg_type)->GetBaseFieldKind());
         }
 
         template<typename BlueprintFieldType, typename NonNativeFieldType>

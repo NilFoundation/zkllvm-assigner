@@ -71,13 +71,12 @@ namespace nil {
                     std::cerr << "error in json value:\n" << value << "\n";
                     UNREACHABLE("value.size() != 1 || !value.contains(\"curve\")");
                 }
-                ASSERT_MSG(value.at("curve").is_array(), "curve element must be array!"); // maybe add cases at("curve_g2") and at("curve_gt")?
-                ASSERT_MSG((value.at("curve").as_array().size() >= 2), "curve element consists of two or more field elements!");
+                ASSERT_MSG(value.at("curve").is_array(), "curve element must be array!");
+                ASSERT_MSG((value.at("curve").as_array().size() == 2), "curve element consists of two field elements!");
 
                 llvm::GaloisFieldKind arg_field_type = curve_type->GetBaseFieldKind();
                 std::vector<var> vector1 = process_non_native_field (value.at("curve").as_array()[0], arg_field_type, is_private);
                 std::vector<var> vector2 = process_non_native_field (value.at("curve").as_array()[1], arg_field_type, is_private);
-                // TODO: hanlde case of g2 and gt curves
                 vector1.insert(vector1.end(), vector2.begin(), vector2.end());
                 return vector1;
             }
