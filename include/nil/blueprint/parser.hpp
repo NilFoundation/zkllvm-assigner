@@ -996,6 +996,9 @@ namespace nil {
                     }
                 } else if (auto addr = llvm::dyn_cast<llvm::BlockAddress>(c)) {
                     frame.scalars[c] = labels[addr->getBasicBlock()];
+                } else if (auto func = llvm::dyn_cast<llvm::Function>(c)) {
+                    cpp_values.push_back(func);
+                    frame.scalars[c] = put_into_assignment(cpp_values.size() - 1, false);
                 } else if (auto *gv = llvm::dyn_cast<llvm::GlobalVariable>(c)) {
                     put_global(gv);
                     frame.scalars[c] = globals[c];
@@ -1191,10 +1194,11 @@ namespace nil {
                     }
                     case llvm::Instruction::Call: {
                         auto *call_inst = llvm::cast<llvm::CallInst>(inst);
-                        auto *fun = call_inst->getCalledFunction();
+                        const auto *fun = call_inst->getCalledFunction();
                         if (fun == nullptr) {
-                            std::cerr << "Unresolved call";
-                            return nullptr;
+                            size_t fun_idx = resolve_number<size_t>(frame, call_inst->getCalledOperand());
+                            ASSERT(fun_idx < cpp_values.size());
+                            fun = static_cast<const llvm::Function *>(cpp_values[fun_idx]);
                         }
                         llvm::StringRef fun_name = fun->getName();
                         ASSERT(fun->arg_size() == call_inst->getNumOperands() - 1);
@@ -1215,8 +1219,10 @@ namespace nil {
                                 (arg->getType()->isFieldTy() && field_arg_num<BlueprintFieldType>(arg_type) > 1)) {
                                 new_frame.vectors[arg] = frame.vectors[call_inst->getOperand(i)];
                             }
-                            else
+                            else {
+                                ASSERT(variables.find(call_inst->getOperand(i)) != variables.end());
                                 new_variables[arg] = variables[call_inst->getOperand(i)];
+                            }
 
                         }
                         new_frame.caller = call_inst;
@@ -1695,6 +1701,7 @@ namespace nil {
             std::uint32_t currProverIdx;
             std::shared_ptr<circuit<ArithmetizationType>> bp_ptr;
             std::shared_ptr<assignment<ArithmetizationType>> assignment_ptr;
+            std::vector<const void *> cpp_values;
         };
 
     }     // namespace blueprint
