@@ -94,6 +94,10 @@
 #include <nil/blueprint/recursive_prover/lookup_arg_verifier.hpp>
 #include <nil/blueprint/recursive_prover/fri_array_swap.hpp>
 
+#include <nil/crypto3/algebra/curves/bls12.hpp>
+#include <nil/crypto3/algebra/pairing/bls12.hpp>
+#include <nil/crypto3/algebra/algorithms/pair.hpp>
+
 namespace nil {
     namespace blueprint {
 
@@ -480,10 +484,49 @@ namespace nil {
 
                             std::cerr << "warning: __builtin_assigner_bls12_optimal_ate_pairing is an experimental feature, may be not stable\n";
 
+                            ASSERT(frame.vectors[inst->getOperand(0)].size() == 2);
+                            ASSERT(frame.vectors[inst->getOperand(1)].size() == 4);
+
+                            typename crypto3::algebra::curves::bls12<381>::template g1_type<>::value_type g1 = {
+                                var_value(assignments[currProverIdx], frame.vectors[inst->getOperand(0)][0]),
+                                var_value(assignments[currProverIdx], frame.vectors[inst->getOperand(0)][1]),
+                                crypto3::algebra::curves::bls12<381>::template g1_type<>::field_type::value_type::one()
+                            };
+
+                            typename crypto3::algebra::curves::bls12<381>::template g2_type<>::value_type g2 = {
+                                typename crypto3::algebra::curves::bls12<381>::template g2_type<>::field_type::value_type(
+                                    var_value(assignments[currProverIdx], frame.vectors[inst->getOperand(1)][0]),
+                                    var_value(assignments[currProverIdx], frame.vectors[inst->getOperand(1)][1])
+                                ),
+                                typename crypto3::algebra::curves::bls12<381>::template g2_type<>::field_type::value_type(
+                                    var_value(assignments[currProverIdx], frame.vectors[inst->getOperand(1)][2]),
+                                    var_value(assignments[currProverIdx], frame.vectors[inst->getOperand(1)][3])
+                                ),
+                                crypto3::algebra::curves::bls12<381>::template g2_type<>::field_type::value_type::one()
+                            };
+
+                            typename crypto3::algebra::curves::bls12<381>::gt_type::value_type gt =
+                                crypto3::algebra::pair<crypto3::algebra::curves::bls12<381>>(g1, g2);
+
+                            std::vector<var> res = {
+                                put_into_assignment(gt.data[0].data[0].data[0], next_prover),
+                                put_into_assignment(gt.data[0].data[0].data[1], next_prover),
+                                put_into_assignment(gt.data[0].data[1].data[0], next_prover),
+                                put_into_assignment(gt.data[0].data[1].data[1], next_prover),
+                                put_into_assignment(gt.data[0].data[2].data[0], next_prover),
+                                put_into_assignment(gt.data[0].data[2].data[1], next_prover),
+                                put_into_assignment(gt.data[1].data[0].data[0], next_prover),
+                                put_into_assignment(gt.data[1].data[0].data[1], next_prover),
+                                put_into_assignment(gt.data[1].data[1].data[0], next_prover),
+                                put_into_assignment(gt.data[1].data[1].data[1], next_prover),
+                                put_into_assignment(gt.data[1].data[2].data[0], next_prover),
+                                put_into_assignment(gt.data[1].data[2].data[1], next_prover)
+                            };
+
                             if (next_prover) {
-                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], frame.vectors[inst->getOperand(0)]);
+                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], res);
                             } else {
-                                frame.vectors[inst] = frame.vectors[inst->getOperand(0)];
+                                frame.vectors[inst] = res;
                             }
                             return true;
                         }
@@ -496,10 +539,12 @@ namespace nil {
 
                             std::cerr << "warning: __builtin_assigner_hash_to_curve             is an experimental feature, may be not stable\n";
 
+                            std::vector<var> res = {frame.scalars[inst->getOperand(0)], frame.scalars[inst->getOperand(0)]};
+
                             if (next_prover) {
-                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], frame.vectors[inst->getOperand(0)]);
+                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], res);
                             } else {
-                                frame.vectors[inst] = frame.vectors[inst->getOperand(0)];
+                                frame.vectors[inst] = res;
                             }
                             return true;
                         }
@@ -544,10 +589,45 @@ namespace nil {
 
                             std::cerr << "warning: __builtin_assigner_gt_multiplication         is an experimental feature, may be not stable\n";
 
+                            std::vector<var> vars_1 = frame.vectors[inst->getOperand(0)];
+                            ASSERT(vars_1.size() == 12);
+                            std::vector<typename BlueprintFieldType::value_type> A = {};
+                            for(std::size_t i = 0; i < 12; i++) {
+                                A.push_back(var_value(assignments[currProverIdx], vars_1[i]));
+                            }
+
+                            std::vector<var> vars_2 = frame.vectors[inst->getOperand(0)];
+                            ASSERT(vars_2.size() == 12);
+                            std::vector<typename BlueprintFieldType::value_type> B = {};
+                            for(std::size_t i = 0; i < 12; i++) {
+                                B.push_back(var_value(assignments[currProverIdx], vars_2[i]));
+                            }
+
+                            using fp12_element = typename crypto3::algebra::fields::fp12_2over3over2<BlueprintFieldType>::value_type;
+
+
+                            fp12_element e1 = fp12_element({ {A[0],A[1]}, {A[2],A[3]}, {A[4],A[5]} }, { {A[6],A[7]}, {A[8],A[9]}, {A[10],A[11]} }),
+                                         e2 = fp12_element({ {B[0],B[1]}, {B[2],B[3]}, {B[4],B[5]} }, { {B[6],B[7]}, {B[8],B[9]}, {B[10],B[11]} }),
+                                         e = e1 * e2;
+
+                            std::vector<var> res= {
+                               put_into_assignment(e.data[0].data[0].data[0], next_prover),
+                               put_into_assignment(e.data[0].data[0].data[1], next_prover),
+                               put_into_assignment(e.data[0].data[1].data[0], next_prover),
+                               put_into_assignment(e.data[0].data[1].data[1], next_prover),
+                               put_into_assignment(e.data[0].data[2].data[0], next_prover),
+                               put_into_assignment(e.data[0].data[2].data[1], next_prover),
+                               put_into_assignment(e.data[1].data[0].data[0], next_prover),
+                               put_into_assignment(e.data[1].data[0].data[1], next_prover),
+                               put_into_assignment(e.data[1].data[1].data[0], next_prover),
+                               put_into_assignment(e.data[1].data[1].data[1], next_prover),
+                               put_into_assignment(e.data[1].data[2].data[0], next_prover),
+                               put_into_assignment(e.data[1].data[2].data[1], next_prover) };
+
                             if (next_prover) {
-                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], frame.vectors[inst->getOperand(0)]);
+                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], res);
                             } else {
-                                frame.vectors[inst] = frame.vectors[inst->getOperand(0)];
+                                frame.vectors[inst] = res;
                             }
                             return true;
                         }
@@ -1260,8 +1340,9 @@ namespace nil {
                         llvm::Value *vec = extract_inst->getOperand(0);
                         llvm::Value *index_value = extract_inst->getOperand(1);
                         if (!llvm::isa<llvm::ConstantInt>(index_value)) {
-                            std::cerr << "Only constant indices for a vector are supported" << std::endl;
-                            return nullptr;
+                            int index = resolve_number<int>(frame, index_value);
+                            variables[inst] = frame.vectors[vec][index];
+                            return inst->getNextNonDebugInstruction();
                         }
                         int index = llvm::cast<llvm::ConstantInt>(index_value)->getZExtValue();
                         variables[inst] = frame.vectors[vec][index];
