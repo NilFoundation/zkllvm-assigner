@@ -704,10 +704,9 @@ namespace nil {
                         handle_ptrtoint(expr, expr->getOperand(0), frame, next_prover);
                         break;
                     case llvm::Instruction::GetElementPtr: {
-                        auto *gep = llvm::cast<llvm::GetElementPtrInst>(expr);
                         std::vector<int> gep_indices;
-                        for (unsigned i = 1; i < gep->getNumIndices(); ++i) {
-                            int gep_index = resolve_number<int>(frame, gep->getOperand(i + 1));
+                        for (unsigned i = 2; i < expr->getNumOperands(); ++i) {
+                            int gep_index = resolve_number<int>(frame, expr->getOperand(i));
                             gep_indices.push_back(gep_index);
                         }
 
