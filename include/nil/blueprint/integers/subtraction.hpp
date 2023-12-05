@@ -52,19 +52,17 @@ namespace nil {
             std::uint32_t start_row, bool next_prover) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
+            using component_type = components::subtraction<
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
 
             llvm::Value *operand0 = inst->getOperand(0);
             llvm::Value *operand1 = inst->getOperand(1);
 
             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                             ArithmetizationParams>(
-                                              operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                              .output;
-            if (next_prover) {
-                frame.scalars[inst] = save_shared_var(assignment, res);
-            } else {
-                frame.scalars[inst] = res;
-            }
+                                              operand0, operand1, frame.scalars, bp, assignment, start_row);
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
         }
 
     }    // namespace blueprint

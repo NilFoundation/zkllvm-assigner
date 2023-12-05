@@ -30,15 +30,9 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/components/systems/snark/plonk/placeholder/fri_lin_inter.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
 #include <nil/blueprint/extract_constructor_parameters.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -48,10 +42,10 @@ namespace nil {
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, bool next_prover) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -63,17 +57,8 @@ namespace nil {
             using component_type = components::fri_lin_inter<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
 
-
-            const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<component_type, ArithmetizationParams>::get_witness(0));
-
-            component_type component_instance(p.witness, detail::ManifestReader<component_type, ArithmetizationParams>::get_constants(),
-                detail::ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
-
-
-            // component_type component_instance({0, 1, 2, 3, 4}, {}, {});
-
-            components::generate_circuit(component_instance, bp, assignment, {s, y0, y1, alpha}, start_row);
-            frame.scalars[inst] = components::generate_assignments(component_instance, assignment, {s, y0, y1, alpha}, start_row).output;
+            handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
+                    (bp, assignment, start_row, {s, y0, y1, alpha}, inst, frame, next_prover);
 
         }
 

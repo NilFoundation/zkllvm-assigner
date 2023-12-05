@@ -30,15 +30,8 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/components/algebra/fields/plonk/non_native/bit_decomposition.hpp>
-#include <nil/blueprint/components/algebra/fields/plonk/non_native/bit_composition.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/handle_component.hpp>
 #include <nil/blueprint/extract_constructor_parameters.hpp>
 
 namespace nil {
@@ -67,11 +60,10 @@ namespace nil {
 
             using component_type = nil::blueprint::components::bit_decomposition<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
-            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, BitsAmount));
-            component_type component_instance =  component_type(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), BitsAmount, Mode);
 
-            components::generate_circuit(component_instance, bp, assignment, {component_input}, start_row);
-            auto result = components::generate_assignments(component_instance, assignment, {component_input}, start_row).output;
+            auto result = get_component_result<BlueprintFieldType, ArithmetizationParams>
+                (bp, assignment, start_row, {component_input}, BitsAmount, Mode).output;
+
             ptr_type result_ptr = static_cast<ptr_type>(
                 typename BlueprintFieldType::integral_type(var_value(assignment, variables[result_value]).data));
             for (var v : result) {
@@ -109,12 +101,8 @@ namespace nil {
             std::vector<var> component_input = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
                     input_value, bitness_from_intrinsic, variables, memory, assignment);
 
-            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, bitness_from_intrinsic, true));
-            component_type component_instance =  component_type(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), bitness_from_intrinsic, true, Mode);
-
-            components::generate_circuit(component_instance, bp, assignment, {component_input}, start_row);
-            return components::generate_assignments(component_instance, assignment, {component_input}, start_row);
-
+            return get_component_result<BlueprintFieldType, ArithmetizationParams>
+                (bp, assignment, start_row, {component_input}, bitness_from_intrinsic, true, Mode);
             }
         }    // namespace detail
 
@@ -155,19 +143,17 @@ namespace nil {
             std::uint32_t start_row, bool next_prover) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
+            using component_type = nil::blueprint::components::bit_composition<
+                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
             llvm::Value *result_value = inst->getOperand(0);
             llvm::Value *bitness_value = inst->getOperand(1);
             llvm::Value *operand_sig_bit = inst->getOperand(2);
 
             const auto res = detail::handle_native_field_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(
-                                result_value, bitness_value, operand_sig_bit, frame.vectors, frame.scalars, memory,  bp, assignment, start_row).output;
+                                result_value, bitness_value, operand_sig_bit, frame.vectors, frame.scalars, memory,  bp, assignment, start_row);
 
-            if (next_prover) {
-                frame.scalars[inst] = save_shared_var(assignment, res);
-            } else {
-                frame.scalars[inst] = res;
-            }
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
         }
 
     }    // namespace blueprint

@@ -30,15 +30,9 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/components/systems/snark/plonk/placeholder/permutation_argument_verifier.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
 #include <nil/blueprint/extract_constructor_parameters.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -61,8 +55,8 @@ namespace nil {
                 typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
                 typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
                 program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                     &assignment,
                 std::uint32_t start_row) {
 
@@ -90,13 +84,6 @@ namespace nil {
                 using component_type = components::permutation_verifier<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
-                const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, input_length));
-                component_type component_instance =  component_type(p.witness,
-                    ManifestReader<component_type, ArithmetizationParams>::get_constants(),
-                    ManifestReader<component_type,ArithmetizationParams>::get_public_inputs(),
-                    input_length);
-
-
                 typename component_type::input_type instance_input = {
                     f,
                     Se,
@@ -109,9 +96,8 @@ namespace nil {
                     thetas
                     };
 
-
-                components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
-                return components::generate_assignments(component_instance, assignment, instance_input, start_row);
+                return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                    (bp, assignment, start_row, instance_input, input_length);
 
             }
 
@@ -122,10 +108,10 @@ namespace nil {
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, bool next_prover) {
 
             llvm::Value *f_value = inst->getOperand(0);
             llvm::Value *Se_value = inst->getOperand(1);
@@ -149,8 +135,7 @@ namespace nil {
                     V_value, V_zeta_value, q_last_value, q_pad_value, thetas_value,
                         frame.vectors, frame.scalars, memory, bp, assignment, start_row);
 
-            std::vector<var> res_vector = {res.output[0], res.output[1], res.output[2]};
-            frame.vectors[inst] = res_vector;
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
 
         }
     }    // namespace blueprint
