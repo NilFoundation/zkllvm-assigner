@@ -87,7 +87,7 @@
 
 #include <nil/blueprint/policy/policy_manager.hpp>
 
-#include <nil/blueprint/components/systems/snark/plonk/placeholder/fri_lin_inter.hpp>
+#include <nil/blueprint/recursive_prover/fri_lin_inter.hpp>
 #include <nil/blueprint/recursive_prover/fri_cosets.hpp>
 #include <nil/blueprint/recursive_prover/gate_arg_verifier.hpp>
 #include <nil/blueprint/recursive_prover/permutation_arg_verifier.hpp>
@@ -543,19 +543,7 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_lin_inter: {
-                        var s = frame.scalars[inst->getOperand(0)];
-                        var y0 = frame.scalars[inst->getOperand(1)];
-                        var y1 = frame.scalars[inst->getOperand(2)];
-                        var alpha = frame.scalars[inst->getOperand(3)];
-
-                        using component_type = components::fri_lin_inter<
-                            crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
-
-                        component_type component_instance({0, 1, 2, 3, 4}, {}, {});
-
-                        components::generate_circuit(component_instance, circuits[currProverIdx], assignments[currProverIdx], {s, y0, y1, alpha}, start_row);
-                        frame.scalars[inst] = components::generate_assignments(component_instance, assignments[currProverIdx], {s, y0, y1, alpha}, start_row).output;
-
+                        handle_fri_lin_inter_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_cosets: {
