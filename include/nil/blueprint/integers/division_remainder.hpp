@@ -30,13 +30,7 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/components/algebra/fields/plonk/non_native/division_remainder.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -59,22 +53,12 @@ namespace nil {
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             using component_type = components::division_remainder<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
-            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, Bitness, true));
-            component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), Bitness, true);
-
-            if constexpr( use_lookups<component_type>() ){
-                auto lookup_tables = component_instance.component_lookup_tables();
-                for(auto &[k,v]:lookup_tables){
-                    bp.reserve_table(k);
-                }
-            };
 
             var x = variables[operand0];
             var y = variables[operand1];
 
-            components::generate_circuit(component_instance, bp, assignment, {x, y}, start_row);
-            return components::generate_assignments(component_instance, assignment, {x, y}, start_row);
-
+            return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                (bp, assignment, start_row, {x, y}, Bitness, true);
             }
         }    // namespace detail
 
@@ -106,11 +90,8 @@ namespace nil {
                 res = detail::handle_native_field_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
                                 bitness, operand0, operand1, frame.scalars, bp, assignment, start_row).remainder;
             }
-            if (next_prover) {
-                frame.scalars[inst] = save_shared_var(assignment, res);
-            } else {
-                frame.scalars[inst] = res;
-            }
+            handle_result<BlueprintFieldType, ArithmetizationParams>
+                (assignment, inst, frame, next_prover, {res});
         }
 
     }    // namespace blueprint

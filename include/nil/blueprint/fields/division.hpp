@@ -36,15 +36,7 @@
 #include <nil/crypto3/algebra/curves/pallas.hpp>
 #include <nil/crypto3/algebra/curves/vesta.hpp>
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/component.hpp>
-#include <nil/blueprint/basic_non_native_policy.hpp>
-#include <nil/blueprint/components/algebra/fields/plonk/division.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -67,21 +59,12 @@ namespace nil {
                 using component_type = components::division<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
                     BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
-                const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0));
-                component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
-
-                if constexpr( use_lookups<component_type>() ){
-                    auto lookup_tables = component_instance.component_lookup_tables();
-                    for(auto &[k,v]:lookup_tables){
-                        bp.reserve_table(k);
-                    }
-                };
 
                 var x = variables[operand0];
                 var y = variables[operand1];
 
-                components::generate_circuit(component_instance, bp, assignment, {x, y}, start_row);
-                return components::generate_assignments(component_instance, assignment, {x, y}, start_row);
+                return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                    (bp, assignment, start_row, {x, y});
             }
 
         }    // namespace detail
@@ -96,6 +79,9 @@ namespace nil {
             std::uint32_t start_row, bool next_prover) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
+            using component_type = components::division<
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
 
             llvm::Value *operand0 = inst->getOperand(0);
             llvm::Value *operand1 = inst->getOperand(1);
@@ -113,13 +99,8 @@ namespace nil {
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         const auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                .output;
-                        if (next_prover) {
-                            frame.scalars[inst] = save_shared_var(assignment, res);
-                        } else {
-                            frame.scalars[inst] = res;
-                        }
+                                operand0, operand1, frame.scalars, bp, assignment, start_row);
+                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
                     } else {
                         UNREACHABLE("Non-native bls12-381 is undefined yet");
                     }
@@ -132,13 +113,8 @@ namespace nil {
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         const auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                .output;
-                        if (next_prover) {
-                            frame.scalars[inst] = save_shared_var(assignment, res);
-                        } else {
-                            frame.scalars[inst] = res;
-                        }
+                                operand0, operand1, frame.scalars, bp, assignment, start_row);
+                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
                     } else {
                         UNREACHABLE("Non-native pallas is undefined yet");
                     }
@@ -151,13 +127,8 @@ namespace nil {
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         const auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                .output;
-                        if (next_prover) {
-                            frame.scalars[inst] = save_shared_var(assignment, res);
-                        } else {
-                            frame.scalars[inst] = res;
-                        }
+                                operand0, operand1, frame.scalars, bp, assignment, start_row);
+                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
                     } else {
                         UNREACHABLE("Non-native ed25519 division is not implemented yet");
                     }

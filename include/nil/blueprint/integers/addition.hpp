@@ -56,13 +56,13 @@ namespace nil {
             llvm::Value *operand1 = inst->getOperand(1);
 
             const auto res = detail::handle_native_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                .output;
-            if (next_prover) {
-                frame.scalars[inst] = save_shared_var(assignment, res);
-            } else {
-                frame.scalars[inst] = res;
-            }
+                                operand0, operand1, frame.scalars, bp, assignment, start_row);
+
+            using component_type = components::addition<
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
+
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
         }
 
     }    // namespace blueprint

@@ -29,12 +29,7 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/components/algebra/fields/plonk/non_native/logic_ops.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -49,26 +44,15 @@ namespace nil {
                     &assignment,
                 std::uint32_t start_row) {
 
-            std::array<std::uint32_t, 2 + 1> witnesses;
-            for (std::uint32_t i = 0; i < 2 + 1; i++) {
-                witnesses[i] = i;
-            }
             using arithmetization_type = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
-            components::logic_and<arithmetization_type> component_instance(witnesses);
+            using component_type = components::logic_and<arithmetization_type>;
 
-            if constexpr( use_lookups<components::logic_and<arithmetization_type>>() ){
-                auto lookup_tables = component_instance.component_lookup_tables();
-                for(auto &[k,v]:lookup_tables){
-                    bp.reserve_table(k);
-                }
-            };
-
-            typename components::logic_and<arithmetization_type>::input_type instance_input;
+            typename component_type::input_type instance_input;
             instance_input.input[0] = x;
             instance_input.input[1] = y;
 
-            components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
-            return components::generate_assignments(component_instance, assignment, instance_input, start_row).output;
+            return get_component_result<BlueprintFieldType, ArithmetizationParams>
+                (bp, assignment, start_row, instance_input).output;
         }
 
     }    // namespace blueprint

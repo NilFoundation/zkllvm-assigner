@@ -85,7 +85,7 @@
 #include <nil/blueprint/hashes/sha2_256.hpp>
 #include <nil/blueprint/hashes/sha2_512.hpp>
 
-#include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 #include <nil/blueprint/recursive_prover/fri_lin_inter.hpp>
 #include <nil/blueprint/recursive_prover/fri_cosets.hpp>
@@ -170,23 +170,24 @@ namespace nil {
             }
 
             template<typename map_type>
-            void handle_scalar_cmp(const llvm::ICmpInst *inst, map_type &variables, bool next_prover) {
+            void handle_scalar_cmp(const llvm::ICmpInst *inst, map_type &frame, bool next_prover) {
+                auto &variables = frame.scalars;
                 const var &lhs = variables[inst->getOperand(0)];
                 const var &rhs = variables[inst->getOperand(1)];
 
                 llvm::CmpInst::Predicate p = inst->getPredicate();
 
+                using eq_component_type = components::equality_flag<
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+
                 if (p == llvm::CmpInst::ICMP_EQ || p ==llvm::CmpInst::ICMP_NE) {
                     std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
                     const auto start_row = assignments[currProverIdx].allocated_rows();
-                    const auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
+                    const auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         p, lhs, rhs, bitness,
                         circuits[currProverIdx], assignments[currProverIdx], start_row);
-                    if (next_prover) {
-                        variables[inst] = save_shared_var(assignments[currProverIdx], v);
-                    } else {
-                        variables[inst] = v;
-                    }
+                    handle_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
+                            (assignments[currProverIdx], inst, frame, next_prover, v);
                 } else {
                     bool res;
 
@@ -233,19 +234,19 @@ namespace nil {
                     bitness = llvm::cast<llvm::IntegerType>(vector_ty->getElementType())->getBitWidth();
                 }
 
+                using eq_component_type = components::equality_flag<
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     const auto start_row = assignments[currProverIdx].allocated_rows();
-                    auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
+                    auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         inst->getPredicate(), lhs[i], rhs[i], bitness,
                         circuits[currProverIdx], assignments[currProverIdx], start_row);
 
-                    res.emplace_back(v);
+                    res.emplace_back(v.output);
                 }
-                if (next_prover) {
-                    frame.vectors[inst] = save_shared_var(assignments[currProverIdx], res);
-                } else {
-                    frame.vectors[inst] = res;
-                }
+                handle_result<BlueprintFieldType, ArithmetizationParams>
+                        (assignments[currProverIdx], inst, frame, next_prover, res);
             }
 
             void handle_curve_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame, bool next_prover) {
@@ -260,25 +261,27 @@ namespace nil {
 
                 std::vector<var> res;
 
+                using eq_component_type = components::equality_flag<
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+
                 for (size_t i = 0; i < lhs.size(); ++i) {
-                    auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
+                    auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         inst->getPredicate(), lhs[i], rhs[i], 0,
                         circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows());
-                    res.emplace_back(v);
+                    res.emplace_back(v.output);
                 }
 
                 var are_curves_equal = res[0];
+
+                using component_type = components::logic_and<ArithmetizationType>;
 
                 for (size_t i = 1; i < lhs.size(); ++i) {
                     are_curves_equal = handle_logic_and<BlueprintFieldType, ArithmetizationParams>(
                         are_curves_equal, res[i], circuits[currProverIdx], assignments[currProverIdx],
                         assignments[currProverIdx].allocated_rows());
                 }
-                if (next_prover) {
-                    frame.scalars[inst] = save_shared_var(assignments[currProverIdx], are_curves_equal);
-                } else {
-                    frame.scalars[inst] = are_curves_equal;
-                }
+                handle_result<BlueprintFieldType, ArithmetizationParams>
+                    (assignments[currProverIdx], inst, frame, next_prover, {are_curves_equal});
             }
 
             void handle_ptr_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame, bool next_prover) {
@@ -447,30 +450,8 @@ namespace nil {
 
                         typename component_type::input_type instance_input = {input_state_var};
 
-                        const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<component_type, ArithmetizationParams>::get_witness(0));
-
-                        component_type component_instance(p.witness, detail::ManifestReader<component_type, ArithmetizationParams>::get_constants(),
-                                                          detail::ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
-
-                        if constexpr( use_lookups<component_type>() ){
-                            auto lookup_tables = component_instance.component_lookup_tables();
-                            for(auto &[k,v]:lookup_tables){
-                                circuits[currProverIdx].reserve_table(k);
-                            }
-                        };
-
-                        components::generate_circuit(component_instance, circuits[currProverIdx], assignments[currProverIdx], instance_input, start_row);
-
-                        typename component_type::result_type component_result =
-                            components::generate_assignments(component_instance, assignments[currProverIdx], instance_input, start_row);
-
-                        std::vector<var> output(component_result.output_state.begin(),
-                                                component_result.output_state.end());
-                        if (next_prover) {
-                            frame.vectors[inst] = save_shared_var(assignments[currProverIdx], output);
-                        } else {
-                            frame.vectors[inst] = output;
-                        }
+                        handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
+                                (circuits[currProverIdx], assignments[currProverIdx], start_row, instance_input, inst, frame, next_prover);
                         return true;
                         }
                         else {
@@ -538,11 +519,8 @@ namespace nil {
                                 put_into_assignment(gt.data[1].data[2].data[1], next_prover)
                             };
 
-                            if (next_prover) {
-                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], res);
-                            } else {
-                                frame.vectors[inst] = res;
-                            }
+                            handle_result<BlueprintFieldType, ArithmetizationParams>
+                                (assignments[currProverIdx], inst, frame, next_prover, res);
                             return true;
                         }
                         else {
@@ -556,11 +534,8 @@ namespace nil {
 
                             std::vector<var> res = {frame.scalars[inst->getOperand(0)], frame.scalars[inst->getOperand(0)]};
 
-                            if (next_prover) {
-                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], res);
-                            } else {
-                                frame.vectors[inst] = res;
-                            }
+                            handle_result<BlueprintFieldType, ArithmetizationParams>
+                                (assignments[currProverIdx], inst, frame, next_prover, res);
                             return true;
                         }
                         else {
@@ -572,11 +547,8 @@ namespace nil {
 
                             std::cerr << "warning: __builtin_assigner_is_in_g1_check            is an experimental feature, may be not stable\n";
 
-                            if (next_prover) {
-                                frame.scalars[inst] = save_shared_var(assignments[currProverIdx], zero_var);
-                            } else {
-                                frame.scalars[inst] = zero_var;
-                            }
+                            handle_result<BlueprintFieldType, ArithmetizationParams>
+                                (assignments[currProverIdx], inst, frame, next_prover, {zero_var});
                             return true;
                         }
                         else {
@@ -588,11 +560,8 @@ namespace nil {
 
                             std::cerr << "warning: __builtin_assigner_is_in_g2_check            is an experimental feature, may be not stable\n";
 
-                            if (next_prover) {
-                                frame.scalars[inst] = save_shared_var(assignments[currProverIdx], zero_var);
-                            } else {
-                                frame.scalars[inst] = zero_var;
-                            }
+                            handle_result<BlueprintFieldType, ArithmetizationParams>
+                                (assignments[currProverIdx], inst, frame, next_prover, {zero_var});
                             return true;
                         }
                         else {
@@ -639,11 +608,8 @@ namespace nil {
                                put_into_assignment(e.data[1].data[2].data[0], next_prover),
                                put_into_assignment(e.data[1].data[2].data[1], next_prover) };
 
-                            if (next_prover) {
-                                frame.vectors[inst] = save_shared_var(assignments[currProverIdx], res);
-                            } else {
-                                frame.vectors[inst] = res;
-                            }
+                            handle_result<BlueprintFieldType, ArithmetizationParams>
+                                (assignments[currProverIdx], inst, frame, next_prover, res);
                             return true;
                         }
                         else {
@@ -717,9 +683,12 @@ namespace nil {
 
                         std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
 
-                        var comparison_result = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
+                        using eq_component_type = components::equality_flag<
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+
+                        var comparison_result = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                             llvm::CmpInst::ICMP_EQ, logical_statement, zero_var, bitness,
-                            circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows());
+                            circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows()).output;
 
                         if(validity_check) {
                             bool assigner_exit_check_input = var_value(assignments[currProverIdx], comparison_result) == 0;
@@ -736,7 +705,7 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_lin_inter: {
-                        handle_fri_lin_inter_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        handle_fri_lin_inter_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, next_prover);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_cosets: {
@@ -746,12 +715,12 @@ namespace nil {
                     }
                     case llvm::Intrinsic::assigner_gate_arg_verifier: {
                         ASSERT_MSG(check_operands_constantness(inst, {1, 2, 4}, frame, next_prover), "gates_sizes, gates and selectors amount must be constants");
-                        handle_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        handle_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, next_prover);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_permutation_arg_verifier: {
                         ASSERT_MSG(check_operands_constantness(inst, {3}, frame, next_prover), "f, se, sigma size must be constant");
-                        handle_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        handle_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, next_prover);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_lookup_arg_verifier: {
@@ -759,7 +728,7 @@ namespace nil {
                         for (std::size_t i = 0; i < 8; i++) { constants_positions.push_back(i);}
                         for (std::size_t i = 4; i < 13; i++) { constants_positions.push_back(2*i + 1);}
                         ASSERT_MSG(check_operands_constantness(inst, constants_positions, frame, next_prover), "vectors sizes must be constants");
-                        handle_lookup_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        handle_lookup_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, next_prover);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_array_swap: {
@@ -1259,7 +1228,7 @@ namespace nil {
                         auto cmp_inst = llvm::cast<const llvm::ICmpInst>(inst);
                         llvm::Type *cmp_type = cmp_inst->getOperand(0)->getType();
                         if (cmp_type->isIntegerTy()|| cmp_type->isFieldTy())
-                            handle_scalar_cmp(cmp_inst, variables, next_prover);
+                            handle_scalar_cmp(cmp_inst, frame, next_prover);
                         else if (cmp_type->isPointerTy())
                             handle_ptr_cmp(cmp_inst, frame, next_prover);
                         else if (cmp_type->isVectorTy())

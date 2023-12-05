@@ -36,16 +36,7 @@
 #include <nil/crypto3/algebra/curves/pallas.hpp>
 #include <nil/crypto3/algebra/curves/vesta.hpp>
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/component.hpp>
-#include <nil/blueprint/basic_non_native_policy.hpp>
-#include <nil/blueprint/components/algebra/curves/pasta/plonk/variable_base_scalar_mul.hpp>
-#include <nil/blueprint/components/algebra/curves/edwards/plonk/non_native/variable_base_multiplication.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -68,15 +59,6 @@ namespace nil {
                 using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
                 using component_type = components::curve_element_variable_base_scalar_mul<
                     ArithmetizationType,CurveType>;
-                const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0));
-                component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
-
-                if constexpr( use_lookups<component_type>() ){
-                    auto lookup_tables = component_instance.component_lookup_tables();
-                    for(auto &[k,v]:lookup_tables){
-                        bp.reserve_table(k);
-                    }
-                };
 
                 struct var_ec_point {
                     var X;
@@ -88,8 +70,8 @@ namespace nil {
 
                 typename component_type::input_type addition_input = {{T.X, T.Y}, b[0], b[1]};
 
-                components::generate_circuit(component_instance, bp, assignment, addition_input, start_row);
-                return components::generate_assignments(component_instance, assignment, addition_input, start_row);
+                return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                    (bp, assignment, start_row, addition_input);
             }
 
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename CurveType, typename Ed25519Type>
@@ -113,15 +95,6 @@ namespace nil {
                 using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
                 using component_type = components::variable_base_multiplication<ArithmetizationType, CurveType,
                             Ed25519Type, basic_non_native_policy<BlueprintFieldType>>;
-                const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, 253));
-                component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), 253, nil::blueprint::components::bit_shift_mode::RIGHT);
-
-                if constexpr( use_lookups<component_type>() ){
-                    auto lookup_tables = component_instance.component_lookup_tables();
-                    for(auto &[k,v]:lookup_tables){
-                        bp.reserve_table(k);
-                    }
-                };
 
                 using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
@@ -145,8 +118,8 @@ namespace nil {
 
                 typename component_type::input_type addition_input = {{T.X, T.Y}, b};
 
-                components::generate_circuit(component_instance, bp, assignment, addition_input, start_row);
-                return components::generate_assignments(component_instance, assignment, addition_input, start_row);
+                return get_component_result<BlueprintFieldType, ArithmetizationParams, ArithmetizationType, CurveType, Ed25519Type>
+                    (bp, assignment, start_row, addition_input);
             }
 
         }    // namespace detail
@@ -213,12 +186,7 @@ namespace nil {
                                 detail::handle_native_curve_non_native_scalar_multiplication_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
                                     operand_curve, operand_field, frame.vectors, bp, assignment, start_row);
                             std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = {res.X, res.Y};
-                            if (next_prover) {
-                                std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector;
-                                frame.vectors[inst] = save_shared_var(assignment, res_vector);
-                            } else {
-                                frame.vectors[inst] = res_vector;
-                            }
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
                         } else {
                             UNREACHABLE("non-native pallas multiplication is not implemented");
                         }
@@ -237,7 +205,6 @@ namespace nil {
                         UNREACHABLE("non_native_policy is not implemented yet");
                     }
                     else {
-
                         using pallas_curve_type = typename crypto3::algebra::curves::pallas;
                         if (!std::is_same<BlueprintFieldType, pallas_curve_type::base_field_type>::value) {
                             UNREACHABLE("pallas_curve_type is used as template parameter, if BlueprintFieldType is not pallas::base_field_type, then code must be re-written");
@@ -259,17 +226,7 @@ namespace nil {
                                     assignment,
                                     start_row);
 
-                            std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = {};
-                            res_vector.insert(res_vector.end(), res.output.x.begin(), res.output.x.end());
-                            res_vector.insert(res_vector.end(), res.output.y.begin(), res.output.y.end());
-
-                            if (next_prover) {
-                                frame.vectors[inst] = save_shared_var(assignment, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
-                                        std::begin(res_vector), std::end(res_vector)));
-                            } else {
-                                frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
-                                        std::begin(res_vector), std::end(res_vector));
-                            }
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
                         }
                     }
 

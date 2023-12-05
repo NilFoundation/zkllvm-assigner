@@ -36,14 +36,7 @@
 #include <nil/crypto3/algebra/curves/pallas.hpp>
 #include <nil/crypto3/algebra/curves/vesta.hpp>
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/component.hpp>
-#include <nil/blueprint/components/hashes/sha2/plonk/sha512.hpp>
-#include <nil/blueprint/components/algebra/fields/plonk/non_native/reduction.hpp>
-
-#include <nil/blueprint/stack.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -53,7 +46,7 @@ namespace nil {
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
-                &assignmnt,
+                &assignment,
             std::uint32_t start_row, bool next_prover) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -78,54 +71,25 @@ namespace nil {
 
             typename sha2_512_component_type::input_type sha2_512_instance_input = {R, A, {{input_vars[16], input_vars[17],
                 input_vars[18], input_vars[19]}}};
-            const auto p_sha2_512 = detail::PolicyManager::get_parameters(detail::ManifestReader<sha2_512_component_type, ArithmetizationParams>::get_witness(0));
-            sha2_512_component_type sha2_512_component_instance(p_sha2_512.witness,
-                                                                detail::ManifestReader<sha2_512_component_type, ArithmetizationParams>::get_constants(),
-                                                                detail::ManifestReader<sha2_512_component_type, ArithmetizationParams>::get_public_inputs());
-
-            if constexpr( use_lookups<sha2_512_component_type>() ){
-                auto lookup_tables = sha2_512_component_instance.component_lookup_tables();
-                for(auto &[k,v]:lookup_tables){
-                    bp.reserve_table(k);
-                }
-            };
-
-            components::generate_circuit(sha2_512_component_instance, bp, assignmnt, sha2_512_instance_input, start_row);
 
             typename sha2_512_component_type::result_type sha2_512_component_result =
-                components::generate_assignments(sha2_512_component_instance, assignmnt, sha2_512_instance_input, start_row);
+                get_component_result<BlueprintFieldType, ArithmetizationParams, sha2_512_component_type>
+                    (bp, assignment, start_row, sha2_512_instance_input);
 
             using reduction_component_type = components::reduction<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType,
                 basic_non_native_policy<BlueprintFieldType>>;
 
-            const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<reduction_component_type, ArithmetizationParams>::get_witness(0));
-
-            reduction_component_type reduction_component_instance(p.witness,
-                                                                  detail::ManifestReader<reduction_component_type, ArithmetizationParams>::get_constants(),
-                                                                  detail::ManifestReader<reduction_component_type, ArithmetizationParams>::get_public_inputs());
-
-            if constexpr( use_lookups<reduction_component_type>() ){
-                auto lookup_tables = reduction_component_instance.component_lookup_tables();
-                for(auto &[k,v]:lookup_tables){
-                    bp.reserve_table(k);
-                }
-            };
-
-            start_row = assignmnt.allocated_rows();
+            start_row = assignment.allocated_rows();
 
             typename reduction_component_type::input_type reduction_instance_input = {sha2_512_component_result.output_state};
 
-            components::generate_circuit(reduction_component_instance, bp, assignmnt, reduction_instance_input, start_row);
-
             typename reduction_component_type::result_type reduction_component_result =
-                components::generate_assignments(reduction_component_instance, assignmnt, reduction_instance_input, start_row);
+                    get_component_result<BlueprintFieldType, ArithmetizationParams, reduction_component_type>
+                            (bp, assignment, start_row, reduction_instance_input);
 
-            if (next_prover) {
-                frame.scalars[inst] = save_shared_var(assignmnt, reduction_component_result.output);
-            } else {
-                frame.scalars[inst] = reduction_component_result.output;
-            }
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, reduction_component_type>
+                    (assignment, inst, frame, next_prover, reduction_component_result);
         }
     }    // namespace blueprint
 }    // namespace nil

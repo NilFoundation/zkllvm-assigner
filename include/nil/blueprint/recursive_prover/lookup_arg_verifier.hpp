@@ -30,15 +30,9 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/components/systems/snark/plonk/placeholder/lookup_argument_verifier.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
 #include <nil/blueprint/extract_constructor_parameters.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -48,10 +42,10 @@ namespace nil {
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, bool next_prover) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -96,29 +90,6 @@ namespace nil {
                 using component_type = components::lookup_verifier<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
-                const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<component_type, ArithmetizationParams>::get_witness(
-                    0,
-                    lookup_gate_size,
-                    lookup_gate_constraints_sizes,
-                    lookup_gate_constraints_lookup_input_sizes,
-                    lookup_table_size,
-                    lookup_table_lookup_options_sizes,
-                    lookup_table_columns_numbers
-                ));
-
-                component_type component_instance =  component_type(p.witness,
-                    detail::ManifestReader<component_type, ArithmetizationParams>::get_constants(),
-                    detail::ManifestReader<component_type,ArithmetizationParams>::get_public_inputs(),
-                    lookup_gate_size,
-                    lookup_gate_constraints_sizes,
-                    lookup_gate_constraints_lookup_input_sizes,
-                    lookup_table_size,
-                    lookup_table_lookup_options_sizes,
-                    lookup_table_columns_numbers
-
-                    );
-
-
                 typename component_type::input_type instance_input = {
                     theta,
                     beta,
@@ -138,10 +109,14 @@ namespace nil {
                     input_vectors[8]
                 };
 
-
-                components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
-                std::array<var, 4> res = components::generate_assignments(component_instance, assignment, instance_input, start_row).output;
-                frame.vectors[inst] = {res[0], res[1], res[2], res[3]};
+                handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
+                    (bp, assignment, start_row, instance_input, inst, frame, next_prover,
+                     lookup_gate_size,
+                     lookup_gate_constraints_sizes,
+                     lookup_gate_constraints_lookup_input_sizes,
+                     lookup_table_size,
+                     lookup_table_lookup_options_sizes,
+                     lookup_table_columns_numbers);
         }
     }    // namespace blueprint
 }    // namespace nil

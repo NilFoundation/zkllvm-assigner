@@ -29,19 +29,13 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/components/algebra/fields/plonk/non_native/equality_flag.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
-        typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>
+        template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
+        typename ComponentType::result_type
         handle_comparison_component(
                 llvm::CmpInst::Predicate p,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &x,
@@ -58,21 +52,13 @@ namespace nil {
             // TODO(maksenov): replace naive handling with the component
             switch (p) {
                 case llvm::CmpInst::ICMP_EQ: {
-                    const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<eq_component_type, ArithmetizationParams>::get_witness(0, false));
-                    eq_component_type component_instance = eq_component_type(p.witness,
-                                                                             detail::ManifestReader<eq_component_type, ArithmetizationParams>::get_constants(),
-                                                                             detail::ManifestReader<eq_component_type, ArithmetizationParams>::get_public_inputs(), false);
-                    components::generate_circuit(component_instance, bp, assignment, {x, y}, start_row);
-                    return components::generate_assignments(component_instance, assignment, {x, y}, start_row).output;
+                    return get_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
+                            (bp, assignment, start_row, {x, y}, false);
                     break;
                 }
                 case llvm::CmpInst::ICMP_NE:{
-                    const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<eq_component_type, ArithmetizationParams>::get_witness(0, true));
-                    eq_component_type component_instance = eq_component_type(p.witness,
-                                                                             detail::ManifestReader<eq_component_type, ArithmetizationParams>::get_constants(),
-                                                                             detail::ManifestReader<eq_component_type, ArithmetizationParams>::get_public_inputs(), true);
-                    components::generate_circuit(component_instance, bp, assignment, {x, y}, start_row);
-                    return components::generate_assignments(component_instance, assignment, {x, y}, start_row).output;
+                    return get_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
+                            (bp, assignment, start_row, {x, y}, true);
                     break;
                 }
                 default:

@@ -36,13 +36,7 @@
 #include <nil/crypto3/algebra/curves/pallas.hpp>
 #include <nil/crypto3/algebra/curves/vesta.hpp>
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/component.hpp>
-#include <nil/blueprint/components/hashes/sha2/plonk/sha256.hpp>
-
-#include <nil/blueprint/stack.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -52,7 +46,7 @@ namespace nil {
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
-                &assignmnt,
+                &assignment,
             std::uint32_t start_row, bool next_prover) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -71,30 +65,8 @@ namespace nil {
 
             typename component_type::input_type instance_input = {input_block_vars};
 
-            const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<component_type, ArithmetizationParams>::get_witness(0));
-
-            component_type component_instance(p.witness, detail::ManifestReader<component_type, ArithmetizationParams>::get_constants(),
-                                              detail::ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
-
-            if constexpr( use_lookups<component_type>() ){
-                auto lookup_tables = component_instance.component_lookup_tables();
-                for(auto &[k,v]:lookup_tables){
-                    bp.reserve_table(k);
-                }
-            };
-
-            components::generate_circuit(component_instance, bp, assignmnt, instance_input, start_row);
-
-            typename component_type::result_type component_result =
-                components::generate_assignments(component_instance, assignmnt, instance_input, start_row);
-
-            std::vector<var> output(component_result.output.begin(), component_result.output.end());
-
-            if (next_prover) {
-                frame.vectors[inst] = save_shared_var(assignmnt, output);
-            } else {
-                frame.vectors[inst] = output;
-            }
+            handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
+                    (bp, assignment, start_row, instance_input, inst, frame, next_prover);
         }
     }    // namespace blueprint
 }    // namespace nil

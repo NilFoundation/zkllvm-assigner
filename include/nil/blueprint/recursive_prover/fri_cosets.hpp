@@ -30,15 +30,10 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
 
-#include <nil/blueprint/components/systems/snark/plonk/placeholder/fri_cosets.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
 #include <nil/blueprint/extract_constructor_parameters.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -53,8 +48,8 @@ namespace nil {
             typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
             typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
             std::uint32_t start_row) {
 
@@ -67,13 +62,8 @@ namespace nil {
             using component_type = components::fri_cosets<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
 
-            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, res_length));
-            component_type component_instance =  component_type(p.witness,
-                ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type,
-                    ArithmetizationParams>::get_public_inputs(), res_length, omega);
-
-            components::generate_circuit(component_instance, bp, assignment, {component_input}, start_row);
-            std::vector<std::array<var, 3>> result = components::generate_assignments(component_instance, assignment, {component_input}, start_row).output;
+            const auto& result = get_component_result<BlueprintFieldType, ArithmetizationParams>
+                (bp, assignment, start_row, {component_input}, res_length, omega).output;
 
             ptr_type result_ptr = static_cast<ptr_type>(
                 typename BlueprintFieldType::integral_type(var_value(assignment, variables[result_value]).data));
@@ -92,8 +82,8 @@ namespace nil {
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
             std::uint32_t start_row) {
 

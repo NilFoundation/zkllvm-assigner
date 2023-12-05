@@ -30,13 +30,7 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/components/algebra/fields/plonk/bit_shift_constant.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 
 namespace nil {
@@ -69,19 +63,8 @@ namespace nil {
 
             using nil::blueprint::components::bit_shift_mode;
 
-            const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0, Bitness, Shift, left_or_right));
-
-            component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs(), Bitness, Shift, left_or_right);
-
-            if constexpr( use_lookups<component_type>() ){
-                auto lookup_tables = component_instance.component_lookup_tables();
-                for(auto &[k,v]:lookup_tables){
-                    bp.reserve_table(k);
-                }
-            };
-
-            components::generate_circuit(component_instance, bp, assignment, {x}, start_row);
-            return components::generate_assignments(component_instance, assignment, {x}, start_row);
+            return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                (bp, assignment, start_row, {x}, Bitness, Shift, left_or_right);
             }
         }    // namespace detail
 
@@ -95,6 +78,9 @@ namespace nil {
             std::uint32_t start_row,
             typename nil::blueprint::components::bit_shift_mode left_or_right, bool next_prover) {
 
+            using component_type = nil::blueprint::components::bit_shift_constant<
+                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
+
             llvm::Value *operand0 = inst->getOperand(0);
             llvm::Value *operand1 = inst->getOperand(1);
 
@@ -103,12 +89,8 @@ namespace nil {
             std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
 
             const auto res = detail::handle_native_field_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
-                                bitness, operand0, operand1, frame.scalars, bp, assignment, start_row, left_or_right).output;
-            if (next_prover) {
-                frame.scalars[inst] = save_shared_var(assignment, res);
-            } else {
-                frame.scalars[inst] = res;
-            }
+                                bitness, operand0, operand1, frame.scalars, bp, assignment, start_row, left_or_right);
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
         }
 
     }    // namespace blueprint

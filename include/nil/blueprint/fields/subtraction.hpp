@@ -36,16 +36,7 @@
 #include <nil/crypto3/algebra/curves/pallas.hpp>
 #include <nil/crypto3/algebra/curves/vesta.hpp>
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/component.hpp>
-#include <nil/blueprint/basic_non_native_policy.hpp>
-#include <nil/blueprint/components/algebra/fields/plonk/subtraction.hpp>
-#include <nil/blueprint/components/algebra/fields/plonk/non_native/subtraction.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -68,21 +59,12 @@ namespace nil {
                 using component_type = components::subtraction<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
                     BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
-                const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0));
-                component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
-
-                if constexpr( use_lookups<component_type>() ){
-                    auto lookup_tables = component_instance.component_lookup_tables();
-                    for(auto &[k,v]:lookup_tables){
-                        bp.reserve_table(k);
-                    }
-                };
 
                 var x = variables[operand0];
                 var y = variables[operand1];
 
-                components::generate_circuit(component_instance, bp, assignment, {x, y}, start_row);
-                return components::generate_assignments(component_instance, assignment, {x, y}, start_row);
+                return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                    (bp, assignment, start_row, {x, y});
             }
 
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename OperatingFieldType>
@@ -103,15 +85,6 @@ namespace nil {
                 using component_type = components::subtraction<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
                     OperatingFieldType, basic_non_native_policy<BlueprintFieldType>>;
-                const auto p = PolicyManager::get_parameters(ManifestReader<component_type, ArithmetizationParams>::get_witness(0));
-                component_type component_instance(p.witness, ManifestReader<component_type, ArithmetizationParams>::get_constants(), ManifestReader<component_type, ArithmetizationParams>::get_public_inputs());
-
-                if constexpr( use_lookups<component_type>() ){
-                    auto lookup_tables = component_instance.component_lookup_tables();
-                    for(auto &[k,v]:lookup_tables){
-                        bp.reserve_table(k);
-                    }
-                };
 
                 std::vector<var> operand0_vars = vectors[operand0];
                 std::vector<var> operand1_vars = vectors[operand1];
@@ -126,8 +99,8 @@ namespace nil {
                             non_native_policy_type::template field<OperatingFieldType>::ratio,
                             y.begin());
 
-                components::generate_circuit(component_instance, bp, assignment, {x, y}, start_row);
-                return components::generate_assignments(component_instance, assignment, {x, y}, start_row);
+                return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                    (bp, assignment, start_row, {x, y});
             }
 
         }    // namespace detail
@@ -142,6 +115,9 @@ namespace nil {
             std::uint32_t start_row, bool next_prover) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
+            using native_component_type = components::subtraction<
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
 
             llvm::Value *operand0 = inst->getOperand(0);
             llvm::Value *operand1 = inst->getOperand(1);
@@ -160,13 +136,8 @@ namespace nil {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                                 ArithmetizationParams>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                                  .output;
-                            if (next_prover) {
-                                frame.scalars[inst] = save_shared_var(assignment, res);
-                            } else {
-                                frame.scalars[inst] = res;
-                            }
+                                                  operand0, operand1, frame.scalars, bp, assignment, start_row);
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>(assignment, inst, frame, next_prover, res);
                         } else {
                             UNREACHABLE("not implemented yet");
                         }
@@ -184,13 +155,8 @@ namespace nil {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                                 ArithmetizationParams>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                                  .output;
-                            if (next_prover) {
-                                frame.scalars[inst] = save_shared_var(assignment, res);
-                            } else {
-                                frame.scalars[inst] = res;
-                            }
+                                                  operand0, operand1, frame.scalars, bp, assignment, start_row);
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>(assignment, inst, frame, next_prover, res);
                         } else {
                             UNREACHABLE("non_native_policy is not implemented yet");
                         }
@@ -203,32 +169,23 @@ namespace nil {
                 }
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
                     using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
+                    using no_native_component_type = components::subtraction<
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                        operating_field_type, basic_non_native_policy<BlueprintFieldType>>;
 
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                                 ArithmetizationParams>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, start_row)
-                                                  .output;
-                            if (next_prover) {
-                                frame.scalars[inst] = save_shared_var(assignment, res);
-                            } else {
-                                frame.scalars[inst] = res;
-                            }
+                                                  operand0, operand1, frame.scalars, bp, assignment, start_row);
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>(assignment, inst, frame, next_prover, res);
                         } else {
-                            typename non_native_policy_type::template field<operating_field_type>::non_native_var_type
-                                component_result = detail::handle_non_native_field_subtraction_component<
+                            const auto& component_result = detail::handle_non_native_field_subtraction_component<
                                                        BlueprintFieldType, ArithmetizationParams, operating_field_type>(
-                                                       operand0, operand1, frame.vectors, bp, assignment, start_row)
-                                                       .output;
+                                                       operand0, operand1, frame.vectors, bp, assignment, start_row);
 
-                            if (next_prover) {
-                                frame.vectors[inst] = save_shared_var(assignment, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
-                                        std::begin(component_result), std::end(component_result)));
-                            } else {
-                                frame.vectors[inst] = std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>(
-                                        std::begin(component_result), std::end(component_result));
-                            }
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, no_native_component_type>
+                                    (assignment, inst, frame, next_prover, component_result);
                         }
                     }
                     else {

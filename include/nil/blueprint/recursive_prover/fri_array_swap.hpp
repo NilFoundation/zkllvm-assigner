@@ -30,15 +30,9 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/components/systems/snark/plonk/placeholder/fri_array_swap.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
-#include <nil/blueprint/policy/policy_manager.hpp>
 #include <nil/blueprint/extract_constructor_parameters.hpp>
+#include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -48,8 +42,8 @@ namespace nil {
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-            circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
             std::uint32_t start_row) {
 
@@ -71,26 +65,13 @@ namespace nil {
             using component_type = components::fri_array_swap<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
 
-            const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<component_type, ArithmetizationParams>::get_witness(
-                0,
-                array_size / 2
-            ));
-
-            component_type component_instance =  component_type(p.witness,
-                detail::ManifestReader<component_type, ArithmetizationParams>::get_constants(),
-                detail::ManifestReader<component_type,ArithmetizationParams>::get_public_inputs(),
-                array_size / 2
-                );
-
-
             typename component_type::input_type instance_input = {
                 input_bool,
                 input_array
             };
 
-
-            components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
-            std::vector<var> res = components::generate_assignments(component_instance, assignment, instance_input, start_row).output;
+            std::vector<var> res = get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                    (bp, assignment, start_row, instance_input, array_size / 2).output;
 
             ptr_type result_ptr = static_cast<ptr_type>(
                 typename BlueprintFieldType::integral_type(var_value(assignment, frame.scalars[result_value]).data));
