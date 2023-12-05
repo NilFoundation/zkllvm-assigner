@@ -56,27 +56,27 @@ namespace nil {
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
             std::vector<std::size_t> lookup_table_lookup_options_sizes =
-                detail::extract_component_constructor_parameter_vector<BlueprintFieldType>(inst->getOperand(0));
-            std::size_t lookup_table_size = detail::extract_component_constructor_parameter_size_t<BlueprintFieldType>(inst->getOperand(1));
+                detail::extract_constant_vector<BlueprintFieldType>(inst->getOperand(0));
+            std::size_t lookup_table_size = detail::extract_constant_size_t_value<BlueprintFieldType>(inst->getOperand(1));
 
             std::vector<std::size_t> lookup_table_columns_numbers =
-                detail::extract_component_constructor_parameter_vector<BlueprintFieldType>(inst->getOperand(2));
-            ASSERT(lookup_table_size == detail::extract_component_constructor_parameter_size_t<BlueprintFieldType>(inst->getOperand(3)));
+                detail::extract_constant_vector<BlueprintFieldType>(inst->getOperand(2));
+            ASSERT(lookup_table_size == detail::extract_constant_size_t_value<BlueprintFieldType>(inst->getOperand(3)));
 
             std::vector<std::size_t> lookup_gate_constraints_sizes =
-                detail::extract_component_constructor_parameter_vector<BlueprintFieldType>(inst->getOperand(4));
-            std::size_t lookup_gate_size = detail::extract_component_constructor_parameter_size_t<BlueprintFieldType>(inst->getOperand(5));
+                detail::extract_constant_vector<BlueprintFieldType>(inst->getOperand(4));
+            std::size_t lookup_gate_size = detail::extract_constant_size_t_value<BlueprintFieldType>(inst->getOperand(5));
 
             std::vector<std::size_t> lookup_gate_constraints_lookup_input_sizes =
-                detail::extract_component_constructor_parameter_vector<BlueprintFieldType>(inst->getOperand(6));
-            std::size_t lookup_constraints_size = detail::extract_component_constructor_parameter_size_t<BlueprintFieldType>(inst->getOperand(7)); //sum of the lookup_gate_constraints_sizes elements
+                detail::extract_constant_vector<BlueprintFieldType>(inst->getOperand(6));
+            std::size_t lookup_constraints_size = detail::extract_constant_size_t_value<BlueprintFieldType>(inst->getOperand(7)); //sum of the lookup_gate_constraints_sizes elements
 
 
             std::vector<std::vector<var>> input_vectors = {};
             std::size_t size = 0;
 
             for (std::size_t i = 0; i < 9; i++) {
-                size = detail::extract_component_constructor_parameter_size_t<BlueprintFieldType>(inst->getOperand(8 + i * 2 + 1));
+                size = detail::extract_constant_size_t_value<BlueprintFieldType>(inst->getOperand(8 + i * 2 + 1));
                 input_vectors.push_back(detail::extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
                     inst->getOperand(8 + i * 2), size, frame.scalars, memory, assignment));
             }

@@ -60,7 +60,7 @@ namespace nil {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
-            std::size_t array_size = detail::extract_component_constructor_parameter_size_t<BlueprintFieldType>(array_size_value);
+            std::size_t array_size = detail::extract_constant_size_t_value<BlueprintFieldType>(array_size_value);
 
 
             std::vector<var> input_array = detail::extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(

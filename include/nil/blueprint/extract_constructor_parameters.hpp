@@ -31,32 +31,32 @@ namespace nil {
         namespace detail {
 
             template <typename BlueprintFieldType>
-            typename BlueprintFieldType::value_type extract_component_constructor_parameter_field(llvm::Value *input_value){
+            typename BlueprintFieldType::value_type extract_constant_field_value(llvm::Value *input_value){
                 std::vector<typename BlueprintFieldType::value_type> marshalled_value = marshal_field_val<BlueprintFieldType>(input_value);
                 ASSERT(marshalled_value.size() == 1);
                 return marshalled_value[0];
             }
 
             template <typename BlueprintFieldType>
-            std::size_t extract_component_constructor_parameter_size_t(llvm::Value *input_value){
+            std::size_t extract_constant_size_t_value(llvm::Value *input_value){
                 return std::size_t(
                     typename BlueprintFieldType::integral_type(
-                            extract_component_constructor_parameter_field<BlueprintFieldType>(input_value).data
+                            extract_constant_field_value<BlueprintFieldType>(input_value).data
                         )
                     );
             }
 
             template <typename BlueprintFieldType>
-            bool extract_component_constructor_parameter_bool(llvm::Value *input_value){
+            bool extract_constant_bool_value(llvm::Value *input_value){
                 return bool(
                     typename BlueprintFieldType::integral_type(
-                            extract_component_constructor_parameter_field<BlueprintFieldType>(input_value).data
+                            extract_constant_field_value<BlueprintFieldType>(input_value).data
                         )
                     );
             }
 
             template<typename BlueprintFieldType>
-            std::vector<std::size_t> extract_component_constructor_parameter_vector(llvm::Value *parameters_vector_value) {
+            std::vector<std::size_t> extract_constant_vector(llvm::Value *parameters_vector_value) {
                 std::vector<std::size_t> res = {};
                 ASSERT(parameters_vector_value->getType()->isPointerTy());
                 ASSERT(llvm::isa<llvm::GlobalValue>(parameters_vector_value));
@@ -67,7 +67,7 @@ namespace nil {
                 ASSERT(array_constant->getType()->isArrayTy());
                 for (unsigned i = 0; i < array_constant->getType()->getArrayNumElements(); ++i) {
                     auto elem_constant = array_constant->getAggregateElement(i);
-                    res.push_back(extract_component_constructor_parameter_size_t<BlueprintFieldType>(elem_constant));
+                    res.push_back(extract_constant_size_t_value<BlueprintFieldType>(elem_constant));
                 }
                 return res;
             }

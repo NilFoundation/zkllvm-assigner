@@ -65,12 +65,12 @@ namespace nil {
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
                 var theta = variables[theta_value];
 
-                std::size_t gates_amount = extract_component_constructor_parameter_size_t<BlueprintFieldType>(gates_amount_value);
+                std::size_t gates_amount = extract_constant_size_t_value<BlueprintFieldType>(gates_amount_value);
 
-                std::size_t constraints_amount = extract_component_constructor_parameter_size_t<BlueprintFieldType>(constraints_amount_value);
+                std::size_t constraints_amount = extract_constant_size_t_value<BlueprintFieldType>(constraints_amount_value);
 
                 std::vector<std::size_t> gates_sizes =
-                    extract_component_constructor_parameter_vector<BlueprintFieldType>(gates_sizes_value);
+                    extract_constant_vector<BlueprintFieldType>(gates_sizes_value);
 
                 ASSERT(gates_sizes.size() == gates_amount);
 

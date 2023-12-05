@@ -100,11 +100,11 @@ namespace nil {
             using component_type = nil::blueprint::components::bit_composition<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
-            bool is_msb = extract_component_constructor_parameter_bool<BlueprintFieldType>(operand_sig_bit);
+            bool is_msb = extract_constant_bool_value<BlueprintFieldType>(operand_sig_bit);
             using mode = nil::blueprint::components::bit_composition_mode;
             mode Mode = is_msb ? mode::MSB : mode::LSB;
 
-            std::size_t bitness_from_intrinsic = extract_component_constructor_parameter_size_t<BlueprintFieldType>(bitness_value);
+            std::size_t bitness_from_intrinsic = extract_constant_size_t_value<BlueprintFieldType>(bitness_value);
 
             std::vector<var> component_input = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
                     input_value, bitness_from_intrinsic, variables, memory, assignment);
@@ -133,7 +133,7 @@ namespace nil {
             llvm::Value *input = inst->getOperand(2);
             llvm::Value *operand_sig_bit = inst->getOperand(3);
 
-            std::size_t bitness_from_intrinsic = nil::blueprint::detail::extract_component_constructor_parameter_size_t<BlueprintFieldType>(bitness_value);
+            std::size_t bitness_from_intrinsic = nil::blueprint::detail::extract_constant_size_t_value<BlueprintFieldType>(bitness_value);
 
             auto sig_bit_marshalled = marshal_field_val<BlueprintFieldType>(operand_sig_bit);
             ASSERT(sig_bit_marshalled.size() == 1);
