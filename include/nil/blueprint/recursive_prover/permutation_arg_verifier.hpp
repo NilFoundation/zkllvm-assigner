@@ -75,7 +75,7 @@ namespace nil {
                 ASSERT(vectors[thetas_value].size() == 2);
                 std::array<var, 2> thetas = {vectors[thetas_value][0], vectors[thetas_value][1]};
 
-                std::size_t input_length = extract_component_constructor_parameter_size_t<BlueprintFieldType>(input_length_value);
+                std::size_t input_length = extract_constant_size_t_value<BlueprintFieldType>(input_length_value);
 
                 std::vector<var> Ssigma = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
                     Ssigma_value, input_length, variables, memory, assignment);

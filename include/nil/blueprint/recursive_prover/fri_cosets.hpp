@@ -61,8 +61,8 @@ namespace nil {
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             var component_input = variables[input];
 
-            typename BlueprintFieldType::value_type omega = extract_component_constructor_parameter_field<BlueprintFieldType>(omega_value);
-            std::size_t res_length = extract_component_constructor_parameter_size_t<BlueprintFieldType>(result_length_value);
+            typename BlueprintFieldType::value_type omega = extract_constant_field_value<BlueprintFieldType>(omega_value);
+            std::size_t res_length = extract_constant_size_t_value<BlueprintFieldType>(result_length_value);
 
             using component_type = components::fri_cosets<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
