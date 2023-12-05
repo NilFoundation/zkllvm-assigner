@@ -49,6 +49,7 @@ namespace nil {
             std::map<const llvm::Value *, VarType> scalars;
             std::map<const llvm::Value *, std::vector<VarType>> vectors;
             const llvm::CallInst *caller;
+            bool next_prover;
         };
 
     }    // namespace blueprint
