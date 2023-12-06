@@ -101,14 +101,22 @@
 namespace nil {
     namespace blueprint {
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams, bool PrintCircuitOutput>
+        enum print_format {
+            no_print,
+            dec,
+            hex
+        };
+
+        template<typename BlueprintFieldType, typename ArithmetizationParams>
         struct parser {
 
-            parser(long stack_size, boost::log::trivial::severity_level log_level, std::uint32_t max_num_provers, const std::string &kind = "") :
+            parser(long stack_size, boost::log::trivial::severity_level log_level, std::uint32_t max_num_provers, const std::string &kind = "", print_format output_print_format = no_print) :
                 stack_memory(stack_size),
                 maxNumProvers(max_num_provers),
                 currProverIdx(0),
-                log(log_level) {
+                log(log_level),
+                print_output_format(output_print_format)
+            {
 
                 detail::PolicyManager::set_policy(kind);
 
@@ -1491,7 +1499,10 @@ namespace nil {
                             ASSERT(call_stack.size() == 0);
                             finished = true;
 
-                            if(PrintCircuitOutput) {
+                            if(print_output_format != no_print) {
+                                if(print_output_format == hex) {
+                                    std::cout << std::hex;
+                                }
                                 if (inst->getNumOperands() != 0) {
                                     llvm::Value *ret_val = inst->getOperand(0);
                                     if (ret_val->getType()->isPointerTy()) {
@@ -1702,6 +1713,7 @@ namespace nil {
             std::shared_ptr<circuit<ArithmetizationType>> bp_ptr;
             std::shared_ptr<assignment<ArithmetizationType>> assignment_ptr;
             std::vector<const void *> cpp_values;
+            print_format print_output_format = no_print;
         };
 
     }     // namespace blueprint
