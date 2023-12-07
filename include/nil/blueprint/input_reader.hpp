@@ -45,7 +45,8 @@ namespace nil {
         public:
             InputReader(stack_frame<var> &frame, program_memory<var> &memory, Assignment &assignmnt, LayoutResolver &layout_resolver) :
                 frame(frame), layout_resolver(layout_resolver), memory(memory),
-                assignmnt(assignmnt), public_input_idx(0), private_input_idx(0), constant_idx(0) {}
+                assignmnt(assignmnt), public_input_idx(0), private_input_idx(0), constant_idx(0),
+                priv_iter(0), pub_iter(0) {}
 
             template<typename InputType>
             var put_into_assignment(InputType &input, bool is_private) {
@@ -397,10 +398,21 @@ namespace nil {
                 }
             }
 
-            bool fill_public_input(const llvm::Function &function, const boost::json::array &public_input) {
+            void increment_iter (bool is_private) {
+                is_private ? priv_iter++ : pub_iter++;
+            }
+
+            bool fill_public_input(
+                const llvm::Function &function,
+                const boost::json::array &public_input,
+                const boost::json::array &private_input
+            ) {
+
                 size_t ret_gap = 0;
+
                 for (size_t i = 0; i < function.arg_size(); ++i) {
                     llvm::Argument *current_arg = function.getArg(i);
+
                     llvm::Type *arg_type = current_arg->getType();
                     if (current_arg->hasStructRetAttr()) {
                         ASSERT(llvm::isa<llvm::PointerType>(arg_type));
@@ -411,14 +423,25 @@ namespace nil {
                         continue;
                     }
 
-                    if (public_input.size() <= i - ret_gap || !public_input[i - ret_gap].is_object()) {
-                        error = "not enough values in the input file.";
-                        return false;
+                    bool is_private = current_arg->hasAttribute(llvm::Attribute::PrivateInput);
+
+                    if (is_private) {
+                        if (private_input.size() <= priv_iter || !private_input[priv_iter].is_object()) {
+                            error = "not enough values in the private input file.";
+                            return false;
+                        }
+                    }
+                    else {
+                        if (public_input.size() <= pub_iter || !public_input[pub_iter].is_object()) {
+                            error = "not enough values in the public input file.";
+                            return false;
+                        }
                     }
 
-                    const boost::json::object &current_value = public_input[i - ret_gap].as_object();
-
-                    bool is_private = current_arg->hasAttribute(llvm::Attribute::PrivateInput);
+                    const boost::json::object &current_value = is_private ?
+                        private_input[priv_iter].as_object() :
+                        public_input[pub_iter].as_object();
+                    increment_iter(is_private);
 
                     if (llvm::isa<llvm::PointerType>(arg_type)) {
                         if (current_arg->hasAttribute(llvm::Attribute::ByVal)) {
@@ -455,11 +478,14 @@ namespace nil {
                     }
                 }
 
-                // Check if there are remaining elements of public input
-                if (function.arg_size() - ret_gap != public_input.size()) {
-                    error = "too many values in the input file";
+                // Check if there are remaining elements of input
+                if (function.arg_size() - ret_gap!= public_input.size() + private_input.size()) {
+                    std::cerr << "public_input.size() + private_input.size() = " << public_input.size() << " + " << private_input.size() << " = " << public_input.size() + private_input.size() << "\n";
+                    std::cerr << "function.arg_size() - ret_gap = " << function.arg_size() << " - " << ret_gap << " = " << (function.arg_size() - ret_gap) - priv_iter - pub_iter << "\n";
+                    error = "too many values in the input files";
                     return false;
                 }
+
                 return true;
             }
             size_t get_idx() const {
@@ -479,6 +505,8 @@ namespace nil {
             size_t private_input_idx;
             size_t constant_idx;
             std::string error;
+            size_t pub_iter;
+            size_t priv_iter;
         };
     }   // namespace blueprint
 }    // namespace nil
