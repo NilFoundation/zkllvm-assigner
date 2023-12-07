@@ -1604,7 +1604,11 @@ namespace nil {
                 return module;
             }
 
-            bool evaluate(const llvm::Module &module, const boost::json::array &public_input) {
+            bool evaluate(
+                const llvm::Module &module,
+                const boost::json::array &public_input,
+                const boost::json::array &private_input
+            ) {
                 layout_resolver = std::make_unique<LayoutResolver>(module.getDataLayout());
                 stack_frame<var> base_frame;
                 auto &variables = base_frame.scalars;
@@ -1629,7 +1633,7 @@ namespace nil {
 
                 auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
                     base_frame, stack_memory, assignments[currProverIdx], *layout_resolver);
-                if (!input_reader.fill_public_input(function, public_input)) {
+                if (!input_reader.fill_public_input(function, public_input, private_input)) {
                     std::cerr << "Public input does not match the circuit signature";
                     const std::string &error = input_reader.get_error();
                     if (!error.empty()) {
