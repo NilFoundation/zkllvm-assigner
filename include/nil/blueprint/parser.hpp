@@ -110,12 +110,14 @@ namespace nil {
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         struct parser {
 
-            parser(long stack_size, boost::log::trivial::severity_level log_level, std::uint32_t max_num_provers, const std::string &kind = "", print_format output_print_format = no_print) :
+            parser(long stack_size, boost::log::trivial::severity_level log_level, std::uint32_t max_num_provers, const std::string &kind = "",
+                    print_format output_print_format = no_print, bool check_validity = false) :
                 stack_memory(stack_size),
                 maxNumProvers(max_num_provers),
                 currProverIdx(0),
                 log(log_level),
-                print_output_format(output_print_format)
+                print_output_format(output_print_format),
+                validity_check(check_validity)
             {
 
                 detail::PolicyManager::set_policy(kind);
@@ -718,6 +720,12 @@ namespace nil {
                         var comparison_result = handle_comparison_component<BlueprintFieldType, ArithmetizationParams>(
                             llvm::CmpInst::ICMP_EQ, logical_statement, zero_var, bitness,
                             circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows());
+
+                        if(validity_check) {
+                            bool assigner_exit_check_input = var_value(assignments[currProverIdx], comparison_result) == 0;
+                            ASSERT_MSG(assigner_exit_check_input,
+                                      "assigner_exit_check input is false, verification will fail!\n");
+                        }
 
                         circuits[currProverIdx].add_copy_constraint({comparison_result, zero_var});
 
@@ -1718,6 +1726,7 @@ namespace nil {
             std::shared_ptr<assignment<ArithmetizationType>> assignment_ptr;
             std::vector<const void *> cpp_values;
             print_format print_output_format = no_print;
+            bool validity_check;
         };
 
     }     // namespace blueprint
