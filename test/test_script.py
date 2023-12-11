@@ -22,22 +22,29 @@ expected_crct = args.expected_crct
 real_tbl =  args.real_tbl
 real_crct = args.real_crct
 
-assigner_command = assigner_binary_path + " -b " + ll_file + " -i " + inp_file + " -t " + real_tbl + " -c " + real_crct + " -e 0"
+assigner_command = assigner_binary_path + " -b " + ll_file + " -i " + inp_file + " -t " + real_tbl + " -c " + real_crct + " -e pallas"
 
 result = subprocess.run(assigner_command, shell=True)
 if result.returncode != 0:
-    sys.exit("compilation failed")
+    sys.exit(ll_file + ": assignment failed!")
 
+def print_green(a):
+    print("\033[32m{}\033[0m".format(a))
 
-res = subprocess.run(["diff", expected_tbl, real_tbl], stdout=PIPE, stderr=PIPE)
-if res.returncode == 2:
-    sys.exit(res.stderr)
-if res.returncode == 1:
-    sys.exit("real result != expected result")
+def print_red(a):
+    print("\033[31m{}\033[0m".format(a))
 
-res = subprocess.run(["diff", expected_crct, real_crct], stdout=PIPE, stderr=PIPE)
-if res.returncode == 2:
-    sys.exit(res.stderr)
-if res.returncode == 1:
-    sys.exit("real result != expected result")
+def compare(expected, real, test_type):
+    res = subprocess.run(["diff", expected, real], stdout=PIPE, stderr=PIPE, text=True)
+    print(ll_file + test_type + "comparison test: ", end = "")
+    if res.returncode == 0:
+        print_green("success!")
+    if res.returncode == 2:
+        print_red("failed!\n")
+        sys.exit(res.stderr)
+    if res.returncode == 1:
+        print_red("failed!\n")
+        sys.exit(f"{test_type} are not equal!\n{res.stdout}")
 
+compare(expected_tbl, real_tbl, " assignment tables ")
+compare(expected_crct, real_crct, " circuit files ")

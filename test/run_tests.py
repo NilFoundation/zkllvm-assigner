@@ -11,6 +11,9 @@ assigner_binary_path = args.assigner_binary_path
 
 dirs = os.listdir("data/")
 
+if not os.path.exists("real_res"):
+    os.makedirs("real_res")
+
 ll_names = []
 
 tests_succeeded = True
@@ -26,6 +29,8 @@ for i in range(len(ll_names)):
             res = subprocess.run(["python3", "test_script.py", assigner_binary_path, "data/" + ll_names[i]+".ll", test_name+".inp", test_name+".tbl", test_name+".crct", "real_res/" + test_name[5:]+".tbl", "real_res/" + test_name[5:]+".crct"])
             if (res.returncode != 0):
                 tests_succeeded = False
+
+res = subprocess.run(["rm", "-r", "real_res/"])
 
 if (tests_succeeded != True):
     sys.exit("some tests failed")
