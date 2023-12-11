@@ -1,2 +1,4 @@
-0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+[
+   { "field": "0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" },
+   { "field": "0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" }
+]

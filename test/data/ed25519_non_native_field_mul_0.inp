@@ -1,8 +1,4 @@
-0x3ffffffffffffffec
-0x3ffffffffffffffff
-0
-0
-0x3ffffffffffffffec
-0x3ffffffffffffffff
-0
-0
+[
+   { "field": "0xfffffffffffffffffffffffffffffec" },
+   { "field": "0xfffffffffffffffffffffffffffffec" }
+]
