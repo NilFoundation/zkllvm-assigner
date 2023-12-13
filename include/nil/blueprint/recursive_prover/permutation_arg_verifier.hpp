@@ -111,7 +111,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, bool next_prover) {
+            std::uint32_t start_row) {
 
             llvm::Value *f_value = inst->getOperand(0);
             llvm::Value *Se_value = inst->getOperand(1);
@@ -135,7 +135,7 @@ namespace nil {
                     V_value, V_zeta_value, q_last_value, q_pad_value, thetas_value,
                         frame.vectors, frame.scalars, memory, bp, assignment, start_row);
 
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
 
         }
     }    // namespace blueprint

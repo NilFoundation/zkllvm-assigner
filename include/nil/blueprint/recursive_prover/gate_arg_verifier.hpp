@@ -109,7 +109,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, bool next_prover) {
+            std::uint32_t start_row) {
 
             llvm::Value *selectors_value = inst->getOperand(0);
             llvm::Value *gates_sizes_value = inst->getOperand(1);
@@ -124,7 +124,7 @@ namespace nil {
             const auto& res = detail::handle_native_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(
                     selectors_value, gates_sizes_value, gates_amount_value, constraints_value, constraints_amount_value, theta_value,
                     frame.scalars, memory, bp, assignment, start_row);
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
         }
     }    // namespace blueprint
 }    // namespace nil

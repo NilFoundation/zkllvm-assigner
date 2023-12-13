@@ -61,9 +61,10 @@ namespace nil {
 
             using component_type = components::fri_cosets<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+            typename component_type::input_type instance_input({component_input});
 
-            const auto& result = get_component_result<BlueprintFieldType, ArithmetizationParams>
-                (bp, assignment, start_row, {component_input}, res_length, omega).output;
+            const auto& result = get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                (bp, assignment, start_row, instance_input, res_length, omega).output;
 
             ptr_type result_ptr = static_cast<ptr_type>(
                 typename BlueprintFieldType::integral_type(var_value(assignment, variables[result_value]).data));

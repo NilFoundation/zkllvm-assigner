@@ -62,9 +62,10 @@ namespace nil {
 
                 var x = variables[operand0];
                 var y = variables[operand1];
+                typename component_type::input_type instance_input({x, y});
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, {x, y});
+                    (bp, assignment, start_row, instance_input);
             }
 
         }    // namespace detail
@@ -76,7 +77,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, bool next_prover) {
+            std::uint32_t start_row) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
             using component_type = components::division<
@@ -100,7 +101,7 @@ namespace nil {
                         const auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
                                 operand0, operand1, frame.scalars, bp, assignment, start_row);
-                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
+                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
                     } else {
                         UNREACHABLE("Non-native bls12-381 is undefined yet");
                     }
@@ -114,7 +115,7 @@ namespace nil {
                         const auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
                                 operand0, operand1, frame.scalars, bp, assignment, start_row);
-                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
+                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
                     } else {
                         UNREACHABLE("Non-native pallas is undefined yet");
                     }
@@ -128,7 +129,7 @@ namespace nil {
                         const auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
                                 operand0, operand1, frame.scalars, bp, assignment, start_row);
-                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
+                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
                     } else {
                         UNREACHABLE("Non-native ed25519 division is not implemented yet");
                     }

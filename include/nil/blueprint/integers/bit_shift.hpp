@@ -60,11 +60,12 @@ namespace nil {
 
             using component_type = nil::blueprint::components::bit_shift_constant<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
+            typename component_type::input_type instance_input({x});
 
             using nil::blueprint::components::bit_shift_mode;
 
             return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                (bp, assignment, start_row, {x}, Bitness, Shift, left_or_right);
+                (bp, assignment, start_row, instance_input, Bitness, Shift, left_or_right);
             }
         }    // namespace detail
 
@@ -76,7 +77,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
             std::uint32_t start_row,
-            typename nil::blueprint::components::bit_shift_mode left_or_right, bool next_prover) {
+            typename nil::blueprint::components::bit_shift_mode left_or_right) {
 
             using component_type = nil::blueprint::components::bit_shift_constant<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
@@ -90,7 +91,7 @@ namespace nil {
 
             const auto res = detail::handle_native_field_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
                                 bitness, operand0, operand1, frame.scalars, bp, assignment, start_row, left_or_right);
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
         }
 
     }    // namespace blueprint

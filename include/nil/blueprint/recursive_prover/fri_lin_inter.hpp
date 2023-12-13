@@ -45,7 +45,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, bool next_prover) {
+            std::uint32_t start_row) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -56,9 +56,10 @@ namespace nil {
 
             using component_type = components::fri_lin_inter<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+            typename component_type::input_type instance_input({s, y0, y1, alpha});
 
             handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, {s, y0, y1, alpha}, inst, frame, next_prover);
+                    (bp, assignment, start_row, instance_input, inst, frame);
 
         }
 
