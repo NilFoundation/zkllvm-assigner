@@ -62,9 +62,10 @@ namespace nil {
 
                 var x = variables[operand0];
                 var y = variables[operand1];
+                typename component_type::input_type instance_input({x, y});
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, {x, y});
+                    (bp, assignment, start_row, instance_input);
             }
 
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename OperatingFieldType>
@@ -98,9 +99,10 @@ namespace nil {
                 std::copy_n(operand1_vars.begin(),
                             non_native_policy_type::template field<OperatingFieldType>::ratio,
                             y.begin());
+                typename component_type::input_type instance_input({x, y});
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, {x, y});
+                    (bp, assignment, start_row, instance_input);
             }
 
         }    // namespace detail
@@ -112,7 +114,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, bool next_prover) {
+            std::uint32_t start_row) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
             using native_component_type = components::subtraction<
@@ -137,7 +139,7 @@ namespace nil {
                             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                                 ArithmetizationParams>(
                                                   operand0, operand1, frame.scalars, bp, assignment, start_row);
-                            handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>(assignment, inst, frame, next_prover, res);
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>(assignment, inst, frame, res);
                         } else {
                             UNREACHABLE("not implemented yet");
                         }
@@ -156,7 +158,7 @@ namespace nil {
                             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                                 ArithmetizationParams>(
                                                   operand0, operand1, frame.scalars, bp, assignment, start_row);
-                            handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>(assignment, inst, frame, next_prover, res);
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>(assignment, inst, frame, res);
                         } else {
                             UNREACHABLE("non_native_policy is not implemented yet");
                         }
@@ -178,14 +180,14 @@ namespace nil {
                             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                                 ArithmetizationParams>(
                                                   operand0, operand1, frame.scalars, bp, assignment, start_row);
-                            handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>(assignment, inst, frame, next_prover, res);
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>(assignment, inst, frame, res);
                         } else {
                             const auto& component_result = detail::handle_non_native_field_subtraction_component<
                                                        BlueprintFieldType, ArithmetizationParams, operating_field_type>(
                                                        operand0, operand1, frame.vectors, bp, assignment, start_row);
 
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, no_native_component_type>
-                                    (assignment, inst, frame, next_prover, component_result);
+                                    (assignment, inst, frame, component_result);
                         }
                     }
                     else {

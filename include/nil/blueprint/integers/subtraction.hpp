@@ -49,7 +49,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, bool next_prover) {
+            std::uint32_t start_row) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
             using component_type = components::subtraction<
@@ -62,7 +62,7 @@ namespace nil {
             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                             ArithmetizationParams>(
                                               operand0, operand1, frame.scalars, bp, assignment, start_row);
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
         }
 
     }    // namespace blueprint

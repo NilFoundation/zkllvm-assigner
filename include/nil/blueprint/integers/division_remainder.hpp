@@ -56,9 +56,10 @@ namespace nil {
 
             var x = variables[operand0];
             var y = variables[operand1];
+            typename component_type::input_type instance_input({x, y});
 
             return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                (bp, assignment, start_row, {x, y}, Bitness, true);
+                (bp, assignment, start_row, instance_input, Bitness, true);
             }
         }    // namespace detail
 
@@ -70,7 +71,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
             std::uint32_t start_row,
-            bool is_division, bool next_prover) {
+            bool is_division) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
@@ -91,7 +92,7 @@ namespace nil {
                                 bitness, operand0, operand1, frame.scalars, bp, assignment, start_row).remainder;
             }
             handle_result<BlueprintFieldType, ArithmetizationParams>
-                (assignment, inst, frame, next_prover, {res});
+                (assignment, inst, frame, {res});
         }
 
     }    // namespace blueprint

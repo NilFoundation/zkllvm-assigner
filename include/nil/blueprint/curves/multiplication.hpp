@@ -118,8 +118,8 @@ namespace nil {
 
                 typename component_type::input_type addition_input = {{T.X, T.Y}, b};
 
-                return get_component_result<BlueprintFieldType, ArithmetizationParams, ArithmetizationType, CurveType, Ed25519Type>
-                    (bp, assignment, start_row, addition_input);
+                return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                    (bp, assignment, start_row, addition_input, 253, nil::blueprint::components::bit_shift_mode::RIGHT);
             }
 
         }    // namespace detail
@@ -131,7 +131,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, bool next_prover) {
+            std::uint32_t start_row) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
@@ -186,7 +186,7 @@ namespace nil {
                                 detail::handle_native_curve_non_native_scalar_multiplication_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
                                     operand_curve, operand_field, frame.vectors, bp, assignment, start_row);
                             std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = {res.X, res.Y};
-                            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
                         } else {
                             UNREACHABLE("non-native pallas multiplication is not implemented");
                         }
@@ -226,7 +226,7 @@ namespace nil {
                                     assignment,
                                     start_row);
 
-                            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, next_prover, res);
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
                         }
                     }
 

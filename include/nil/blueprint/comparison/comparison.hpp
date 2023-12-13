@@ -48,17 +48,18 @@ namespace nil {
 
             using eq_component_type = components::equality_flag<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+            typename eq_component_type::input_type instance_input({x, y});
 
             // TODO(maksenov): replace naive handling with the component
             switch (p) {
                 case llvm::CmpInst::ICMP_EQ: {
                     return get_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
-                            (bp, assignment, start_row, {x, y}, false);
+                            (bp, assignment, start_row, instance_input, false);
                     break;
                 }
                 case llvm::CmpInst::ICMP_NE:{
                     return get_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
-                            (bp, assignment, start_row, {x, y}, true);
+                            (bp, assignment, start_row, instance_input, true);
                     break;
                 }
                 default:
