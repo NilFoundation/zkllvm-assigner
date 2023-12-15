@@ -1641,7 +1641,7 @@ namespace nil {
 
                 auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
                     base_frame, stack_memory, assignments[currProverIdx], *layout_resolver);
-                if (!input_reader.fill_public_input(function, public_input, private_input)) {
+                if (!input_reader.fill_public_input(function, public_input, private_input, log)) {
                     std::cerr << "Public input does not match the circuit signature";
                     const std::string &error = input_reader.get_error();
                     if (!error.empty()) {

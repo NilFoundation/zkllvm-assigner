@@ -38,6 +38,8 @@
 #include <iostream>
 #include <boost/json/src.hpp>
 
+#include <nil/blueprint/logger.hpp>
+
 namespace nil {
     namespace blueprint {
         template<typename BlueprintFieldType, typename var, typename Assignment>
@@ -405,7 +407,8 @@ namespace nil {
             bool fill_public_input(
                 const llvm::Function &function,
                 const boost::json::array &public_input,
-                const boost::json::array &private_input
+                const boost::json::array &private_input,
+                logger &log
             ) {
 
                 size_t ret_gap = 0;
@@ -480,9 +483,12 @@ namespace nil {
 
                 // Check if there are remaining elements of input
                 if (function.arg_size() - ret_gap!= public_input.size() + private_input.size()) {
-                    std::cerr << "public_input.size() + private_input.size() = " << public_input.size() << " + " << private_input.size() << " = " << public_input.size() + private_input.size() << "\n";
-                    std::cerr << "function.arg_size() - ret_gap = " << function.arg_size() << " - " << ret_gap << " = " << (function.arg_size() - ret_gap) - priv_iter - pub_iter << "\n";
-                    error = "too many values in the input files";
+                    log.debug(boost::format("public_input size: %1%") % public_input.size());
+                    log.debug(boost::format("private_input size: %1%") % private_input.size());
+                    log.debug(boost::format("ret_gap: %1%") % ret_gap);
+                    log.debug(boost::format("function.arg_size(): %1%") % function.arg_size());
+
+                    error = "too many values in the input files, public + private input sizes must be equal to function.arg_size - ret_gap";
                     return false;
                 }
 
