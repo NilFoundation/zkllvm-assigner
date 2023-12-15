@@ -1200,6 +1200,14 @@ namespace nil {
 
                         return inst->getNextNonDebugInstruction();
                     }
+                    case llvm::Instruction::IToGF: {
+                        if (field_arg_num<BlueprintFieldType>(inst->getType()) == 1) {
+                            frame.scalars[inst] = frame.scalars[inst->getOperand(0)];
+                        } else {
+                            UNREACHABLE("Non-native field conversion for integers is not supported");
+                        }
+                        return inst->getNextNonDebugInstruction();
+                    }
                     case llvm::Instruction::Call: {
                         auto *call_inst = llvm::cast<llvm::CallInst>(inst);
                         const auto *fun = call_inst->getCalledFunction();
