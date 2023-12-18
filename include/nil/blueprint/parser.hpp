@@ -409,6 +409,7 @@ namespace nil {
                 // Passing constants to component directly is only supported for components below
                 if (
                     id != llvm::Intrinsic::assigner_bit_decomposition &&
+                    id != llvm::Intrinsic::assigner_bit_decomposition_field &&
                     id != llvm::Intrinsic::assigner_bit_composition &&
                     id != llvm::Intrinsic::assigner_gate_arg_verifier &&
                     id != llvm::Intrinsic::assigner_permutation_arg_verifier &&
@@ -650,6 +651,7 @@ namespace nil {
                             UNREACHABLE("__builtin_assigner_gt_multiplication is implemented only for bls12381_base native field");
                         }
                     }
+                    case llvm::Intrinsic::assigner_bit_decomposition_field:
                     case llvm::Intrinsic::assigner_bit_decomposition: {
                         ASSERT(check_operands_constantness(inst, {1, 3}, frame, next_prover));
                         handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, next_prover);
