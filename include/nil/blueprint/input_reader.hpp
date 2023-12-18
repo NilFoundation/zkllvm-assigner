@@ -421,7 +421,7 @@ namespace nil {
                         ASSERT(llvm::isa<llvm::PointerType>(arg_type));
                         auto pointee = current_arg->getAttribute(llvm::Attribute::StructRet).getValueAsType();
                         ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(pointee));
-                        frame.scalars[current_arg] = put_into_assignment(ptr, false);
+                        frame.scalars[current_arg] = pointer_into_assignment(ptr);
                         ret_gap += 1;
                         continue;
                     }
