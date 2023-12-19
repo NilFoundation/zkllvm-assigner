@@ -96,7 +96,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row,
+            std::uint32_t start_row, std::uint32_t target_prover_idx,
             typename components::logic_and<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::input_type& instance_input) {
 
@@ -118,15 +118,46 @@ namespace nil {
 
             components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
 
-            return components::generate_assignments(component_instance, assignment, instance_input, start_row);
+            return components::generate_assignments(component_instance, assignment, instance_input,
+                                                    start_row);
         }
+
+        template<typename T> struct has_get_empty_rows_amount{
+        private:
+            static int detect(...);
+            template<typename U> static decltype(std::declval<U>().get_empty_rows_amount()) detect(const U&);
+        public:
+            static constexpr bool value = std::is_same<std::size_t, decltype(detect(std::declval<T>()))>::value;
+        };
+
+        template<bool>
+        struct generate_empty_assignments_if_exist {
+            template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
+            static typename ComponentType::result_type implementation(const ComponentType& component_instance,
+                      assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                          &assignment,
+                      typename ComponentType::input_type& instance_input, std::uint32_t start_row) {
+                return components::generate_assignments(component_instance, assignment, instance_input, start_row);
+            }
+        };
+
+        template<>
+        struct generate_empty_assignments_if_exist<true> {
+            template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
+            static typename ComponentType::result_type implementation(const ComponentType& component_instance,
+                                                                      assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                                                                          &assignment,
+                                                                      typename ComponentType::input_type& instance_input, std::uint32_t start_row) {
+                return components::generate_empty_assignments(component_instance, assignment, instance_input, start_row);
+            }
+        };
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType, typename... Args>
         typename ComponentType::result_type get_component_result(
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-                std::uint32_t start_row,
+                std::uint32_t start_row, std::uint32_t target_prover_idx,
                 typename ComponentType::input_type& instance_input,
                 Args... args) {
 
@@ -146,7 +177,13 @@ namespace nil {
 
             components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
 
-            return components::generate_assignments(component_instance, assignment, instance_input, start_row);
+            if (target_prover_idx == assignment.get_id() || target_prover_idx == std::numeric_limits<std::uint32_t>::max()) {
+                return components::generate_assignments(component_instance, assignment, instance_input,
+                                                        start_row);
+            } else {
+                return generate_empty_assignments_if_exist<has_get_empty_rows_amount<ComponentType>::value>::
+                    implementation(component_instance, assignment, instance_input, start_row);
+            }
         }
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
@@ -188,14 +225,14 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-                std::uint32_t start_row,
+                std::uint32_t start_row, std::uint32_t target_prover_idx,
                 typename ComponentType::input_type& instance_input,
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
                 Args... args) {
 
             const auto component_result = get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
-                    (bp, assignment, start_row, instance_input, args...);
+                    (bp, assignment, start_row, target_prover_idx, instance_input, args...);
 
             handle_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, inst, frame, component_result);
         }

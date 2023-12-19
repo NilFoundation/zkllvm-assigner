@@ -58,7 +58,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                     &assignment,
-                std::uint32_t start_row) {
+                std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
                 var L0 = variables[L0_value];
@@ -97,7 +97,7 @@ namespace nil {
                     };
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, instance_input, input_length);
+                    (bp, assignment, start_row, target_prover_idx, instance_input, input_length);
 
             }
 
@@ -111,7 +111,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
             llvm::Value *f_value = inst->getOperand(0);
             llvm::Value *Se_value = inst->getOperand(1);
@@ -133,7 +133,7 @@ namespace nil {
             typename component_type::result_type res = detail::handle_native_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(
                 f_value, Se_value, Ssigma_value, input_length_value, L0_value,
                     V_value, V_zeta_value, q_last_value, q_pad_value, thetas_value,
-                        frame.vectors, frame.scalars, memory, bp, assignment, start_row);
+                        frame.vectors, frame.scalars, memory, bp, assignment, start_row, target_prover_idx);
 
             handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
 

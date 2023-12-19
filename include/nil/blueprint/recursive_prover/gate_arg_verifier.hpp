@@ -53,7 +53,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                     &assignment,
-                std::uint32_t start_row) {
+                std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
                 var theta = variables[theta_value];
@@ -95,7 +95,7 @@ namespace nil {
                 typename component_type::input_type instance_input = {theta, constraints, selectors};
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, instance_input, gates_sizes);
+                    (bp, assignment, start_row, target_prover_idx, instance_input, gates_sizes);
 
             }
 
@@ -109,7 +109,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
             llvm::Value *selectors_value = inst->getOperand(0);
             llvm::Value *gates_sizes_value = inst->getOperand(1);
@@ -123,7 +123,7 @@ namespace nil {
 
             const auto& res = detail::handle_native_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(
                     selectors_value, gates_sizes_value, gates_amount_value, constraints_value, constraints_amount_value, theta_value,
-                    frame.scalars, memory, bp, assignment, start_row);
+                    frame.scalars, memory, bp, assignment, start_row, target_prover_idx);
             handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
         }
     }    // namespace blueprint

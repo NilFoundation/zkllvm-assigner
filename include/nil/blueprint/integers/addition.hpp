@@ -48,7 +48,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
@@ -56,7 +56,7 @@ namespace nil {
             llvm::Value *operand1 = inst->getOperand(1);
 
             const auto res = detail::handle_native_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, frame.scalars, bp, assignment, start_row);
+                                operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx);
 
             using component_type = components::addition<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
