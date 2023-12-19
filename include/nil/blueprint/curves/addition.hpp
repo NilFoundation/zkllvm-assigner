@@ -52,7 +52,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
-                    std::uint32_t start_row) {
+                    std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -70,7 +70,7 @@ namespace nil {
                 typename component_type::input_type addition_input = {{P.X, P.Y}, {Q.X, Q.Y}};
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, addition_input);
+                    (bp, assignment, start_row, target_prover_idx, addition_input);
             }
 
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename CurveType, typename Ed25519Type>
@@ -85,7 +85,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
-                    std::uint32_t start_row) {
+                    std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -127,7 +127,7 @@ namespace nil {
                 typename component_type::input_type addition_input = {{P.X, P.Y}, {Q.X, Q.Y}};
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, addition_input);
+                    (bp, assignment, start_row, target_prover_idx, addition_input);
             }
         }    // namespace detail
 
@@ -138,7 +138,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
@@ -168,7 +168,7 @@ namespace nil {
                             using component_type = components::unified_addition<ArithmetizationType, operating_curve_type>;
                             typename component_type::result_type res =
                                 detail::handle_native_curve_unified_addition_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
-                                    operand0, operand1, frame.vectors, bp, assignment, start_row);
+                                    operand0, operand1, frame.vectors, bp, assignment, start_row, target_prover_idx);
                             std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = {res.X, res.Y};
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
                         } else {
@@ -209,7 +209,7 @@ namespace nil {
                                 operating_curve_type, basic_non_native_policy<BlueprintFieldType>>;
                             typename component_type::result_type res =
                                 detail::handle_non_native_curve_addition_component<BlueprintFieldType, ArithmetizationParams, pallas_curve_type, operating_curve_type>(
-                                    operand0, operand1, frame.vectors, bp, assignment, start_row);
+                                    operand0, operand1, frame.vectors, bp, assignment, start_row, target_prover_idx);
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
                         }
                     }

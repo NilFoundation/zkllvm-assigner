@@ -44,7 +44,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-                std::uint32_t start_row) {
+                std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
             using eq_component_type = components::equality_flag<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
@@ -54,12 +54,12 @@ namespace nil {
             switch (p) {
                 case llvm::CmpInst::ICMP_EQ: {
                     return get_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
-                            (bp, assignment, start_row, instance_input, false);
+                            (bp, assignment, start_row, target_prover_idx, instance_input, false);
                     break;
                 }
                 case llvm::CmpInst::ICMP_NE:{
                     return get_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
-                            (bp, assignment, start_row, instance_input, true);
+                            (bp, assignment, start_row, target_prover_idx, instance_input, true);
                     break;
                 }
                 default:

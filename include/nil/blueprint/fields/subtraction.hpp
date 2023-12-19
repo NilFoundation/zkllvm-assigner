@@ -52,7 +52,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
-                    std::uint32_t start_row) {
+                    std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -65,7 +65,7 @@ namespace nil {
                 typename component_type::input_type instance_input({x, y});
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, instance_input);
+                    (bp, assignment, start_row, target_prover_idx, instance_input);
             }
 
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename OperatingFieldType>
@@ -78,7 +78,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
-                    std::uint32_t start_row) {
+                    std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
                 using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
@@ -102,7 +102,7 @@ namespace nil {
                 typename component_type::input_type instance_input({x, y});
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, instance_input);
+                    (bp, assignment, start_row, target_prover_idx, instance_input);
             }
 
         }    // namespace detail
@@ -114,7 +114,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
             using native_component_type = components::subtraction<
@@ -138,7 +138,7 @@ namespace nil {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                                 ArithmetizationParams>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, start_row);
+                                                  operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx);
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>(assignment, inst, frame, res);
                         } else {
                             UNREACHABLE("not implemented yet");
@@ -157,7 +157,7 @@ namespace nil {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                                 ArithmetizationParams>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, start_row);
+                                                  operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx);
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>(assignment, inst, frame, res);
                         } else {
                             UNREACHABLE("non_native_policy is not implemented yet");
@@ -179,12 +179,12 @@ namespace nil {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType,
                                                                                                 ArithmetizationParams>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, start_row);
+                                                  operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx);
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>(assignment, inst, frame, res);
                         } else {
                             const auto& component_result = detail::handle_non_native_field_subtraction_component<
                                                        BlueprintFieldType, ArithmetizationParams, operating_field_type>(
-                                                       operand0, operand1, frame.vectors, bp, assignment, start_row);
+                                                       operand0, operand1, frame.vectors, bp, assignment, start_row, target_prover_idx);
 
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, no_native_component_type>
                                     (assignment, inst, frame, component_result);

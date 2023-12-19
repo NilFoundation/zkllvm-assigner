@@ -110,10 +110,11 @@ namespace nil {
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         struct parser {
 
-            parser(long stack_size, boost::log::trivial::severity_level log_level, std::uint32_t max_num_provers, const std::string &kind = "",
+            parser(long stack_size, boost::log::trivial::severity_level log_level, std::uint32_t max_num_provers, std::uint32_t target_prover_idx, const std::string &kind = "",
                     print_format output_print_format = no_print, bool check_validity = false) :
                 stack_memory(stack_size),
                 maxNumProvers(max_num_provers),
+                targetProverIdx(target_prover_idx),
                 currProverIdx(0),
                 log(log_level),
                 print_output_format(output_print_format),
@@ -185,7 +186,7 @@ namespace nil {
                     const auto start_row = assignments[currProverIdx].allocated_rows();
                     const auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         p, lhs, rhs, bitness,
-                        circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                     handle_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
                             (assignments[currProverIdx], inst, frame, v);
                 } else {
@@ -241,7 +242,7 @@ namespace nil {
                     const auto start_row = assignments[currProverIdx].allocated_rows();
                     auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         inst->getPredicate(), lhs[i], rhs[i], bitness,
-                        circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
 
                     res.emplace_back(v.output);
                 }
@@ -267,7 +268,7 @@ namespace nil {
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         inst->getPredicate(), lhs[i], rhs[i], 0,
-                        circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows());
+                        circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows(), targetProverIdx);
                     res.emplace_back(v.output);
                 }
 
@@ -278,7 +279,7 @@ namespace nil {
                 for (size_t i = 1; i < lhs.size(); ++i) {
                     are_curves_equal = handle_logic_and<BlueprintFieldType, ArithmetizationParams>(
                         are_curves_equal, res[i], circuits[currProverIdx], assignments[currProverIdx],
-                        assignments[currProverIdx].allocated_rows());
+                        assignments[currProverIdx].allocated_rows(), targetProverIdx);
                 }
                 handle_result<BlueprintFieldType, ArithmetizationParams>
                     (assignments[currProverIdx], inst, frame, {are_curves_equal});
@@ -452,7 +453,7 @@ namespace nil {
                         typename component_type::input_type instance_input = {input_state_var};
 
                         handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
-                                (circuits[currProverIdx], assignments[currProverIdx], start_row, instance_input, inst, frame);
+                                (circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, instance_input, inst, frame);
                         return true;
                         }
                         else {
@@ -463,12 +464,12 @@ namespace nil {
                         handle_sha2_256_component<BlueprintFieldType, ArithmetizationParams>(inst, frame,
                                                                                              circuits[currProverIdx],
                                                                                              assignments[currProverIdx],
-                                                                                             start_row);
+                                                                                             start_row, targetProverIdx);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_sha2_512: {
                         if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::curves::pallas::base_field_type>::value) {
-                            handle_sha2_512_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                            handle_sha2_512_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return true;
                         }
                         else {
@@ -619,12 +620,12 @@ namespace nil {
                     case llvm::Intrinsic::assigner_bit_decomposition_field:
                     case llvm::Intrinsic::assigner_bit_decomposition: {
                         ASSERT(check_operands_constantness(inst, {1, 3}, frame));
-                        handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_bit_composition: {
                         ASSERT(check_operands_constantness(inst, {1, 2}, frame));
-                        handle_integer_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        handle_integer_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_print_native_pallas_field: {
@@ -689,7 +690,7 @@ namespace nil {
 
                         var comparison_result = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                             llvm::CmpInst::ICMP_EQ, logical_statement, zero_var, bitness,
-                            circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows()).output;
+                            circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows(), targetProverIdx).output;
 
                         if(validity_check) {
                             bool assigner_exit_check_input = var_value(assignments[currProverIdx], comparison_result) == 0;
@@ -702,22 +703,22 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_lin_inter: {
-                        handle_fri_lin_inter_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        handle_fri_lin_inter_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_cosets: {
                         ASSERT_MSG(check_operands_constantness(inst, {1, 2}, frame), "result length, omega and total_bits must be constants");
-                        handle_fri_cosets_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        handle_fri_cosets_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_gate_arg_verifier: {
                         ASSERT_MSG(check_operands_constantness(inst, {1, 2, 4}, frame), "gates_sizes, gates and selectors amount must be constants");
-                        handle_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        handle_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_permutation_arg_verifier: {
                         ASSERT_MSG(check_operands_constantness(inst, {3}, frame), "f, se, sigma size must be constant");
-                        handle_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        handle_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_lookup_arg_verifier: {
@@ -725,12 +726,12 @@ namespace nil {
                         for (std::size_t i = 0; i < 8; i++) { constants_positions.push_back(i);}
                         for (std::size_t i = 4; i < 13; i++) { constants_positions.push_back(2*i + 1);}
                         ASSERT_MSG(check_operands_constantness(inst, constants_positions, frame), "vectors sizes must be constants");
-                        handle_lookup_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        handle_lookup_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_array_swap: {
                         ASSERT_MSG(check_operands_constantness(inst, {1}, frame), "array size must be constant");
-                        handle_fri_array_swap_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                        handle_fri_array_swap_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                         return true;
                     }
 
@@ -1039,17 +1040,17 @@ namespace nil {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
                             handle_integer_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                                        inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                                        inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return inst->getNextNonDebugInstruction();
                         }
 
                         if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                                        inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                                        inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return inst->getNextNonDebugInstruction();
                         } else if (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isCurveTy()) {
                             handle_curve_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                                        inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                                        inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return inst->getNextNonDebugInstruction();
                         } else {
                             UNREACHABLE("curve + scalar is undefined");
@@ -1060,17 +1061,17 @@ namespace nil {
                     case llvm::Instruction::Sub: {
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
                             handle_integer_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return inst->getNextNonDebugInstruction();
                         }
 
                         if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return inst->getNextNonDebugInstruction();
                         } else if (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isCurveTy()) {
                             handle_curve_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return inst->getNextNonDebugInstruction();
                         } else {
                             UNREACHABLE("curve - scalar is undefined");
@@ -1082,13 +1083,13 @@ namespace nil {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
                             handle_integer_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return inst->getNextNonDebugInstruction();
                         }
 
                         if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return inst->getNextNonDebugInstruction();
                         }
 
@@ -1102,7 +1103,7 @@ namespace nil {
                             (inst->getOperand(1)->getType()->isCurveTy() && inst->getOperand(0)->getType()->isFieldTy())) {
 
                             handle_curve_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return inst->getNextNonDebugInstruction();
                         } else {
                             UNREACHABLE("cmul opcode is defined only for curveTy * fieldTy");
@@ -1111,12 +1112,12 @@ namespace nil {
                     case llvm::Instruction::UDiv: {
                         if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
                             handle_integer_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, true);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, true);
                             return inst->getNextNonDebugInstruction();
                         }
                         else if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return inst->getNextNonDebugInstruction();
                         }
                         else {
@@ -1126,7 +1127,7 @@ namespace nil {
                     case llvm::Instruction::URem: {
                         if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
                             handle_integer_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, false);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, false);
                             return inst->getNextNonDebugInstruction();
                         } else {
                             UNREACHABLE("URem opcode is defined only for integerTy");
@@ -1135,7 +1136,7 @@ namespace nil {
                     case llvm::Instruction::Shl: {
                         if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
                             handle_integer_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row,
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx,
                                         nil::blueprint::components::bit_shift_mode::LEFT);
                             return inst->getNextNonDebugInstruction();
                         } else {
@@ -1145,7 +1146,7 @@ namespace nil {
                     case llvm::Instruction::LShr: {
                         if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
                             handle_integer_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row,
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx,
                                         nil::blueprint::components::bit_shift_mode::RIGHT);
                             return inst->getNextNonDebugInstruction();
                         } else {
@@ -1156,13 +1157,13 @@ namespace nil {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
                             handle_integer_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return inst->getNextNonDebugInstruction();
                         }
 
                         if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
                             return inst->getNextNonDebugInstruction();
                         }
 
@@ -1684,6 +1685,7 @@ namespace nil {
             var zero_var;
             logger log;
             std::uint32_t maxNumProvers;
+            std::uint32_t targetProverIdx;
             std::uint32_t currProverIdx;
             std::shared_ptr<circuit<ArithmetizationType>> bp_ptr;
             std::shared_ptr<assignment<ArithmetizationType>> assignment_ptr;

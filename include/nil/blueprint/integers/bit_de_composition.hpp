@@ -50,7 +50,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             var component_input = variables[input];
@@ -63,7 +63,7 @@ namespace nil {
             typename component_type::input_type instance_input({component_input});
 
             auto result = get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                (bp, assignment, start_row, instance_input, BitsAmount, Mode).output;
+                (bp, assignment, start_row, target_prover_idx, instance_input, BitsAmount, Mode).output;
 
             ptr_type result_ptr = static_cast<ptr_type>(
                 typename BlueprintFieldType::integral_type(var_value(assignment, variables[result_value]).data));
@@ -86,7 +86,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -104,7 +104,7 @@ namespace nil {
             typename component_type::input_type instance_input({component_input});
 
             return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                (bp, assignment, start_row, instance_input, bitness_from_intrinsic, true, Mode);
+                (bp, assignment, start_row, target_prover_idx, instance_input, bitness_from_intrinsic, true, Mode);
             }
         }    // namespace detail
 
@@ -116,7 +116,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
             llvm::Value *result_value = inst->getOperand(0);
             llvm::Value *bitness_value = inst->getOperand(1);
@@ -131,7 +131,7 @@ namespace nil {
                 static_cast<bool>(typename BlueprintFieldType::integral_type(sig_bit_marshalled[0].data));
 
             detail::handle_native_field_decomposition_component<BlueprintFieldType, ArithmetizationParams>(
-                                bitness_from_intrinsic, result_value, input, is_msb, frame.vectors, frame.scalars, memory, bp, assignment, start_row);
+                                bitness_from_intrinsic, result_value, input, is_msb, frame.vectors, frame.scalars, memory, bp, assignment, start_row, target_prover_idx);
         }
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
@@ -142,7 +142,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
             using component_type = nil::blueprint::components::bit_composition<
@@ -153,7 +153,7 @@ namespace nil {
             llvm::Value *operand_sig_bit = inst->getOperand(2);
 
             const auto res = detail::handle_native_field_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(
-                                result_value, bitness_value, operand_sig_bit, frame.vectors, frame.scalars, memory,  bp, assignment, start_row);
+                                result_value, bitness_value, operand_sig_bit, frame.vectors, frame.scalars, memory,  bp, assignment, start_row, target_prover_idx);
 
             handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
         }
