@@ -1000,10 +1000,10 @@ namespace nil {
                 // extract zk related metadata
                 std::uint32_t userProverIdx = extract_prover_idx_metadata(inst);
 
-                if (userProverIdx < currProverIdx || userProverIdx >= maxNumProvers) {
+                if ((userProverIdx != currProverIdx && userProverIdx != currProverIdx + 1) ||
+                    userProverIdx >= maxNumProvers) {
                     std::cout << "WARNING: ignored user defined prover index " << userProverIdx
-                              << ", must be not less " << currProverIdx
-                              << " and not more " << maxNumProvers - 1 << std::endl;
+                              << ", must be " << currProverIdx + 1 << std::endl;
                     userProverIdx = currProverIdx;
                 }
 
