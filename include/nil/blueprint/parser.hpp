@@ -1459,6 +1459,11 @@ namespace nil {
                         frame.scalars[inst] = x;
                         return inst->getNextNonDebugInstruction();
                     }
+                    case llvm::Instruction::Freeze: {
+                        // Currently freeze is a no-op
+                        frame.scalars[inst] = frame.scalars[inst->getOperand(0)];
+                        return inst->getNextNonDebugInstruction();
+                    }
                     case llvm::Instruction::SExt:
                     case llvm::Instruction::ZExt: {
                         // FIXME: Handle extensions properly. For now just leave value as it is.
