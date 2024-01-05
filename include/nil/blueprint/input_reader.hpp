@@ -318,7 +318,7 @@ namespace nil {
                 ASSERT(value.size() == 1 && value.contains("array"));
                 ASSERT(value.at("array").is_array());
                 auto &arr = value.at("array").as_array();
-                ASSERT(array_type->getNumElements() == arr.size());
+                ASSERT_MSG(array_type->getNumElements() == arr.size(), (std::to_string(array_type->getNumElements()) + " != " + std::to_string(arr.size())).c_str());
                 for (size_t i = 0; i < array_type->getNumElements(); ++i) {
                     ptr = dispatch_type(array_type->getElementType(), arr[i], ptr, is_private);
                 }
