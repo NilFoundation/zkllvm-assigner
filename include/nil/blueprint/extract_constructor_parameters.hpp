@@ -76,15 +76,28 @@ namespace nil {
             std::vector<var> extract_intrinsic_input_vector(llvm::Value *input_value, std::size_t input_length,
             typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
                 program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
-                    &assignment
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    &assignment, generate_flag gen_flag
                 ) {
                 std::vector<var> res = {};
-                ptr_type input_ptr = static_cast<ptr_type>(
-                    typename BlueprintFieldType::integral_type(var_value(assignment, variables[input_value]).data));
-                for(std::size_t i = 0; i < input_length; i++) {
+                if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS)) {
+                    ptr_type input_ptr = static_cast<ptr_type>(
+                        typename BlueprintFieldType::integral_type(var_value(assignment, variables[input_value]).data));
+                    for (std::size_t i = 0; i < input_length; i++) {
                         ASSERT(memory[input_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                        res.push_back(memory.load(input_ptr++));
+                        const auto origin_var = memory.load(input_ptr++);
+                        const auto wrapper = detail::put_constant<typename BlueprintFieldType::value_type,
+                                                                  BlueprintFieldType, ArithmetizationParams, var>
+                            (var_value(assignment, origin_var), assignment);
+                        res.push_back(wrapper);
+                    }
+                } else {
+                    const auto undef_val = typename BlueprintFieldType::value_type();
+                    for (std::size_t i = 0; i < input_length; i++) {
+                        const auto undef_var = detail::put_constant<typename BlueprintFieldType::value_type,
+                                                                    BlueprintFieldType, ArithmetizationParams, var>(undef_val, assignment);
+                        res.push_back(undef_var);
+                    }
                 }
                 return res;
             }

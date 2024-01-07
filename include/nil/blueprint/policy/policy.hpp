@@ -27,7 +27,7 @@
 
 #include <algorithm>
 
-#include <nil/blueprint/component_manifest_utilities.hpp>
+#include <nil/blueprint/utilities.hpp>
 
 namespace nil {
     namespace blueprint {

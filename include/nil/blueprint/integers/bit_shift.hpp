@@ -47,7 +47,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx,
+            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag,
             typename nil::blueprint::components::bit_shift_mode left_or_right) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -56,6 +56,8 @@ namespace nil {
             var shift_var = variables[operand1];
 
             //TODO: Shift should be input of the component, not as done there
+            //for now Shift must be constant
+            ASSERT(shift_var.type == var::column_type::constant && assignment.constant(shift_var.index).size() > shift_var.rotation);
             std::size_t Shift = std::size_t(typename BlueprintFieldType::integral_type(var_value(assignment, shift_var).data));
 
             using component_type = nil::blueprint::components::bit_shift_constant<
@@ -65,7 +67,7 @@ namespace nil {
             using nil::blueprint::components::bit_shift_mode;
 
             return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                (bp, assignment, start_row, target_prover_idx, instance_input, Bitness, Shift, left_or_right);
+                (bp, assignment, start_row, target_prover_idx, instance_input, gen_flag, Bitness, Shift, left_or_right);
             }
         }    // namespace detail
 
@@ -76,7 +78,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx,
+            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag,
             typename nil::blueprint::components::bit_shift_mode left_or_right) {
 
             using component_type = nil::blueprint::components::bit_shift_constant<
@@ -90,8 +92,8 @@ namespace nil {
             std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
 
             const auto res = detail::handle_native_field_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
-                                bitness, operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx, left_or_right);
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
+                                bitness, operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx, gen_flag, left_or_right);
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, gen_flag);
         }
 
     }    // namespace blueprint
