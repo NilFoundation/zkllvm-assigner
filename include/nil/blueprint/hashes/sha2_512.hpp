@@ -47,7 +47,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             using sha2_512_component_type = components::sha512<
@@ -74,7 +74,10 @@ namespace nil {
 
             typename sha2_512_component_type::result_type sha2_512_component_result =
                 get_component_result<BlueprintFieldType, ArithmetizationParams, sha2_512_component_type>
-                    (bp, assignment, start_row, target_prover_idx, sha2_512_instance_input);
+                    (bp, assignment, start_row, target_prover_idx, sha2_512_instance_input, gen_flag);
+
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, sha2_512_component_type>
+                (assignment, inst, frame, sha2_512_component_result, gen_flag);
 
             using reduction_component_type = components::reduction<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType,
@@ -86,10 +89,10 @@ namespace nil {
 
             typename reduction_component_type::result_type reduction_component_result =
                     get_component_result<BlueprintFieldType, ArithmetizationParams, reduction_component_type>
-                            (bp, assignment, start_row, target_prover_idx, reduction_instance_input);
+                            (bp, assignment, start_row, target_prover_idx, reduction_instance_input, gen_flag);
 
             handle_component_result<BlueprintFieldType, ArithmetizationParams, reduction_component_type>
-                    (assignment, inst, frame, reduction_component_result);
+                    (assignment, inst, frame, reduction_component_result, gen_flag);
         }
     }    // namespace blueprint
 }    // namespace nil

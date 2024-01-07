@@ -53,7 +53,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                     &assignment,
-                std::uint32_t start_row, std::uint32_t target_prover_idx) {
+                std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
                 var theta = variables[theta_value];
@@ -84,10 +84,10 @@ namespace nil {
 
 
                 std::vector<var> selectors = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
-                    selectors_value, gates_amount, variables, memory, assignment);
+                    selectors_value, gates_amount, variables, memory, assignment, gen_flag);
 
                 std::vector<var> constraints = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
-                    constraints_value, constraints_amount, variables, memory, assignment);
+                    constraints_value, constraints_amount, variables, memory, assignment, gen_flag);
 
                 using component_type = components::basic_constraints_verifier<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
@@ -95,7 +95,7 @@ namespace nil {
                 typename component_type::input_type instance_input = {theta, constraints, selectors};
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, target_prover_idx, instance_input, gates_sizes);
+                    (bp, assignment, start_row, target_prover_idx, instance_input, gen_flag, gates_sizes);
 
             }
 
@@ -109,7 +109,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
 
             llvm::Value *selectors_value = inst->getOperand(0);
             llvm::Value *gates_sizes_value = inst->getOperand(1);
@@ -123,8 +123,8 @@ namespace nil {
 
             const auto& res = detail::handle_native_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(
                     selectors_value, gates_sizes_value, gates_amount_value, constraints_value, constraints_amount_value, theta_value,
-                    frame.scalars, memory, bp, assignment, start_row, target_prover_idx);
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
+                    frame.scalars, memory, bp, assignment, start_row, target_prover_idx, gen_flag);
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, gen_flag);
         }
     }    // namespace blueprint
 }    // namespace nil

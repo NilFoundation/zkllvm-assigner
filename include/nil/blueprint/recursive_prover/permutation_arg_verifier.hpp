@@ -58,7 +58,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                     &assignment,
-                std::uint32_t start_row, std::uint32_t target_prover_idx) {
+                std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
                 var L0 = variables[L0_value];
@@ -72,13 +72,13 @@ namespace nil {
                 std::size_t input_length = extract_constant_size_t_value<BlueprintFieldType>(input_length_value);
 
                 std::vector<var> Ssigma = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
-                    Ssigma_value, input_length, variables, memory, assignment);
+                    Ssigma_value, input_length, variables, memory, assignment, gen_flag);
 
                 std::vector<var> f = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
-                    f_value, input_length, variables, memory, assignment);
+                    f_value, input_length, variables, memory, assignment, gen_flag);
 
                 std::vector<var> Se = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
-                    Se_value, input_length, variables, memory, assignment);
+                    Se_value, input_length, variables, memory, assignment, gen_flag);
 
 
                 using component_type = components::permutation_verifier<
@@ -97,7 +97,7 @@ namespace nil {
                     };
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, target_prover_idx, instance_input, input_length);
+                    (bp, assignment, start_row, target_prover_idx, instance_input, gen_flag, input_length);
 
             }
 
@@ -111,7 +111,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
 
             llvm::Value *f_value = inst->getOperand(0);
             llvm::Value *Se_value = inst->getOperand(1);
@@ -133,9 +133,9 @@ namespace nil {
             typename component_type::result_type res = detail::handle_native_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(
                 f_value, Se_value, Ssigma_value, input_length_value, L0_value,
                     V_value, V_zeta_value, q_last_value, q_pad_value, thetas_value,
-                        frame.vectors, frame.scalars, memory, bp, assignment, start_row, target_prover_idx);
+                        frame.vectors, frame.scalars, memory, bp, assignment, start_row, target_prover_idx, gen_flag);
 
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res);
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, gen_flag);
 
         }
     }    // namespace blueprint

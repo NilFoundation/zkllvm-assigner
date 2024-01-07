@@ -51,7 +51,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             var component_input = variables[input];
@@ -64,14 +64,16 @@ namespace nil {
             typename component_type::input_type instance_input({component_input});
 
             const auto& result = get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                (bp, assignment, start_row, target_prover_idx, instance_input, res_length, omega).output;
+                (bp, assignment, start_row, target_prover_idx, instance_input, gen_flag, res_length, omega).output;
 
-            ptr_type result_ptr = static_cast<ptr_type>(
-                typename BlueprintFieldType::integral_type(var_value(assignment, variables[result_value]).data));
-            for(std::size_t i = 0; i < result.size(); i++) {
-                for(std::size_t j = 0; j < 3; j++) {
-                    ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                    memory.store(result_ptr++, result[i][j]);
+            if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS)) {
+                ptr_type result_ptr = static_cast<ptr_type>(
+                    typename BlueprintFieldType::integral_type(var_value(assignment, variables[result_value]).data));
+                for (std::size_t i = 0; i < result.size(); i++) {
+                    for (std::size_t j = 0; j < 3; j++) {
+                        ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
+                        memory.store(result_ptr++, result[i][j]);
+                    }
                 }
             }
         }
@@ -86,7 +88,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
 
             llvm::Value *result_value = inst->getOperand(0);
             llvm::Value *result_length_value = inst->getOperand(1);
@@ -94,7 +96,7 @@ namespace nil {
             llvm::Value *input = inst->getOperand(3);
 
             detail::handle_native_fri_cosets_component<BlueprintFieldType, ArithmetizationParams>(
-                result_value, result_length_value, omega_value, input, frame.vectors, frame.scalars, memory, bp, assignment, start_row, target_prover_idx);
+                result_value, result_length_value, omega_value, input, frame.vectors, frame.scalars, memory, bp, assignment, start_row, target_prover_idx, gen_flag);
 
         }
 

@@ -45,7 +45,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
 
             llvm::Value *result_value = inst->getOperand(0);
             llvm::Value *array_size_value = inst->getOperand(1);
@@ -58,7 +58,7 @@ namespace nil {
 
 
             std::vector<var> input_array = detail::extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
-                    input_array_value, array_size, frame.scalars, memory, assignment);
+                    input_array_value, array_size, frame.scalars, memory, assignment, gen_flag);
 
             var input_bool = frame.scalars[input_bool_value];
 
@@ -71,13 +71,15 @@ namespace nil {
             };
 
             std::vector<var> res = get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, target_prover_idx, instance_input, array_size / 2).output;
+                    (bp, assignment, start_row, target_prover_idx, instance_input, gen_flag, array_size / 2).output;
 
-            ptr_type result_ptr = static_cast<ptr_type>(
-                typename BlueprintFieldType::integral_type(var_value(assignment, frame.scalars[result_value]).data));
-            for(std::size_t i = 0; i < array_size; i++) {
-                ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                memory.store(result_ptr++, res[i]);
+            if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS)) {
+                ptr_type result_ptr = static_cast<ptr_type>(typename BlueprintFieldType::integral_type(
+                    var_value(assignment, frame.scalars[result_value]).data));
+                for (std::size_t i = 0; i < array_size; i++) {
+                    ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
+                    memory.store(result_ptr++, res[i]);
+                }
             }
         }
     }    // namespace blueprint

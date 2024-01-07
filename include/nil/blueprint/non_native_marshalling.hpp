@@ -197,6 +197,44 @@ namespace nil {
             return value_into_vector<BlueprintFieldType, NonNativeFieldType>(typename NonNativeFieldType::value_type(glued_non_native));
         }
 
+        template<typename BlueprintFieldType>
+        size_t size_of_non_native_type (llvm::GaloisFieldKind arg_field_type) {
+            switch (arg_field_type) {
+                case llvm::GALOIS_FIELD_CURVE25519_BASE: {
+                    using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
+                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
+                    return non_native_policy::ratio;
+                }
+                case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
+                    using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::scalar_field_type;
+                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
+                    return non_native_policy::ratio;
+                }
+                case llvm::GALOIS_FIELD_PALLAS_BASE: {
+                    using non_native_field_type = typename nil::crypto3::algebra::curves::pallas::base_field_type;
+                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
+                    return non_native_policy::ratio;
+                }
+                case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
+                    using non_native_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
+                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
+                    return non_native_policy::ratio;
+                }
+                case llvm::GALOIS_FIELD_BLS12381_BASE: {
+                    using non_native_field_type = typename nil::crypto3::algebra::fields::bls12_base_field<381>;
+                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
+                    return non_native_policy::ratio;
+                }
+                case llvm::GALOIS_FIELD_BLS12381_SCALAR: {
+                    using non_native_field_type = typename nil::crypto3::algebra::fields::bls12_scalar_field<381>;
+                    using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, non_native_field_type>;
+                    return non_native_policy::ratio;
+                }
+
+                default:
+                    UNREACHABLE("unsupported field operand type");
+            }
+        }
 
         template<typename BlueprintFieldType>
         std::vector<typename BlueprintFieldType::value_type> extended_integral_into_vector (llvm::GaloisFieldKind arg_field_type, typename BlueprintFieldType::extended_integral_type glued_non_native) {

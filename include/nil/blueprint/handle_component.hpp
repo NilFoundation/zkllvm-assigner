@@ -66,11 +66,28 @@
 namespace nil {
     namespace blueprint {
 
+        enum class generate_flag : uint8_t {
+            NONE = 0,
+            CIRCUIT = 1 << 0,
+            ASSIGNMENTS = 1 << 1,
+            FALSE_ASSIGNMENTS = 1 << 2
+        };
+
+        constexpr enum generate_flag operator |( const enum generate_flag self, const enum generate_flag val )
+        {
+            return (enum generate_flag)(uint8_t(self) | uint8_t(val));
+        }
+
+        constexpr enum generate_flag operator &( const enum generate_flag self, const enum generate_flag val )
+        {
+            return (enum generate_flag)(uint8_t(self) & uint8_t(val));
+        }
+
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
         void handle_component_input(
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            typename ComponentType::input_type& instance_input) {
+            typename ComponentType::input_type& instance_input, generate_flag gen_flag) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -80,7 +97,14 @@ namespace nil {
             for (auto& v : input) {
                 bool found = (used_rows.find(v.get().rotation) != used_rows.end());
                 if (!found && (v.get().type == var::column_type::witness || v.get().type == var::column_type::constant)) {
-                    const auto new_v = save_shared_var(assignment, v);
+                    var new_v;
+                    if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS)) {
+                        new_v = save_shared_var(assignment, v);
+                    } else {
+                        const auto& shared_idx = assignment.shared_column_size(0);
+                        assignment.shared(0, shared_idx) = BlueprintFieldType::value_type::zero();;
+                        new_v = var(1, shared_idx, false, var::column_type::public_input);
+                    }
                     v.get().index = new_v.index;
                     v.get().rotation = new_v.rotation;
                     v.get().relative = new_v.relative;
@@ -96,7 +120,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx,
+            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag,
             typename components::logic_and<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::input_type& instance_input) {
 
@@ -114,12 +138,35 @@ namespace nil {
                 }
             };
 
-            handle_component_input<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, instance_input);
+            handle_component_input<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, instance_input, gen_flag);
 
             components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
 
-            return components::generate_assignments(component_instance, assignment, instance_input,
-                                                    start_row);
+            if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS)) {
+                return components::generate_assignments(component_instance, assignment, instance_input,
+                                                        start_row);
+            } else {
+                return typename component_type::result_type(component_instance, start_row);
+            }
+        }
+
+        template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
+        void generate_circuit(
+            ComponentType& component_instance,
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                &assignment,
+            const typename ComponentType::input_type& instance_input,
+            std::uint32_t start_row) {
+
+            if constexpr( use_lookups<ComponentType>() ){
+                auto lookup_tables = component_instance.component_lookup_tables();
+                for(auto &[k,v]:lookup_tables){
+                    bp.reserve_table(k);
+                }
+            };
+
+            components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
         }
 
         template<typename T> struct has_get_empty_rows_amount{
@@ -136,7 +183,7 @@ namespace nil {
             static typename ComponentType::result_type implementation(const ComponentType& component_instance,
                       assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                           &assignment,
-                      typename ComponentType::input_type& instance_input, std::uint32_t start_row) {
+                      const typename ComponentType::input_type& instance_input, std::uint32_t start_row) {
                 return components::generate_assignments(component_instance, assignment, instance_input, start_row);
             }
         };
@@ -147,35 +194,18 @@ namespace nil {
             static typename ComponentType::result_type implementation(const ComponentType& component_instance,
                                                                       assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                                                                           &assignment,
-                                                                      typename ComponentType::input_type& instance_input, std::uint32_t start_row) {
+                                                                      const typename ComponentType::input_type& instance_input, std::uint32_t start_row) {
                 return components::generate_empty_assignments(component_instance, assignment, instance_input, start_row);
             }
         };
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType, typename... Args>
-        typename ComponentType::result_type get_component_result(
-                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+        template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
+        typename ComponentType::result_type generate_assignments(
+            const ComponentType& component_instance,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-                std::uint32_t start_row, std::uint32_t target_prover_idx,
-                typename ComponentType::input_type& instance_input,
-                Args... args) {
-
-            const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType, ArithmetizationParams>::get_witness(0, args...));
-
-            ComponentType component_instance(p.witness, detail::ManifestReader<ComponentType, ArithmetizationParams>::get_constants(),
-                                              detail::ManifestReader<ComponentType, ArithmetizationParams>::get_public_inputs(), args...);
-
-            if constexpr( use_lookups<ComponentType>() ){
-                auto lookup_tables = component_instance.component_lookup_tables();
-                for(auto &[k,v]:lookup_tables){
-                    bp.reserve_table(k);
-                }
-            };
-
-            handle_component_input<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, instance_input);
-
-            components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
+            const typename ComponentType::input_type& instance_input,
+            std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
             if (target_prover_idx == assignment.get_id() || target_prover_idx == std::numeric_limits<std::uint32_t>::max()) {
                 return components::generate_assignments(component_instance, assignment, instance_input,
@@ -186,18 +216,104 @@ namespace nil {
             }
         }
 
+        template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType, typename... Args>
+        typename ComponentType::result_type get_component_result(
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                &assignment,
+                std::uint32_t start_row, std::uint32_t target_prover_idx,
+                typename ComponentType::input_type& instance_input,
+                generate_flag gen_flag,
+                Args... args) {
+
+            const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType, ArithmetizationParams>::get_witness(0, args...));
+
+            ComponentType component_instance(p.witness, detail::ManifestReader<ComponentType, ArithmetizationParams>::get_constants(),
+                                              detail::ManifestReader<ComponentType, ArithmetizationParams>::get_public_inputs(), args...);
+
+            handle_component_input<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, instance_input, gen_flag);
+
+            // copy constraints before execute component
+            const auto num_copy_constraints = bp.copy_constraints().size();
+
+            // generate circuit in any case for fill selectors
+            generate_circuit(component_instance, bp, assignment, instance_input, start_row);
+
+            if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS)) {
+                return generate_assignments(component_instance, assignment, instance_input, start_row,
+                                            target_prover_idx);
+            } else {
+                if (std::uint8_t(gen_flag & generate_flag::FALSE_ASSIGNMENTS)) {
+                    const auto rows_amount = ComponentType::get_rows_amount(p.witness.size(), 0, args...);
+                    // disable selector
+                    for (std::uint32_t i = 0; i < rows_amount; i++) {
+                        for (std::uint32_t j = 0; j < assignment.selectors_amount(); j++) {
+                            assignment.selector(j, start_row + i) = BlueprintFieldType::value_type::zero();
+                        }
+                    }
+
+                    // fake allocate rows
+                    for (std::uint32_t i = 0; i < rows_amount; i++) {
+                        assignment.witness(0, start_row + i) = BlueprintFieldType::value_type::zero();
+                    }
+
+                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+
+                    // fill copy constraints
+                    const auto &copy_constraints = bp.copy_constraints();
+                    for (std::uint32_t i = num_copy_constraints; i < copy_constraints.size(); i++) {
+                        if (copy_constraints[i].first.type == var::column_type::witness &&
+                            copy_constraints[i].first.rotation >= start_row) {
+                            if (copy_constraints[i].second.rotation >=
+                                assignment.witness(copy_constraints[i].second.index).size()) {
+                                assignment.witness(copy_constraints[i].second.index,
+                                                   copy_constraints[i].second.rotation) =
+                                    BlueprintFieldType::value_type::zero();
+                            }
+                            assignment.witness(copy_constraints[i].first.index, copy_constraints[i].first.rotation) =
+                                var_value(assignment, copy_constraints[i].second);
+                        } else if (copy_constraints[i].second.type == var::column_type::witness &&
+                                   copy_constraints[i].second.rotation >= start_row) {
+                            if (copy_constraints[i].first.rotation >=
+                                assignment.witness(copy_constraints[i].first.index).size()) {
+                                assignment.witness(copy_constraints[i].first.index,
+                                                   copy_constraints[i].first.rotation) =
+                                    BlueprintFieldType::value_type::zero();
+                            }
+                            assignment.witness(copy_constraints[i].second.index, copy_constraints[i].second.rotation) =
+                                var_value(assignment, copy_constraints[i].first);
+                        } else {
+                            std::cout << "wrong copy constraint\n";
+                        }
+                    }
+                }
+                return typename ComponentType::result_type(component_instance, start_row);
+            }
+        }
+
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
         void handle_component_result(
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-                const typename ComponentType::result_type& component_result) {
+                const typename ComponentType::result_type& component_result, generate_flag gen_flag) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
             std::vector<var> output = component_result.all_vars();
 
+            //touch result variables
+            if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS) == 0) {
+                const auto result_vars = component_result.all_vars();
+                for (const auto &v : result_vars) {
+                    if (v.type == var::column_type::witness) {
+                        assignment.witness(v.index, v.rotation) = BlueprintFieldType::value_type::zero();
+                    } else if (v.type == var::column_type::constant) {
+                        assignment.constant(v.index, v.rotation) = BlueprintFieldType::value_type::zero();
+                    }
+                }
+            }
             if (output.size() == 1) {
                 frame.scalars[inst] = output[0];
             } else {
@@ -211,8 +327,21 @@ namespace nil {
                 &assignment,
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-                const std::vector<typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>& result) {
+                const std::vector<typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>& result,
+                generate_flag gen_flag) {
 
+            using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+
+            //touch result variables
+            if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS) == 0) {
+                for (const auto &v : result) {
+                    if (v.type == var::column_type::witness) {
+                        assignment.witness(v.index, v.rotation) = BlueprintFieldType::value_type::zero();
+                    } else if (v.type == var::column_type::constant) {
+                        assignment.constant(v.index, v.rotation) = BlueprintFieldType::value_type::zero();
+                    }
+                }
+            }
             if (result.size() == 1) {
                 frame.scalars[inst] = result[0];
             } else {
@@ -225,16 +354,16 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-                std::uint32_t start_row, std::uint32_t target_prover_idx,
+                std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag,
                 typename ComponentType::input_type& instance_input,
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
                 Args... args) {
 
             const auto component_result = get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
-                    (bp, assignment, start_row, target_prover_idx, instance_input, args...);
+                    (bp, assignment, start_row, target_prover_idx, instance_input, gen_flag, args...);
 
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, inst, frame, component_result);
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, inst, frame, component_result, gen_flag);
         }
 
     }    // namespace blueprint

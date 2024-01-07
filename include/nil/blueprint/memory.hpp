@@ -55,6 +55,7 @@ namespace nil {
                 this->push_back({VarType(), stack_size + 1, 0});
                 push_frame();
             }
+
             void stack_push(size_t offset, int8_t size, int8_t following) {
                 cell<VarType> &new_cell = this->operator[](stack_top++);
                 new_cell.offset = offset;
