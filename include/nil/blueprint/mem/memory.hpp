@@ -22,6 +22,16 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 // @file This file defines assigner memory representation.
+// ╔═════════════════════════════════════════════════════════════════╗
+// ║   Memory layout:                                                ║
+// ║                                                                 ║
+// ║           stack pointer ──┐                  heap top ──┐       ║
+// ║                           │                             │       ║
+// ║ |--|++|++|++|++|++|.....|++|.....|--|++|++|++|++|.....|--|..... ║
+// ║  00 01                            ST HB                         ║
+// ║   │  └─ stack bottom               │  └─ heap bottom            ║
+// ║   └──── null pointer               └──── stack top (stack size) ║
+// ╚═════════════════════════════════════════════════════════════════╝
 //---------------------------------------------------------------------------//
 
 #ifndef CRYPTO3_ASSIGNER_MEM_MEMORY_HPP
@@ -41,28 +51,86 @@ namespace nil {
             /// Core structure representing assigner memory.
             template<typename VarType>
             struct memory {
-                using var_type = var<VarType>;
-
             private:
-                segment_map<var_type> segments;
+                using var_type = var<VarType>;
+                /// Allocated segments.
+                segment_map<VarType> segments;
+
+                /// Size of preallocated stack memory.
                 size_type stack_size;
+
+                /// Stack pointer.
                 ptr_type stack_ptr;
+
+                /// Next free heap pointer.
+                ptr_type heap_top;
+
+                /// Stack frames.
                 std::stack<ptr_type> frames;
 
             public:
-                memory(size_type stack_size) : stack_size(stack_size), stack_ptr(0) {
+                memory(size_type stack_size) : stack_size(stack_size), stack_ptr(0x1), heap_top(stack_size + 1) {
+                    // Pre-allocated stack segment
+                    // TODO: maybe we don't need this pre-allocation?
+                    this->segments.insert({segment(0x1, stack_size), var_type()});
+                    this->push_frame();
                 }
 
-                void store(ptr_type ptr, VarType value, size_type size) {
+                /// Push new stack frame.
+                void push_frame() {
+                    frames.push(stack_ptr);
+                }
+
+                /// Pop last stack frame.
+                void pop_frame() {
+                    stack_ptr = frames.top();
+                    frames.pop();
+                }
+
+                /// Allocate N bytes on stack and return pointer to this.
+                ptr_type stack_push(size_type n) {
+                    ptr_type ptr = stack_ptr;
+                    segment alloc(ptr, n);
+                    this->segments[alloc] = var_type();
+                    stack_ptr += n;
+                    return ptr;
+                }
+
+                void store(ptr_type ptr, size_type size, VarType value) {
                     if (auto seg = segments.find_segment(ptr)) {
                         segments.insert({segment(ptr, size), var_type(value, size)});
                     } else {
-                        UNREACHABLE("accessing out of allocated memory");
+                        UNREACHABLE("out of allocated memory access");
                     }
                 }
 
-                var_type load(ptr_type ptr) {
-                    UNREACHABLE("not yet implemented");
+                VarType load(ptr_type ptr, size_type size) {
+                    auto elem = segments.find(segment(ptr, size));
+                    if (elem == segments.end()) {
+                        if (auto seg = segments.find_segment(ptr)) {
+                            UNREACHABLE("unaligned loads are not yet implemented");
+                        } else {
+                            UNREACHABLE("out of allocated memory access");
+                        }
+                    }
+                    return elem->second.value;
+                }
+
+                // This gonna be removed, used only for debug.
+                // Print current memory state summary to stdout.
+                void dump_summary() {
+                    std::cout << "================================================" << std::endl;
+                    std::cout << "Stack size: 0x" << std::hex << stack_size << std::endl;
+                    std::cout << "Heap top: 0x" << std::hex << heap_top << std::endl;
+                    std::cout << "Stack pointer: 0x" << std::hex << stack_ptr << std::dec << std::endl;
+                    std::cout << "Frames count: " << frames.size() << std::endl;
+                    std::cout << "Segments count: " << segments.size() << std::endl;
+                    std::cout << std::endl;
+                    std::cout << "Segments:" << std::endl;
+                    for(const auto& elem : segments) {
+                        std::cout << "  " << elem.first << " = " << elem.second.value << std::endl;
+                    }
+                    std::cout << "================================================" << std::endl;
                 }
             };
         }    // namespace mem
