@@ -114,6 +114,13 @@ namespace nil {
                     // TODO: recalculate new Value when cutting segments (for now we leave it as it is)
                 }
 
+                /**
+                 * @brief Get value representing given segment.
+                 *
+                 * If segment is out of allocated memory, function aborts.
+                 *
+                 * @param seg segment to lookup
+                 */
                 Value get(segment seg) {
                     // Idea:
                     // 1. find segment X which holds given pointer
@@ -122,7 +129,27 @@ namespace nil {
                     // 4. if `seg` is a subsegment of X, generate new Value for slice and return it
                     // 5. else: cross-segment access (slowest case, leave for now)
 
-                    UNREACHABLE("not yet implemented");
+                    std::optional<segment> opt_seg = find_segment(seg.pointer);
+                    if (!opt_seg.has_value()) {
+                        UNREACHABLE("pointer out of allocated memory");
+                    }
+                    segment found_seg = opt_seg.value();
+
+                    if (found_seg == seg) {
+                        return this->operator[](found_seg);
+                    }
+
+                    if (found_seg.contains(seg)) {
+                        // TODO: here we need to recalculate Value for a subsegment
+                        // for now we return it as it is
+                        return this->operator[](found_seg);
+                    }
+
+                    // cross-segment access:
+                    UNREACHABLE("cross-segment access is not yet implemented");
+
+                    // TODO: implement cross-segment access
+                    // TODO: recalculate new Value for subsegment access and cross-segment access
                 }
 
                 /// Find segment containing given pointer, if some.
@@ -139,6 +166,10 @@ namespace nil {
                     // TODO: replace with more efficient binary search
                     // TODO: cache. We also can speed up lookup with having a `map<ptr, segment>`
                 }
+
+                // TODO: maybe instead of creating new functions we should overload something to
+                // provide consistency: so one cannot create invalid state of segment map manually.
+                // Right now you can break the invariant like this: `m[seg] = anything;`
             };
         }    // namespace mem
     }        // namespace blueprint
@@ -148,7 +179,7 @@ namespace nil {
     namespace blueprint {
         namespace mem {
             namespace tests {
-                void test_segment_map_1() {
+                void test_segment_map_insert() {
                     segment_map<int> m;
                     // (we show associated values in segments to illustrate the idea)
                     // |--|--|--|--|--|--|--|--|--|--|--|--|...
@@ -173,6 +204,13 @@ namespace nil {
                     ASSERT(m[segment(2, 1)] == 1);
                     ASSERT(m[segment(3, 3)] == 5);
                     ASSERT(m[segment(6, 1)] == 2);
+                }
+
+                void test_segment_map_get() {
+                    segment_map<int> m;
+                    m.insert(segment(0, 4), 42);
+                    ASSERT(m.get(segment(0, 4)) == 42);
+                    ASSERT(m.get(segment(1, 3)) == 42);   // this will be fixed!
                 }
             }    // namespace tests
         }        // namespace mem
