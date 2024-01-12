@@ -22,28 +22,47 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 // @file This file declares memory properties such as pointer size.
+// ╔═════════════════════════════════════════════════════════════════════╗
+// ║   Memory layout:                                                    ║
+// ║                                                                     ║
+// ║           stack pointer ──┐                  heap top ──┐           ║
+// ║                           │                             │           ║
+// ║ |--|++|++|++|++|++|.....|++|.....|--|++|++|++|++|.....|--|.....     ║
+// ║  00 01                            ST HB                             ║
+// ║   │  └─ stack bottom               │  └─ heap bottom (stack size)   ║
+// ║   └──── null pointer               └──── stack top                  ║
+// ╚═════════════════════════════════════════════════════════════════════╝
 //---------------------------------------------------------------------------//
 
 #ifndef CRYPTO3_ASSIGNER_MEM_LAYOUT_HPP
 #define CRYPTO3_ASSIGNER_MEM_LAYOUT_HPP
 
 #include <cstdint>
+#include <limits>
 
 namespace nil {
     namespace blueprint {
         namespace mem {
-            /* Pointer type in memory.
-             *
-             * We intentionally enforce fixed-size type here.
-             */
+            /// @brief Address in memory.
             using ptr_type = std::uint64_t;
 
-            /* Size of memory allocation in bytes.
-             *
-             * Used to distinguish between pointers and sizes. We intentionally enforce fixed-size
-             * type here.
-             */
+            /// @brief Size of memory allocation in bytes.
             using size_type = std::uint32_t;
+
+            /// @brief Maximum available address.
+            const ptr_type PTR_MAX = std::numeric_limits<ptr_type>::max();
+
+            /// @brief Null pointer.
+            const ptr_type NULL_PTR = 0x0;
+
+            /// @brief Pointer to the bottom of the stack.
+            const ptr_type STACK_BOTTOM = 0x1;
+
+            /// @brief Size of the stack.
+            const size_type STACK_SIZE = 0x800000;
+
+            /// @brief Pointer to the heap bottom.
+            const ptr_type HEAP_BOTTOM = STACK_SIZE;
         }    // namespace mem
     }        // namespace blueprint
 }    // namespace nil
