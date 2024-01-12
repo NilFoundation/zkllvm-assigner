@@ -21,8 +21,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //---------------------------------------------------------------------------//
-// @file This file defines segment map, which maps segments into arbitrary data.
-// This structure is used as heap memory storage in assigner memory model.
+// @file This file defines segment map, which maps non-overlapping segments
+// into arbitrary data.
 //---------------------------------------------------------------------------//
 
 #ifndef NIL_BLUEPRINT_MEM_SEGMENT_MAP_HPP
@@ -40,17 +40,12 @@ namespace nil {
     namespace blueprint {
         namespace mem {
             /**
-             * @brief Map from segments to arbitrary associated values.
-             *
-             * This structure guarantees to store non-overlapping segments.
+             * @brief Map from non-overlapping segments to arbitrary associated values.
              *
              * @tparam Value the type of value, associated with segment
              */
             template<typename Value>
             struct segment_map : std::map<segment, Value> {
-                using typename std::map<segment, Value>::iterator;
-                using typename std::map<segment, Value>::value_type;
-
             public:
                 segment_map() {
                 }
@@ -167,6 +162,14 @@ namespace nil {
                     // TODO: cache. We also can speed up lookup with having a `map<ptr, segment>`
                 }
 
+                // This function will be removed. Used only for debug purposes for now.
+                void dump_content_to_stdout() {
+                    std::cout << "Segment map dump:" << std::endl;
+                    for (const auto& elem : (*this)) {
+                        std::cout << "  " << elem.first << " = " << std::dec << elem.second << std::endl;
+                    }
+                }
+
                 // TODO: maybe instead of creating new functions we should overload something to
                 // provide consistency: so one cannot create invalid state of segment map manually.
                 // Right now you can break the invariant like this: `m[seg] = anything;`
@@ -210,7 +213,7 @@ namespace nil {
                     segment_map<int> m;
                     m.insert(segment(0, 4), 42);
                     ASSERT(m.get(segment(0, 4)) == 42);
-                    ASSERT(m.get(segment(1, 3)) == 42);   // this will be fixed!
+                    ASSERT(m.get(segment(1, 3)) == 42);    // this will be fixed!
                 }
             }    // namespace tests
         }        // namespace mem
