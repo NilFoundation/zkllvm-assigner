@@ -430,12 +430,20 @@ namespace nil {
 
                     if (is_private) {
                         if (private_input.size() <= priv_iter || !private_input[priv_iter].is_object()) {
+                            if (private_input.size() == 0) {
+                                error = "got argument with [[private_input]] attribute, but private input file was not provided or is empty (use -p flag to provide file name).";
+                                return false;
+                            }
                             error = "not enough values in the private input file.";
                             return false;
                         }
                     }
                     else {
                         if (public_input.size() <= pub_iter || !public_input[pub_iter].is_object()) {
+                            if (public_input.size() == 0) {
+                                error = "got argument without [[private_input]], but public input file was not provided or is empty (use -i flag to provide file name).";
+                                return false;
+                            }
                             error = "not enough values in the public input file.";
                             return false;
                         }
