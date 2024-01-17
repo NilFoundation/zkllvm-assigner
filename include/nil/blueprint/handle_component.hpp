@@ -60,6 +60,7 @@
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/statistics.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
 
 
@@ -198,6 +199,19 @@ namespace nil {
 
             ComponentType component_instance(p.witness, detail::ManifestReader<ComponentType, ArithmetizationParams>::get_constants(),
                                               detail::ManifestReader<ComponentType, ArithmetizationParams>::get_public_inputs(), args...);
+
+
+            BOOST_LOG_TRIVIAL(debug) << "Using component \"" << component_instance.component_name << "\"";
+
+            if (std::uint8_t(param.gen_mode & generation_mode::SIZE_ESTIMATION)) {
+                statistics.add_record(
+                    component_instance.component_name,
+                    component_instance.rows_amount,
+                    component_instance.gates_amount,
+                    component_instance.witness_amount()
+                );
+                return typename ComponentType::result_type(component_instance, param.start_row);
+            }
 
             handle_component_input<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, instance_input, param.gen_mode);
 

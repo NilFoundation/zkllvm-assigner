@@ -1497,7 +1497,7 @@ namespace nil {
                                 }
                                 curr_branch.pop_back();
 
-                                assert((stack_size - 1) == call_stack.size());
+                                ASSERT((stack_size - 1) == call_stack.size() || finished);
 
                                 return false_next_inst;
                             }
@@ -1534,7 +1534,7 @@ namespace nil {
                             }
                             curr_branch.pop_back();
 
-                            assert((stack_size - 1) == call_stack.size());
+                            ASSERT((stack_size - 1) == call_stack.size() || finished);
 
                             return false_next_inst;
                         }
@@ -1963,6 +1963,10 @@ namespace nil {
                 while (true) {
                     next_inst = handle_instruction(next_inst);
                     if (finished) {
+                        if (std::uint8_t(gen_mode & generation_mode::SIZE_ESTIMATION)) {
+                            std::cout << "\nallocated_rows: " <<  assignments[currProverIdx].allocated_rows() << "\n";
+                            statistics.print();
+                        }
                         return true;
                     }
                     if (next_inst == nullptr) {
