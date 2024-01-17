@@ -51,7 +51,7 @@ namespace nil {
             instance_input.input[0] = x;
             instance_input.input[1] = y;
 
-            return get_component_result<BlueprintFieldType, ArithmetizationParams>
+            return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
                 (bp, assignment, start_row, target_prover_idx, instance_input).output;
         }
 

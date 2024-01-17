@@ -61,10 +61,27 @@
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
+#include <typeinfo>
 
 
 namespace nil {
     namespace blueprint {
+
+        std::map<std::string, int> component_counter;
+        std::map<std::string, int> component_rows;
+        std::map<std::string, int> component_gates;
+        std::map<std::string, int> component_witness;
+        std::map<std::string, bool> component_finished;
+
+        std::set<std::string> unfinished_components = {
+            "non_native fp12 multiplication",
+            "is_in_g1",
+            "is_in_g2",
+            "native_bls12_381_pairing",
+            "hash to curve",
+            "comparison",
+        };
+
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
         void handle_component_input(
@@ -89,38 +106,6 @@ namespace nil {
             }
         }
 
-        // logic_and
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
-        typename components::logic_and<
-            crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::result_type get_component_result(
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
-                &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx,
-            typename components::logic_and<
-                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::input_type& instance_input) {
-
-            using component_type = components::logic_and<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
-
-            const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<component_type, ArithmetizationParams>::get_witness(0));
-
-            component_type component_instance(p.witness);
-
-            if constexpr( use_lookups<component_type>() ){
-                auto lookup_tables = component_instance.component_lookup_tables();
-                for(auto &[k,v]:lookup_tables){
-                    bp.reserve_table(k);
-                }
-            };
-
-            handle_component_input<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, instance_input);
-
-            components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
-
-            return components::generate_assignments(component_instance, assignment, instance_input,
-                                                    start_row);
-        }
 
         template<typename T> struct has_get_empty_rows_amount{
         private:
@@ -161,10 +146,33 @@ namespace nil {
                 typename ComponentType::input_type& instance_input,
                 Args... args) {
 
+
             const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType, ArithmetizationParams>::get_witness(0, args...));
 
             ComponentType component_instance(p.witness, detail::ManifestReader<ComponentType, ArithmetizationParams>::get_constants(),
                                               detail::ManifestReader<ComponentType, ArithmetizationParams>::get_public_inputs(), args...);
+
+
+            ++component_counter[component_instance.component_name];
+            rows_per_component[typeid(ComponentType).name()] = component_instance.rows_amount;
+            component_rows[component_instance.component_name] = component_instance.rows_amount;
+            gates_used[typeid(ComponentType).name()] = component_instance.gates_amount;
+            component_gates[component_instance.component_name] = component_instance.gates_amount;
+            component_witness[component_instance.component_name] = component_instance.witness_amount();
+            if (unfinished_components.find(component_instance.component_name) != unfinished_components.end()) {
+                component_finished[component_instance.component_name] = false;
+            } else {
+                component_finished[component_instance.component_name] = true;
+            }
+
+            bool enable_experimental = true;
+
+            if (!(component_finished[component_instance.component_name] || enable_experimental)) {
+                std::string error_message = "component " + component_instance.component_name + " is experimental, but experimental components usage is disabled. " \
+                "Use --enable-experimental flag to allow non-production-grade components usage.";
+
+                ASSERT_MSG(component_finished[component_instance.component_name] || enable_experimental, error_message.c_str());
+            }
 
             if constexpr( use_lookups<ComponentType>() ){
                 auto lookup_tables = component_instance.component_lookup_tables();
@@ -175,8 +183,13 @@ namespace nil {
 
             handle_component_input<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, instance_input);
 
-            components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
-
+            if (component_finished[component_instance.component_name]) {
+                components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
+            } else {
+                std::cerr << "skipped constraints generation for ";
+                std::cerr << component_instance.component_name;
+                std::cerr << " component\n";
+            }
             if (target_prover_idx == assignment.get_id() || target_prover_idx == std::numeric_limits<std::uint32_t>::max()) {
                 return components::generate_assignments(component_instance, assignment, instance_input,
                                                         start_row);

@@ -111,13 +111,14 @@ namespace nil {
         struct parser {
 
             parser(long stack_size, boost::log::trivial::severity_level log_level, std::uint32_t max_num_provers, std::uint32_t target_prover_idx, const std::string &kind = "",
-                    print_format output_print_format = no_print, bool check_validity = false) :
+                    print_format output_print_format = no_print, bool check_validity = false, bool size_estimation = false) :
                 stack_memory(stack_size),
                 maxNumProvers(max_num_provers),
                 targetProverIdx(target_prover_idx),
                 currProverIdx(0),
                 log(log_level),
                 print_output_format(output_print_format),
+                estimate_size(size_estimation),
                 validity_check(check_validity)
             {
 
@@ -1480,6 +1481,37 @@ namespace nil {
                             ASSERT(call_stack.size() == 0);
                             finished = true;
 
+                            if (estimate_size) {
+
+                                std::cout << "\n=====================================================================================\n";
+                                std::cout << "statistics:\n";
+
+                                std::size_t circuit_rows_amount = 0;
+
+                                for (const auto& pair : nil::blueprint::component_rows) {
+                                    circuit_rows_amount += (pair.second * component_counter[pair.first]);
+                                }
+
+                                std::cout << "total rows amount estimation: " << circuit_rows_amount << "\n";
+                                std::cout << "total rows amount real:       " << assignments[currProverIdx].allocated_rows() << "\n";
+                                std::cout << "_______________________________________________________________________________________\n";
+
+                                for (const auto& pair : nil::blueprint::component_counter) {
+                                    std::cout << "component name: " << pair.first << "\n";
+                                    std::cout << "Component was used " << pair.second << " times\n";
+                                    if (!nil::blueprint::component_finished[pair.first]) {
+                                        std::cout << "WARNING: component contains experimental features. Parameters are subject to change, do not fully trust to numbers below.\n";
+                                    }
+                                    std::cout << "gates amount: " << nil::blueprint::component_gates[pair.first] << "\n";
+                                    std::cout << "witness size: " << nil::blueprint::component_witness[pair.first] << "\n";
+                                    std::cout << "rows amount:  " << nil::blueprint::component_rows[pair.first];
+                                    std::size_t total_rows = nil::blueprint::component_rows[pair.first] * pair.second;
+                                    std::cout << " (" << total_rows << " in total)\n";
+                                    std::cout << "_______________________________________________________________________________________\n";
+                                }
+                                std::cout << std::endl;
+                            }
+
                             if(print_output_format != no_print) {
                                 if(print_output_format == hex) {
                                     std::cout << std::hex;
@@ -1696,6 +1728,7 @@ namespace nil {
             std::shared_ptr<assignment<ArithmetizationType>> assignment_ptr;
             std::vector<const void *> cpp_values;
             print_format print_output_format = no_print;
+            bool estimate_size;
             bool validity_check;
         };
 
