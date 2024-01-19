@@ -53,7 +53,7 @@ namespace nil {
             public:
                 using storage_type = segment_map<VarType>;
 
-                allocator(storage_type* storage) : storage(storage) {
+                allocator(storage_type& storage) : storage(storage) {
                     this->empty_regions.emplace_back(HEAP_BOTTOM, PTR_MAX);
                 }
 
@@ -175,7 +175,7 @@ namespace nil {
                         VarType val = VarType();
 
                         segment seg(ptr + i * size, size);
-                        storage->insert(seg, val);
+                        storage.insert(seg, val);
                     }
 
                     // Create allocation record
@@ -252,7 +252,7 @@ namespace nil {
                             return current_seg.contains(elem.first);
                         };
                         std::vector<std::pair<segment, VarType>> segments_to_copy;
-                        std::copy_if(storage->begin(), storage->end(),
+                        std::copy_if(storage.begin(), storage.end(),
                                      std::inserter(segments_to_copy, segments_to_copy.end()), contains);
 
                         // Copy all data from existing allocation to new one
@@ -260,7 +260,7 @@ namespace nil {
                         std::int64_t diff = new_ptr - ptr;
                         for (auto& [seg, value] : segments_to_copy) {
                             seg.pointer += diff;
-                            storage->insert(seg, value);
+                            storage.insert(seg, value);
                         }
 
                         // Create a record for new allocation
@@ -287,21 +287,9 @@ namespace nil {
                     return ptr;
                 }
 
-                // This function will be removed. Used only for debug purposes for now.
-                void dump_content_to_stdout() {
-                    std::cout << "Allocation records:" << std::endl;
-                    for (const auto& elem : allocations) {
-                        std::cout << "  " << segment(elem.first, elem.second) << std::endl;
-                    }
-                    std::cout << "Empty regions:" << std::endl;
-                    for (const auto& elem : empty_regions) {
-                        std::cout << "  [0x" << std::hex << elem.start << ":0x" << elem.end << "]" << std::endl;
-                    }
-                }
-
             private:
                 /// @brief Pointer to the memory storage.
-                storage_type* storage;
+                storage_type& storage;
 
                 /// @brief Records about alive allocations.
                 std::unordered_map<ptr_type, size_type> allocations;
@@ -325,7 +313,7 @@ namespace nil {
             namespace tests {
                 void test_allocator_malloc() {
                     segment_map<int> storage;
-                    allocator<int> alloc(&storage);
+                    allocator<int> alloc(storage);
 
                     ASSERT(alloc.malloc(0) == NULL_PTR);
 
@@ -355,7 +343,7 @@ namespace nil {
 
                 void test_allocator_realloc() {
                     segment_map<int> storage;
-                    allocator<int> alloc(&storage);
+                    allocator<int> alloc(storage);
 
                     ptr_type ptr = alloc.realloc(NULL_PTR, 4);
                     storage.insert(segment(ptr, 4), 1);
@@ -383,7 +371,7 @@ namespace nil {
 
                 void test_allocator_calloc() {
                     segment_map<int> storage;
-                    allocator<int> alloc(&storage);
+                    allocator<int> alloc(storage);
 
                     ptr_type ptr = alloc.calloc(2, 4);
                     ASSERT(storage[segment(ptr, 4)] == 0);
