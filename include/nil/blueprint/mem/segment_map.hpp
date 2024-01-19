@@ -126,7 +126,7 @@ namespace nil {
 
                     std::optional<segment> opt_seg = find_segment(seg.pointer);
                     if (!opt_seg.has_value()) {
-                        UNREACHABLE("pointer out of allocated memory");
+                        UNREACHABLE("pointer to uninitialized value");
                     }
                     segment found_seg = opt_seg.value();
 
@@ -145,6 +145,11 @@ namespace nil {
 
                     // TODO: implement cross-segment access
                     // TODO: recalculate new Value for subsegment access and cross-segment access
+                    // TODO: maybe this function should return `std::option<Value>`, so no value
+                    //       case can be handled outside this container?
+                    //       Alternatively, we can return uninitialized `Value()`.
+                    // TODO: maybe this function should return `std::vector<Value>` and return a
+                    //       number of values, when multiple stored segments are requested?
                 }
 
                 /// Find segment containing given pointer, if some.

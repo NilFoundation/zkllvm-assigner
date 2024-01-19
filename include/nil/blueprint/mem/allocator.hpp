@@ -26,6 +26,7 @@
 #define NIL_BLUEPRINT_MEM_ALLOCATOR_HPP
 
 #include <list>
+#include <vector>
 #include <unordered_map>
 
 #include <nil/blueprint/asserts.hpp>
@@ -93,8 +94,14 @@ namespace nil {
                  * @brief Allocate given number of bytes and return pointer to new allocation.
                  *
                  * @param size number of bytes to allocate
+                 *
+                 * @return pointer to allocated memory
                  */
                 ptr_type malloc(size_type size) {
+                    if (size == 0) {
+                        return NULL_PTR;
+                    }
+
                     auto it = find_empty_region(size);
 
                     if (it == empty_regions.end()) {
@@ -117,8 +124,64 @@ namespace nil {
                     return ptr;
                 }
 
-                ptr_type calloc(unsigned n, size_type size) {
-                    UNREACHABLE("not yet implemented");
+                /**
+                 * @brief Allocate given number of objects of given size and return pointer to new allocation.
+                 *
+                 * This function also initializes these objects with "zero" value.
+                 *
+                 * @param num number of objects
+                 * @param size size of objects
+                 *
+                 * @return pointer to allocated memory
+                 */
+                ptr_type calloc(size_type num, size_type size) {
+                    if (size == 0) {
+                        return NULL_PTR;
+                    }
+
+                    if (num == 0) {
+                        return NULL_PTR;
+                        // FIXME: not sure this is correct, but for now let it be so.
+                    }
+
+                    size_type total_size = num * size;
+                    // FIXME: not sure this check must be done
+                    // But since we use `size_type` for all allocation sizes, we cannot allocate
+                    // more than `size_type::max()`.
+                    if (total_size / size != num) {
+                        // Overflow handling
+                        return NULL_PTR;
+                    }
+
+                    auto it = find_empty_region(total_size);
+
+                    if (it == empty_regions.end()) {
+                        // This simple allocator does not do any fancy stuff like defragmentation.
+                        // For now we just don't allocate, if we run out of regions.
+                        return NULL_PTR;
+                    }
+
+                    // Shrink this region, creating new allocation
+                    ptr_type ptr = it->start;
+                    it->start = ptr + size;
+                    if (it->start == it->end) {
+                        // Remove found regions if it was allocated completly.
+                        empty_regions.erase(it);
+                    }
+
+                    // Initialize allocated memory with zeros
+                    for (size_type i = 0; i < num; ++i) {
+                        // FIXME: right now we don't have a stable interface to create "zero" variable
+                        VarType val = VarType();
+
+                        segment seg(ptr + i * size, size);
+                        storage->insert(seg, val);
+                    }
+
+                    // Create allocation record
+                    allocations[ptr] = size;
+
+                    return ptr;
                 }
 
                 /**
@@ -126,13 +189,102 @@ namespace nil {
                  *
                  * @param ptr pointer to reallocate
                  * @param new_size new size of the allocation
+                 *
+                 * @return pointer to re-allocated memory (may be different from `ptr`)
                  */
                 ptr_type realloc(ptr_type ptr, size_type new_size) {
                     if (ptr == NULL_PTR) {
                         return malloc(new_size);
                     }
 
-                    UNREACHABLE("not yet implemented");
+                    if (new_size == 0) {
+                        // TODO: do we want to free `ptr` here?
+                        return NULL_PTR;
+                    }
+
+                    size_type current_size = allocations[ptr];
+
+                    if (new_size == current_size) {
+                        // No changes are needed
+                        return ptr;
+                    }
+
+                    // Find first region after existing allocation
+                    auto next = [&ptr](region reg) { return (reg.start > ptr); };
+                    std::list<region>::iterator reg = std::find_if(empty_regions.begin(), empty_regions.end(), next);
+
+                    if (new_size < current_size) {
+                        // Trim existing allocation
+
+                        // Mark trimmed region as empty
+                        if (reg != empty_regions.end()) {
+                            // Current allocation is the maximum possible
+                            empty_regions.push_back(region(ptr + new_size, PTR_MAX));
+                        } else {
+                            reg->start = ptr + new_size;
+                        }
+
+                        // Update allocation record
+                        allocations[ptr] = new_size;
+
+                        return ptr;
+                    }
+
+                    // Try to expand existing allocation
+
+                    // In order for existing allocation to be expandable into this region, latter
+                    // must be holding the whole extra part.
+                    bool expand =
+                        (reg != empty_regions.end()) &&          // current allocation is the max possible
+                        (reg->start == ptr + current_size) &&    // after current allocation there is an empty space
+                        (reg->end >= ptr + new_size - 1);        // this space is enough big to hold new allocation
+
+                    if (!expand) {
+                        // Create new allocation
+                        ptr_type new_ptr = malloc(new_size);
+                        if (new_ptr == NULL_PTR) {
+                            return NULL_PTR;
+                        }
+
+                        // Find all segments lying within current allocation
+                        segment current_seg(ptr, current_size);
+                        auto contains = [&current_seg](std::pair<segment, VarType> elem) {
+                            return current_seg.contains(elem.first);
+                        };
+                        std::vector<std::pair<segment, VarType>> segments_to_copy;
+                        std::copy_if(storage->begin(), storage->end(),
+                                     std::inserter(segments_to_copy, segments_to_copy.end()), contains);
+
+                        // Copy all data from existing allocation to new one
+                        // All the expanded part of new allocation is left uninitialized
+                        std::int64_t diff = new_ptr - ptr;
+                        for (auto& [seg, value] : segments_to_copy) {
+                            seg.pointer += diff;
+                            storage->insert(seg, value);
+                        }
+
+                        // Create a record for new allocation
+                        allocations[new_ptr] = new_size;
+
+                        // Free previous allocation
+                        // TODO: we can optimize this, since we already found the next empty region
+                        free(ptr);
+
+                        return new_ptr;
+                    }
+
+                    // Shrink existing empty region (and delete it if needed)
+                    reg->start = ptr + new_size;
+                    if (reg->start == reg->end) {
+                        empty_regions.erase(reg);
+                    }
+
+                    // Update allocation record
+                    allocations[ptr] = new_size;
+
+                    // No changes in storage are reqiured
+
+                    return ptr;
                 }
 
                 // This function will be removed. Used only for debug purposes for now.
@@ -171,9 +323,11 @@ namespace nil {
     namespace blueprint {
         namespace mem {
             namespace tests {
-                void test_allocator() {
+                void test_allocator_malloc() {
                     segment_map<int> storage;
                     allocator<int> alloc(&storage);
+
+                    ASSERT(alloc.malloc(0) == NULL_PTR);
 
                     ptr_type ptr = alloc.malloc(16);
 
@@ -183,13 +337,63 @@ namespace nil {
                     storage.insert(segment(ptr + 8, 4), 3);
                     storage.insert(segment(ptr + 12, 4), 4);
 
+                    ASSERT(storage[segment(ptr, 4)] == 1);
+                    ASSERT(storage[segment(ptr + 4, 4)] == 2);
+                    ASSERT(storage[segment(ptr + 8, 4)] == 3);
+                    ASSERT(storage[segment(ptr + 12, 4)] == 4);
+
                     // Change value of array[3]
-                    storage[segment(ptr + 8, 4)] = 42;
+                    storage.insert(segment(ptr + 8, 4), 42);
 
                     ASSERT(storage[segment(ptr, 4)] == 1);
                     ASSERT(storage[segment(ptr + 4, 4)] == 2);
                     ASSERT(storage[segment(ptr + 8, 4)] == 42);
                     ASSERT(storage[segment(ptr + 12, 4)] == 4);
+
+                    alloc.free(ptr);
+                }
+
+                void test_allocator_realloc() {
+                    segment_map<int> storage;
+                    allocator<int> alloc(&storage);
+
+                    ptr_type ptr = alloc.realloc(NULL_PTR, 4);
+                    storage.insert(segment(ptr, 4), 1);
+
+                    ASSERT(storage[segment(ptr, 4)] == 1);
+
+                    ptr = alloc.realloc(ptr, 8);
+                    storage.insert(segment(ptr + 4, 4), 2);
+
+                    ASSERT(storage[segment(ptr, 4)] == 1);
+                    ASSERT(storage[segment(ptr + 4, 4)] == 2);
+
+                    ptr_type _placeholder = alloc.malloc(1);
+
+                    ptr = alloc.realloc(ptr, 12);
+                    storage.insert(segment(ptr + 8, 4), 3);
+
+                    ASSERT(storage[segment(ptr, 4)] == 1);
+                    ASSERT(storage[segment(ptr + 4, 4)] == 2);
+                    ASSERT(storage[segment(ptr + 8, 4)] == 3);
+
+                    alloc.free(ptr);
+                    alloc.free(_placeholder);
+                }
+
+                void test_allocator_calloc() {
+                    segment_map<int> storage;
+                    allocator<int> alloc(&storage);
+
+                    ptr_type ptr = alloc.calloc(2, 4);
+                    ASSERT(storage[segment(ptr, 4)] == 0);
+                    ASSERT(storage[segment(ptr + 4, 4)] == 0);
+
+                    storage.insert(segment(ptr, 4), 1);
+                    storage.insert(segment(ptr + 4, 4), 2);
+
+                    ASSERT(storage[segment(ptr, 4)] == 1);
+                    ASSERT(storage[segment(ptr + 4, 4)] == 2);
 
                     alloc.free(ptr);
                 }
