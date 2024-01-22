@@ -58,6 +58,13 @@
 #include <nil/blueprint/components/systems/snark/plonk/placeholder/permutation_argument_verifier.hpp>
 #include <nil/blueprint/components/systems/snark/plonk/placeholder/fri_cosets.hpp>
 
+#include <nil/blueprint/component_mockups/is_in_g1.hpp>
+#include <nil/blueprint/component_mockups/is_in_g2.hpp>
+#include <nil/blueprint/component_mockups/h2c.hpp>
+#include <nil/blueprint/component_mockups/fp12_multiplication.hpp>
+#include <nil/blueprint/component_mockups/bls12_381_pairing.hpp>
+#include <nil/blueprint/component_mockups/comparison.hpp>
+
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
@@ -106,7 +113,6 @@ namespace nil {
             }
         }
 
-
         template<typename T> struct has_get_empty_rows_amount{
         private:
             static int detect(...);
@@ -154,9 +160,7 @@ namespace nil {
 
 
             ++component_counter[component_instance.component_name];
-            rows_per_component[typeid(ComponentType).name()] = component_instance.rows_amount;
             component_rows[component_instance.component_name] = component_instance.rows_amount;
-            gates_used[typeid(ComponentType).name()] = component_instance.gates_amount;
             component_gates[component_instance.component_name] = component_instance.gates_amount;
             component_witness[component_instance.component_name] = component_instance.witness_amount();
             if (unfinished_components.find(component_instance.component_name) != unfinished_components.end()) {
@@ -190,6 +194,7 @@ namespace nil {
                 std::cerr << component_instance.component_name;
                 std::cerr << " component\n";
             }
+
             if (target_prover_idx == assignment.get_id() || target_prover_idx == std::numeric_limits<std::uint32_t>::max()) {
                 return components::generate_assignments(component_instance, assignment, instance_input,
                                                         start_row);
