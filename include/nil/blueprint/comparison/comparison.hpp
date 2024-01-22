@@ -29,6 +29,8 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/TypedPointerType.h"
 
+#include <nil/blueprint/components/algebra/fields/plonk/non_native/comparison_mode.hpp>
+
 #include <nil/blueprint/handle_component.hpp>
 
 namespace nil {
@@ -36,7 +38,7 @@ namespace nil {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
         typename ComponentType::result_type
-        handle_comparison_component(
+        handle_comparison_component_eq_neq(
                 llvm::CmpInst::Predicate p,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &x,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &y,
@@ -66,6 +68,52 @@ namespace nil {
                     UNREACHABLE("Unsupported icmp predicate");
                     break;
             }
+        }
+
+        template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
+        typename ComponentType::result_type
+        handle_comparison_component_others(
+                llvm::CmpInst::Predicate p,
+                const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &x,
+                const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &y,
+                std::size_t Bitness,
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                &assignment,
+                const common_component_parameters& param) {
+
+
+            using comp_component_type = components::comparison<
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+            typename comp_component_type::input_type instance_input({x, y});
+
+            nil::blueprint::components::comparison_mode Mode;
+
+            switch (p) {
+                case llvm::CmpInst::ICMP_SGE:
+                case llvm::CmpInst::ICMP_UGE:
+                    Mode = nil::blueprint::components::comparison_mode::GREATER_EQUAL;
+                    break;
+                case llvm::CmpInst::ICMP_SGT:
+                case llvm::CmpInst::ICMP_UGT:
+                    Mode = nil::blueprint::components::comparison_mode::GREATER_THAN;
+                    break;
+                case llvm::CmpInst::ICMP_SLE:
+                case llvm::CmpInst::ICMP_ULE:
+                    Mode = nil::blueprint::components::comparison_mode::LESS_EQUAL;
+                    break;
+                case llvm::CmpInst::ICMP_SLT:
+                case llvm::CmpInst::ICMP_ULT:
+                    Mode = nil::blueprint::components::comparison_mode::LESS_THAN;
+                    break;
+                default:
+                    UNREACHABLE("Unsupported icmp predicate");
+                    break;
+            }
+
+            return get_component_result<BlueprintFieldType, ArithmetizationParams, comp_component_type>
+                (bp, assignment, param, instance_input, Mode);
+
         }
 
     }    // namespace blueprint
