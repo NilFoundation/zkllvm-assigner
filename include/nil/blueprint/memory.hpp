@@ -73,6 +73,7 @@ namespace nil {
 
             ptr_type add_cells(const std::vector<std::pair<unsigned, unsigned>> &layout) {
                 ptr_type res = stack_top;
+                ASSERT_MSG(stack_top < stack_size, "Stack size exceeded! (use -s command line argument to define stack size)");
                 unsigned next_offset = this->at(stack_top - 1).offset + this->at(stack_top - 1).size;
                 for (auto [cell_size, following] : layout) {
                     stack_push(next_offset, cell_size, following);
