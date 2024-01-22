@@ -58,6 +58,13 @@
 #include <nil/blueprint/components/systems/snark/plonk/placeholder/permutation_argument_verifier.hpp>
 #include <nil/blueprint/components/systems/snark/plonk/placeholder/fri_cosets.hpp>
 
+#include <nil/blueprint/component_mockups/is_in_g1.hpp>
+#include <nil/blueprint/component_mockups/is_in_g2.hpp>
+#include <nil/blueprint/component_mockups/h2c.hpp>
+#include <nil/blueprint/component_mockups/fp12_multiplication.hpp>
+#include <nil/blueprint/component_mockups/bls12_381_pairing.hpp>
+#include <nil/blueprint/component_mockups/comparison.hpp>
+
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
@@ -71,7 +78,8 @@ namespace nil {
             NONE = 0,
             CIRCUIT = 1 << 0,
             ASSIGNMENTS = 1 << 1,
-            FALSE_ASSIGNMENTS = 1 << 2
+            FALSE_ASSIGNMENTS = 1 << 2,
+            SIZE_ESTIMATION = 1 << 3
         };
 
         constexpr enum generation_mode operator |( const enum generation_mode self, const enum generation_mode val )
@@ -218,10 +226,10 @@ namespace nil {
             handle_component_input<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, instance_input, param.gen_mode);
 /////////////////////////
 
+            bool enable_experimental = true;
+
             ++component_counter[component_instance.component_name];
-            rows_per_component[typeid(ComponentType).name()] = component_instance.rows_amount;
             component_rows[component_instance.component_name] = component_instance.rows_amount;
-            gates_used[typeid(ComponentType).name()] = component_instance.gates_amount;
             component_gates[component_instance.component_name] = component_instance.gates_amount;
             component_witness[component_instance.component_name] = component_instance.witness_amount();
             if (unfinished_components.find(component_instance.component_name) != unfinished_components.end()) {
