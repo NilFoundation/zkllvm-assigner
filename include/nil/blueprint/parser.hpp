@@ -94,6 +94,13 @@
 #include <nil/blueprint/recursive_prover/lookup_arg_verifier.hpp>
 #include <nil/blueprint/recursive_prover/fri_array_swap.hpp>
 
+#include <nil/blueprint/bls_signature/bls12_381_pairing.hpp>
+#include <nil/blueprint/bls_signature/fp12_multiplication.hpp>
+#include <nil/blueprint/bls_signature/is_in_g1.hpp>
+#include <nil/blueprint/bls_signature/is_in_g2.hpp>
+#include <nil/blueprint/bls_signature/h2c.hpp>
+#include <nil/blueprint/component_mockups/comparison.hpp>
+
 #include <nil/crypto3/algebra/curves/bls12.hpp>
 #include <nil/crypto3/algebra/pairing/bls12.hpp>
 #include <nil/crypto3/algebra/algorithms/pair.hpp>
@@ -197,49 +204,26 @@ namespace nil {
 
                 using eq_component_type = components::equality_flag<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+                using comp_component_type = components::comparison<
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
 
                 if (p == llvm::CmpInst::ICMP_EQ || p ==llvm::CmpInst::ICMP_NE) {
                     std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
                     const common_component_parameters param = {assignments[currProverIdx].allocated_rows(), targetProverIdx, gen_mode};
-                    const auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
+                    const auto v = handle_comparison_component_eq_neq<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         p, lhs, rhs, bitness,
                         circuits[currProverIdx], assignments[currProverIdx], param);
                     handle_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
                             (assignments[currProverIdx], inst, frame, v, gen_mode);
                 } else {
-                    bool res = false;
-                    if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
-                        switch (p) {
-                            case llvm::CmpInst::ICMP_SGE:
-                            case llvm::CmpInst::ICMP_UGE: {
-                                res = (var_value(assignments[currProverIdx], lhs) >=
-                                       var_value(assignments[currProverIdx], rhs));
-                                break;
-                            }
-                            case llvm::CmpInst::ICMP_SGT:
-                            case llvm::CmpInst::ICMP_UGT: {
-                                res = (var_value(assignments[currProverIdx], lhs) >
-                                       var_value(assignments[currProverIdx], rhs));
-                                break;
-                            }
-                            case llvm::CmpInst::ICMP_SLE:
-                            case llvm::CmpInst::ICMP_ULE: {
-                                res = (var_value(assignments[currProverIdx], lhs) <=
-                                       var_value(assignments[currProverIdx], rhs));
-                                break;
-                            }
-                            case llvm::CmpInst::ICMP_SLT:
-                            case llvm::CmpInst::ICMP_ULT: {
-                                res = (var_value(assignments[currProverIdx], lhs) <
-                                       var_value(assignments[currProverIdx], rhs));
-                                break;
-                            }
-                            default:
-                                UNREACHABLE("Unsupported icmp predicate");
-                                break;
-                        }
-                    }
-                    variables[inst] = put_into_assignment(res);
+                    std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
+                    const common_component_parameters param = {assignments[currProverIdx].allocated_rows(), targetProverIdx, gen_mode};
+
+                    const auto v = handle_comparison_component_others<BlueprintFieldType, ArithmetizationParams, comp_component_type>(
+                        p, lhs, rhs, bitness,
+                        circuits[currProverIdx], assignments[currProverIdx], param);
+                    handle_component_result<BlueprintFieldType, ArithmetizationParams, comp_component_type>
+                            (assignments[currProverIdx], inst, frame, v, gen_mode);
                 }
             }
 
@@ -262,7 +246,7 @@ namespace nil {
 
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     const common_component_parameters param = {assignments[currProverIdx].allocated_rows(), targetProverIdx, gen_mode};
-                    auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
+                    auto v = handle_comparison_component_eq_neq<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         inst->getPredicate(), lhs[i], rhs[i], bitness,
                         circuits[currProverIdx], assignments[currProverIdx], param);
 
@@ -289,7 +273,7 @@ namespace nil {
 
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     const common_component_parameters param = {assignments[currProverIdx].allocated_rows(), targetProverIdx, gen_mode};
-                    auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
+                    auto v = handle_comparison_component_eq_neq<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         inst->getPredicate(), lhs[i], rhs[i], 0,
                         circuits[currProverIdx], assignments[currProverIdx], param);
                     res.emplace_back(v.output);
@@ -513,67 +497,7 @@ namespace nil {
                     case llvm::Intrinsic::assigner_optimal_ate_pairing: {
                         if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::fields::bls12_base_field<381>>::value) {
 
-                            std::cerr << "warning: __builtin_assigner_bls12_optimal_ate_pairing is an experimental feature, may be not stable\n";
-
-                            ASSERT(frame.vectors[inst->getOperand(0)].size() == 2);
-                            ASSERT(frame.vectors[inst->getOperand(1)].size() == 4);
-
-                            if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
-                                typename crypto3::algebra::curves::bls12<381>::template g1_type<>::value_type g1 = {
-                                    var_value(assignments[currProverIdx], frame.vectors[inst->getOperand(0)][0]),
-                                    var_value(assignments[currProverIdx], frame.vectors[inst->getOperand(0)][1]),
-                                    crypto3::algebra::curves::bls12<
-                                        381>::template g1_type<>::field_type::value_type::one()};
-
-                                typename crypto3::algebra::curves::bls12<381>::template g2_type<>::value_type g2 = {
-                                    typename crypto3::algebra::curves::bls12<381>::template g2_type<>::field_type::
-                                        value_type(var_value(assignments[currProverIdx],
-                                                             frame.vectors[inst->getOperand(1)][0]),
-                                                   var_value(assignments[currProverIdx],
-                                                             frame.vectors[inst->getOperand(1)][1])),
-                                    typename crypto3::algebra::curves::bls12<381>::template g2_type<>::field_type::
-                                        value_type(var_value(assignments[currProverIdx],
-                                                             frame.vectors[inst->getOperand(1)][2]),
-                                                   var_value(assignments[currProverIdx],
-                                                             frame.vectors[inst->getOperand(1)][3])),
-                                    crypto3::algebra::curves::bls12<
-                                        381>::template g2_type<>::field_type::value_type::one()};
-
-                                typename crypto3::algebra::curves::bls12<381>::gt_type::value_type gt =
-                                    crypto3::algebra::pair<crypto3::algebra::curves::bls12<381>>(g1, g2);
-
-                                std::vector<var> res = {put_into_assignment(gt.data[0].data[0].data[0]),
-                                                        put_into_assignment(gt.data[0].data[0].data[1]),
-                                                        put_into_assignment(gt.data[0].data[1].data[0]),
-                                                        put_into_assignment(gt.data[0].data[1].data[1]),
-                                                        put_into_assignment(gt.data[0].data[2].data[0]),
-                                                        put_into_assignment(gt.data[0].data[2].data[1]),
-                                                        put_into_assignment(gt.data[1].data[0].data[0]),
-                                                        put_into_assignment(gt.data[1].data[0].data[1]),
-                                                        put_into_assignment(gt.data[1].data[1].data[0]),
-                                                        put_into_assignment(gt.data[1].data[1].data[1]),
-                                                        put_into_assignment(gt.data[1].data[2].data[0]),
-                                                        put_into_assignment(gt.data[1].data[2].data[1])};
-
-                                handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                         inst, frame, res, gen_mode);
-                            } else {
-                                std::vector<var> res = {put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0)};
-
-                                handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                         inst, frame, res, gen_mode);
-                            }
+                            handle_bls12381_pairing<BlueprintFieldType, ArithmetizationParams>(inst, frame, circuits[currProverIdx], assignments[currProverIdx], param);
                             return true;
                         }
                         else {
@@ -583,13 +507,7 @@ namespace nil {
                     case llvm::Intrinsic::assigner_hash_to_curve: {
                         if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::fields::bls12_base_field<381>>::value) {
 
-                            std::cerr << "warning: __builtin_assigner_hash_to_curve             is an experimental feature, may be not stable\n";
-
-                            std::vector<var> res = {frame.scalars[inst->getOperand(0)],
-                                                    frame.scalars[inst->getOperand(0)]};
-
-                            handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                     inst, frame, res, gen_mode);
+                            handle_h2c<BlueprintFieldType, ArithmetizationParams>(inst, frame, circuits[currProverIdx], assignments[currProverIdx], param);
                             return true;
                         }
                         else {
@@ -599,10 +517,7 @@ namespace nil {
                     case llvm::Intrinsic::assigner_is_in_g1_check: {
                         if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::fields::bls12_base_field<381>>::value) {
 
-                            std::cerr << "warning: __builtin_assigner_is_in_g1_check            is an experimental feature, may be not stable\n";
-
-                            handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                     inst, frame, {zero_var}, gen_mode);
+                            handle_is_in_g1<BlueprintFieldType, ArithmetizationParams>(inst, frame, circuits[currProverIdx], assignments[currProverIdx], param);
                             return true;
                         }
                         else {
@@ -612,10 +527,7 @@ namespace nil {
                     case llvm::Intrinsic::assigner_is_in_g2_check: {
                         if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::fields::bls12_base_field<381>>::value) {
 
-                            std::cerr << "warning: __builtin_assigner_is_in_g2_check            is an experimental feature, may be not stable\n";
-
-                            handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                     inst, frame, {zero_var}, gen_mode);
+                            handle_is_in_g2<BlueprintFieldType, ArithmetizationParams>(inst, frame, circuits[currProverIdx], assignments[currProverIdx], param);
                             return true;
                         }
                         else {
@@ -625,64 +537,7 @@ namespace nil {
                     case llvm::Intrinsic::assigner_gt_multiplication: {
                         if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::fields::bls12_base_field<381>>::value) {
 
-                            std::cerr << "warning: __builtin_assigner_gt_multiplication         is an experimental feature, may be not stable\n";
-
-                            if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
-                                std::vector<var> vars_1 = frame.vectors[inst->getOperand(0)];
-                                ASSERT(vars_1.size() == 12);
-                                std::vector<typename BlueprintFieldType::value_type> A = {};
-                                for (std::size_t i = 0; i < 12; i++) {
-                                    A.push_back(var_value(assignments[currProverIdx], vars_1[i]));
-                                }
-
-                                std::vector<var> vars_2 = frame.vectors[inst->getOperand(0)];
-                                ASSERT(vars_2.size() == 12);
-                                std::vector<typename BlueprintFieldType::value_type> B = {};
-                                for (std::size_t i = 0; i < 12; i++) {
-                                    B.push_back(var_value(assignments[currProverIdx], vars_2[i]));
-                                }
-
-                                using fp12_element =
-                                    typename crypto3::algebra::fields::fp12_2over3over2<BlueprintFieldType>::value_type;
-
-                                fp12_element e1 = fp12_element({{A[0], A[1]}, {A[2], A[3]}, {A[4], A[5]}},
-                                                               {{A[6], A[7]}, {A[8], A[9]}, {A[10], A[11]}}),
-                                             e2 = fp12_element({{B[0], B[1]}, {B[2], B[3]}, {B[4], B[5]}},
-                                                               {{B[6], B[7]}, {B[8], B[9]}, {B[10], B[11]}}),
-                                             e = e1 * e2;
-
-                                std::vector<var> res = {put_into_assignment(e.data[0].data[0].data[0]),
-                                                        put_into_assignment(e.data[0].data[0].data[1]),
-                                                        put_into_assignment(e.data[0].data[1].data[0]),
-                                                        put_into_assignment(e.data[0].data[1].data[1]),
-                                                        put_into_assignment(e.data[0].data[2].data[0]),
-                                                        put_into_assignment(e.data[0].data[2].data[1]),
-                                                        put_into_assignment(e.data[1].data[0].data[0]),
-                                                        put_into_assignment(e.data[1].data[0].data[1]),
-                                                        put_into_assignment(e.data[1].data[1].data[0]),
-                                                        put_into_assignment(e.data[1].data[1].data[1]),
-                                                        put_into_assignment(e.data[1].data[2].data[0]),
-                                                        put_into_assignment(e.data[1].data[2].data[1])};
-
-                                handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                         inst, frame, res, gen_mode);
-                            } else {
-                                std::vector<var> res = {put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0),
-                                                        put_into_assignment(0)};
-
-                                handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                         inst, frame, res, gen_mode);
-                            }
+                            handle_fp12_mul<BlueprintFieldType, ArithmetizationParams>(inst, frame, circuits[currProverIdx], assignments[currProverIdx], param);
                             return true;
                         }
                         else {
@@ -766,7 +621,7 @@ namespace nil {
                         using eq_component_type = components::equality_flag<
                         crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
 
-                        var comparison_result = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
+                        var comparison_result = handle_comparison_component_eq_neq<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                             llvm::CmpInst::ICMP_EQ, logical_statement, zero_var, bitness,
                             circuits[currProverIdx], assignments[currProverIdx], param).output;
 
