@@ -46,6 +46,9 @@ namespace nil {
             /// @brief Address in memory.
             using ptr_type = std::uint64_t;
 
+            /// @brief Bit width of address in memory.
+            const int ptr_bit_width = std::numeric_limits<ptr_type>::digits;
+
             /// @brief Size of memory allocation in bytes.
             using size_type = std::uint32_t;
 
