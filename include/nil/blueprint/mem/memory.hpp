@@ -24,16 +24,15 @@
 // @file This file defines assigner memory representation.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_MEM_MEMORY_HPP
-#define CRYPTO3_ASSIGNER_MEM_MEMORY_HPP
+#ifndef NIL_BLUEPRINT_MEM_MEMORY_HPP
+#define NIL_BLUEPRINT_MEM_MEMORY_HPP
 
 #include <stack>
 
-#include <nil/blueprint/asserts.hpp>
+#include <nil/blueprint/mem/allocator.hpp>
 #include <nil/blueprint/mem/layout.hpp>
 #include <nil/blueprint/mem/segment.hpp>
 #include <nil/blueprint/mem/segment_map.hpp>
-#include <nil/blueprint/mem/var.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -42,28 +41,25 @@ namespace nil {
             template<typename VarType>
             struct memory {
             private:
-                using var_type = var<VarType>;
-                /// Allocated segments.
-                segment_map<VarType> segments;
+                segment_map<VarType> storage;
 
-                /// Size of preallocated stack memory.
-                size_type stack_size;
+                allocator<VarType> alloc;
 
                 /// Stack pointer.
                 ptr_type stack_ptr;
-
-                /// Next free heap pointer.
-                ptr_type heap_top;
 
                 /// Stack frames.
                 std::stack<ptr_type> frames;
 
             public:
-                memory(size_type stack_size) : stack_size(stack_size), stack_ptr(0x1), heap_top(stack_size + 1) {
-                    // Pre-allocated stack segment
-                    // TODO: maybe we don't need this pre-allocation?
-                    this->segments.insert({segment(0x1, stack_size), var_type()});
+                memory() : stack_ptr(STACK_BOTTOM) {
+                    this->alloc = allocator<VarType>(this->storage);
                     this->push_frame();
+                }
+
+                /// Get allocator reference.
+                allocator<VarType>& get_allocator() {
+                    return alloc;
                 }
 
                 /// Push new stack frame.
@@ -78,53 +74,34 @@ namespace nil {
                 }
 
                 /// Allocate N bytes on stack and return pointer to this.
-                ptr_type stack_push(size_type n) {
+                ptr_type stack_alloca(size_type n) {
                     ptr_type ptr = stack_ptr;
-                    segment alloc(ptr, n);
-                    this->segments[alloc] = var_type();
                     stack_ptr += n;
                     return ptr;
                 }
 
+                /// Store value of given size at given pointer.
                 void store(ptr_type ptr, size_type size, VarType value) {
-                    if (auto seg = segments.find_segment(ptr)) {
-                        segments.insert({segment(ptr, size), var_type(value, size)});
-                    } else {
-                        UNREACHABLE("out of allocated memory access");
-                    }
+                    storage.insert(segment(ptr, size), value);
                 }
 
+                /// Load value of given size from given pointer.
                 VarType load(ptr_type ptr, size_type size) {
-                    auto elem = segments.find(segment(ptr, size));
-                    if (elem == segments.end()) {
-                        if (auto seg = segments.find_segment(ptr)) {
-                            UNREACHABLE("unaligned loads are not yet implemented");
-                        } else {
-                            UNREACHABLE("out of allocated memory access");
-                        }
-                    }
-                    return elem->second.value;
+                    return storage.get(segment(ptr, size));
                 }
 
-                // This gonna be removed, used only for debug.
-                // Print current memory state summary to stdout.
-                void dump_summary() {
-                    std::cout << "================================================" << std::endl;
-                    std::cout << "Stack size: 0x" << std::hex << stack_size << std::endl;
-                    std::cout << "Heap top: 0x" << std::hex << heap_top << std::endl;
-                    std::cout << "Stack pointer: 0x" << std::hex << stack_ptr << std::dec << std::endl;
-                    std::cout << "Frames count: " << frames.size() << std::endl;
-                    std::cout << "Segments count: " << segments.size() << std::endl;
-                    std::cout << std::endl;
-                    std::cout << "Segments:" << std::endl;
-                    for(const auto& elem : segments) {
-                        std::cout << "  " << elem.first << " = " << elem.second.value << std::endl;
-                    }
-                    std::cout << "================================================" << std::endl;
+                /// Set first `count` bytes from `dest` to `value`.
+                void memset(ptr_type dest, VarType value, size_type count) {
+                    UNREACHABLE("memset not yet implemented");
+                }
+
+                /// Copy `count` bytes from `src` to `dest`.
+                void memcpy(ptr_type dest, ptr_type src, size_type count) {
+                    UNREACHABLE("memcpy not yet implemented");
                 }
             };
         }    // namespace mem
     }        // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_ASSIGNER_MEM_MEMORY_HPP
+#endif    // NIL_BLUEPRINT_MEM_MEMORY_HPP
