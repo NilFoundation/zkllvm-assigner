@@ -34,6 +34,7 @@
 
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
+#include <nil/blueprint/mem/memory.hpp>
 
 #include <iostream>
 #include <boost/json/src.hpp>
@@ -42,10 +43,12 @@
 
 namespace nil {
     namespace blueprint {
+        using ptr_type = mem::ptr_type;
+
         template<typename BlueprintFieldType, typename var, typename Assignment>
         class InputReader {
         public:
-            InputReader(stack_frame<var> &frame, program_memory<var> &memory, Assignment &assignmnt, LayoutResolver &layout_resolver) :
+            InputReader(stack_frame<var> &frame, mem::memory<var> &memory, Assignment &assignmnt, LayoutResolver &layout_resolver) :
                 frame(frame), layout_resolver(layout_resolver), memory(memory),
                 assignmnt(assignmnt), public_input_idx(0), private_input_idx(0), constant_idx(0),
                 priv_iter(0), pub_iter(0) {}
@@ -281,25 +284,24 @@ namespace nil {
                 }
                 const auto &json_str = value.at("string").as_string();
                 size_t string_size = json_str.size() + 1;  // add memory for '\0'
-                type_layout string_layout(string_size, {1,0});
-                ptr_type ptr = memory.add_cells(string_layout);
+                ptr_type ptr = memory.stack_alloca(string_size);
                 auto pointer_var = pointer_into_assignment(ptr);
                 frame.scalars[arg] = pointer_var;
 
                 for (char c : json_str) {
                     auto variable = put_into_assignment(c, is_private);
-                    memory.store(ptr++, variable);
+                    memory.store(ptr++, 1, variable);
                 }
                 // Put '\0' at the end
                 typename BlueprintFieldType::value_type zero_val = 0;
                 auto final_zero = put_into_assignment(zero_val, is_private);
-                memory.store(ptr++, final_zero);
+                memory.store(ptr, 1, final_zero);
 
                 return true;
             }
 
             bool try_struct(llvm::Value *arg, llvm::StructType *struct_type, const boost::json::object &value, bool is_private) {
-                ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(struct_type));
+                ptr_type ptr = memory.stack_alloca(layout_resolver.get_type_size(struct_type));
                 process_struct(struct_type, value, ptr, is_private);
                 auto variable = pointer_into_assignment(ptr);
                 frame.scalars[arg] = variable;
@@ -307,7 +309,7 @@ namespace nil {
             }
 
             bool try_array(llvm::Value *arg, llvm::ArrayType *array_type, const boost::json::object &value, bool is_private) {
-                ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(array_type));
+                ptr_type ptr = memory.stack_alloca(layout_resolver.get_type_size(array_type));
                 process_array(array_type, value, ptr, is_private);
                 auto variable = pointer_into_assignment(ptr);
                 frame.scalars[arg] = variable;
@@ -385,7 +387,8 @@ namespace nil {
                     auto flat_components = process_leaf_type(type, value.as_object(), is_private);
                     ASSERT(!flat_components.empty());
                     for (auto num : flat_components) {
-                        memory.store(ptr++, num);
+                        UNREACHABLE("not yet implemented: we don't know sizes here");
+                        // memory.store(ptr++, num);
                     }
                     return ptr;
                 }
@@ -420,7 +423,7 @@ namespace nil {
                     if (current_arg->hasStructRetAttr()) {
                         ASSERT(llvm::isa<llvm::PointerType>(arg_type));
                         auto pointee = current_arg->getAttribute(llvm::Attribute::StructRet).getValueAsType();
-                        ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(pointee));
+                        ptr_type ptr = memory.stack_alloca(layout_resolver.get_type_size(pointee));
                         frame.scalars[current_arg] = pointer_into_assignment(ptr);
                         ret_gap += 1;
                         continue;
@@ -512,7 +515,7 @@ namespace nil {
 
         private:
             stack_frame<var> &frame;
-            program_memory<var> &memory;
+            mem::memory<var> &memory;
             Assignment &assignmnt;
             LayoutResolver &layout_resolver;
             size_t public_input_idx;

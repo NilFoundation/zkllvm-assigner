@@ -39,8 +39,6 @@
 #include <llvm/IR/Instructions.h>
 #include "llvm/IR/Constants.h"
 
-#include <nil/blueprint/memory.hpp>
-
 namespace nil {
     namespace blueprint {
 
