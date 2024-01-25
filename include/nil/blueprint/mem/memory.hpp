@@ -41,8 +41,10 @@ namespace nil {
             template<typename VarType>
             struct memory {
             private:
+                /// Memory storage.
                 segment_map<VarType> storage;
 
+                /// Heap memory allocator.
                 allocator<VarType> alloc;
 
                 /// Stack pointer.
@@ -52,9 +54,8 @@ namespace nil {
                 std::stack<ptr_type> frames;
 
             public:
-                memory() : stack_ptr(STACK_BOTTOM) {
-                    this->alloc = allocator<VarType>(this->storage);
-                    this->push_frame();
+                memory() : alloc(this->storage), stack_ptr(STACK_BOTTOM) {
+                    push_frame();
                 }
 
                 /// Get allocator reference.

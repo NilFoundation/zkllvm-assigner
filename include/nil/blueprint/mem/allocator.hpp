@@ -54,7 +54,7 @@ namespace nil {
                 using storage_type = segment_map<VarType>;
 
                 allocator(storage_type& storage) : storage(storage) {
-                    this->empty_regions.emplace_back(HEAP_BOTTOM, PTR_MAX);
+                    empty_regions.emplace_back(HEAP_BOTTOM, PTR_MAX);
                 }
 
                 /**

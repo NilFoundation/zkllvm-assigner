@@ -47,9 +47,6 @@ namespace nil {
             template<typename Value>
             struct segment_map : std::map<segment, Value> {
             public:
-                segment_map() {
-                }
-
                 /**
                  * @brief Insert segment into the map.
                  *
