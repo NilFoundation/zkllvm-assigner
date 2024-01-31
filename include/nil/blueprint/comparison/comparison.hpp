@@ -48,19 +48,16 @@ namespace nil {
                 &assignment,
                 std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
-            using eq_component_type = components::equality_flag<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
-            typename eq_component_type::input_type instance_input({x, y});
+            typename ComponentType::input_type instance_input({x, y});
 
-            // TODO(maksenov): replace naive handling with the component
             switch (p) {
                 case llvm::CmpInst::ICMP_EQ: {
-                    return get_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
+                    return get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
                             (bp, assignment, start_row, target_prover_idx, instance_input, false);
                     break;
                 }
                 case llvm::CmpInst::ICMP_NE:{
-                    return get_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
+                    return get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
                             (bp, assignment, start_row, target_prover_idx, instance_input, true);
                     break;
                 }
@@ -72,7 +69,7 @@ namespace nil {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
         typename ComponentType::result_type
-        handle_comparison_component_others(
+            handle_comparison_component_others(
                 llvm::CmpInst::Predicate p,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &x,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &y,
@@ -83,9 +80,7 @@ namespace nil {
                 std::uint32_t start_row, std::uint32_t target_prover_idx) {
 
 
-            using comp_component_type = components::comparison<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
-            typename comp_component_type::input_type instance_input({x, y});
+            typename ComponentType::input_type instance_input({x, y});
 
             nil::blueprint::components::comparison_mode Mode;
 
@@ -111,10 +106,88 @@ namespace nil {
                     break;
             }
 
-            return get_component_result<BlueprintFieldType, ArithmetizationParams, comp_component_type>
+            return get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
                 (bp, assignment, start_row, target_prover_idx, instance_input, Mode);
 
         }
+
+        template<typename BlueprintFieldType, typename ArithmetizationParams>
+            void handle_comparison_component(
+                const llvm::Instruction *inst,
+                stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
+                llvm::CmpInst::Predicate p,
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                &assignment,
+                std::uint32_t start_row, std::uint32_t target_prover_idx
+            ) {
+
+                using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+
+                const var &x = frame.scalars[inst->getOperand(0)];
+                const var &y = frame.scalars[inst->getOperand(1)];
+
+                std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
+
+
+            switch (p) {
+                case llvm::CmpInst::ICMP_EQ:
+                case llvm::CmpInst::ICMP_NE: {
+                    using eq_component_type = components::equality_flag<
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+
+                    const auto& component_result = handle_comparison_component_eq_neq<
+                        BlueprintFieldType, ArithmetizationParams, eq_component_type>(
+                            p, x, y, bitness, bp, assignment, start_row, target_prover_idx);
+
+                    handle_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
+                        (assignment, inst, frame, component_result);
+                    break;
+                }
+
+                case llvm::CmpInst::ICMP_SGE:
+                case llvm::CmpInst::ICMP_UGE:
+                case llvm::CmpInst::ICMP_SGT:
+                case llvm::CmpInst::ICMP_UGT:
+                case llvm::CmpInst::ICMP_SLE:
+                case llvm::CmpInst::ICMP_ULE:
+                case llvm::CmpInst::ICMP_SLT:
+                case llvm::CmpInst::ICMP_ULT: {
+                    using comp_component_type = components::comparison<
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+
+                    const auto& component_result = handle_comparison_component_others<
+                        BlueprintFieldType, ArithmetizationParams, comp_component_type>(
+                            p, x, y, bitness, bp, assignment, start_row, target_prover_idx);
+
+                    handle_component_result<BlueprintFieldType, ArithmetizationParams, comp_component_type>
+                        (assignment, inst, frame, component_result);
+                    break;
+                }
+
+                default:
+                    UNREACHABLE("Unsupported icmp predicate");
+                    break;
+            }
+        }
+
+                // if (p == llvm::CmpInst::ICMP_EQ || p ==llvm::CmpInst::ICMP_NE) {
+                //     std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
+                //     const auto start_row = assignments[currProverIdx].allocated_rows();
+                //     const auto v = handle_comparison_component_eq_neq<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
+                //         p, lhs, rhs, bitness,
+                //         circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
+                //     handle_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
+                //             (assignments[currProverIdx], inst, frame, v);
+                // } else {
+                //     std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
+                //     const auto start_row = assignments[currProverIdx].allocated_rows();
+                //     const auto v = handle_comparison_component_others<BlueprintFieldType, ArithmetizationParams, comp_component_type>(
+                //         p, lhs, rhs, bitness,
+                //         circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx);
+                //     handle_component_result<BlueprintFieldType, ArithmetizationParams, comp_component_type>
+                //             (assignments[currProverIdx], inst, frame, v);
+                // }
 
     }    // namespace blueprint
 }    // namespace nil
