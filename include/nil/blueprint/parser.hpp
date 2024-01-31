@@ -197,35 +197,10 @@ namespace nil {
 
             template<typename map_type>
             void handle_scalar_cmp(const llvm::ICmpInst *inst, map_type &frame) {
-                auto &variables = frame.scalars;
-                const var &lhs = variables[inst->getOperand(0)];
-                const var &rhs = variables[inst->getOperand(1)];
-
                 llvm::CmpInst::Predicate p = inst->getPredicate();
-
-                using eq_component_type = components::equality_flag<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
-                using comp_component_type = components::comparison<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
-
-                if (p == llvm::CmpInst::ICMP_EQ || p ==llvm::CmpInst::ICMP_NE) {
-                    std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
-                    const common_component_parameters param = {assignments[currProverIdx].allocated_rows(), targetProverIdx, gen_mode};
-                    const auto v = handle_comparison_component_eq_neq<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
-                        p, lhs, rhs, bitness,
-                        circuits[currProverIdx], assignments[currProverIdx], param);
-                    handle_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
-                            (assignments[currProverIdx], inst, frame, v, gen_mode);
-                } else {
-                    std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
-                    const common_component_parameters param = {assignments[currProverIdx].allocated_rows(), targetProverIdx, gen_mode};
-
-                    const auto v = handle_comparison_component_others<BlueprintFieldType, ArithmetizationParams, comp_component_type>(
-                        p, lhs, rhs, bitness,
-                        circuits[currProverIdx], assignments[currProverIdx], param);
-                    handle_component_result<BlueprintFieldType, ArithmetizationParams, comp_component_type>
-                            (assignments[currProverIdx], inst, frame, v, gen_mode);
-                }
+                const common_component_parameters param = {assignments[currProverIdx].allocated_rows(), targetProverIdx, gen_mode};
+                handle_comparison_component<BlueprintFieldType, ArithmetizationParams> (
+                    inst, frame, p, circuits[currProverIdx], assignments[currProverIdx], param);
             }
 
             void handle_vector_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
@@ -242,10 +217,10 @@ namespace nil {
                     bitness = llvm::cast<llvm::IntegerType>(vector_ty->getElementType())->getBitWidth();
                 }
 
-                using eq_component_type = components::equality_flag<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
-
                 for (size_t i = 0; i < lhs.size(); ++i) {
+                    using eq_component_type = components::equality_flag<
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+
                     const common_component_parameters param = {assignments[currProverIdx].allocated_rows(), targetProverIdx, gen_mode};
                     auto v = handle_comparison_component_eq_neq<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         inst->getPredicate(), lhs[i], rhs[i], bitness,
