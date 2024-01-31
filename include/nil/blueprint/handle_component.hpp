@@ -238,6 +238,8 @@ namespace nil {
                 component_finished[component_instance.component_name] = true;
             }
 
+            BOOST_LOG_TRIVIAL(debug) << "Using component \"" << component_instance.component_name << "\"";
+
             if (!(component_finished[component_instance.component_name] || enable_experimental)) {
                 std::string error_message = "component " + component_instance.component_name + " is experimental, but experimental components usage is disabled. " \
                 "Use --enable-experimental flag to allow non-production-grade components usage.";
