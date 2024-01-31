@@ -169,6 +169,9 @@ namespace nil {
                 component_finished[component_instance.component_name] = true;
             }
 
+
+            BOOST_LOG_TRIVIAL(debug) << "Using component \"" << component_instance.component_name << "\"";
+
             bool enable_experimental = true;
 
             if (!(component_finished[component_instance.component_name] || enable_experimental)) {
@@ -190,9 +193,7 @@ namespace nil {
             if (component_finished[component_instance.component_name]) {
                 components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
             } else {
-                std::cerr << "skipped constraints generation for ";
-                std::cerr << component_instance.component_name;
-                std::cerr << " component\n";
+                BOOST_LOG_TRIVIAL(debug) << "component contains experimental features, constraints generation skipped";
             }
 
             if (target_prover_idx == assignment.get_id() || target_prover_idx == std::numeric_limits<std::uint32_t>::max()) {
