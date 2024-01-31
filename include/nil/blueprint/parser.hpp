@@ -220,7 +220,6 @@ namespace nil {
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     using eq_component_type = components::equality_flag<
                         crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
-
                     const common_component_parameters param = {assignments[currProverIdx].allocated_rows(), targetProverIdx, gen_mode};
                     auto v = handle_comparison_component_eq_neq<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         inst->getPredicate(), lhs[i], rhs[i], bitness,
