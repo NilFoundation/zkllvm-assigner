@@ -52,7 +52,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
-                    std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
+                    std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct comp_gen_params) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -70,7 +70,7 @@ namespace nil {
                 typename component_type::input_type addition_input = {{P.X, P.Y}, {Q.X, Q.Y}};
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, target_prover_idx, addition_input, gen_flag);
+                    (bp, assignment, start_row, target_prover_idx, addition_input, comp_gen_params);
             }
 
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename CurveType, typename Ed25519Type>
@@ -85,7 +85,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
-                    std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
+                    std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct comp_gen_params) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -127,7 +127,7 @@ namespace nil {
                 typename component_type::input_type addition_input = {{P.X, P.Y}, {Q.X, Q.Y}};
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, target_prover_idx, addition_input, gen_flag);
+                    (bp, assignment, start_row, target_prover_idx, addition_input, comp_gen_params);
             }
         }    // namespace detail
 
@@ -138,7 +138,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct comp_gen_params) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
@@ -168,9 +168,9 @@ namespace nil {
                             using component_type = components::unified_addition<ArithmetizationType, operating_curve_type>;
                             typename component_type::result_type res =
                                 detail::handle_native_curve_unified_addition_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
-                                    operand0, operand1, frame.vectors, bp, assignment, start_row, target_prover_idx, gen_flag);
+                                    operand0, operand1, frame.vectors, bp, assignment, start_row, target_prover_idx, comp_gen_params);
                             std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = {res.X, res.Y};
-                            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, gen_flag);
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, comp_gen_params);
                         } else {
                             UNREACHABLE("non-native pallas is undefined");
                         }
@@ -209,8 +209,8 @@ namespace nil {
                                 operating_curve_type, basic_non_native_policy<BlueprintFieldType>>;
                             typename component_type::result_type res =
                                 detail::handle_non_native_curve_addition_component<BlueprintFieldType, ArithmetizationParams, pallas_curve_type, operating_curve_type>(
-                                    operand0, operand1, frame.vectors, bp, assignment, start_row, target_prover_idx, gen_flag);
-                            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, gen_flag);
+                                    operand0, operand1, frame.vectors, bp, assignment, start_row, target_prover_idx, comp_gen_params);
+                            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, comp_gen_params);
                         }
                     }
 

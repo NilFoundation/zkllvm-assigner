@@ -62,32 +62,17 @@
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
 
+#include <nil/blueprint/component_creation_parameters.hpp>
+
 
 namespace nil {
     namespace blueprint {
-
-        enum class generate_flag : uint8_t {
-            NONE = 0,
-            CIRCUIT = 1 << 0,
-            ASSIGNMENTS = 1 << 1,
-            FALSE_ASSIGNMENTS = 1 << 2
-        };
-
-        constexpr enum generate_flag operator |( const enum generate_flag self, const enum generate_flag val )
-        {
-            return (enum generate_flag)(uint8_t(self) | uint8_t(val));
-        }
-
-        constexpr enum generate_flag operator &( const enum generate_flag self, const enum generate_flag val )
-        {
-            return (enum generate_flag)(uint8_t(self) & uint8_t(val));
-        }
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
         void handle_component_input(
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            typename ComponentType::input_type& instance_input, generate_flag gen_flag) {
+            typename ComponentType::input_type& instance_input, component_creation_parameters_struct comp_gen_params) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -98,7 +83,7 @@ namespace nil {
                 bool found = (used_rows.find(v.get().rotation) != used_rows.end());
                 if (!found && (v.get().type == var::column_type::witness || v.get().type == var::column_type::constant)) {
                     var new_v;
-                    if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS)) {
+                    if (std::uint8_t(comp_gen_params.genFlag & generate_flag::ASSIGNMENTS)) {
                         new_v = save_shared_var(assignment, v);
                     } else {
                         const auto& shared_idx = assignment.shared_column_size(0);
@@ -120,7 +105,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag,
+            std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct comp_gen_params,
             typename components::logic_and<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::input_type& instance_input) {
 
@@ -138,11 +123,11 @@ namespace nil {
                 }
             };
 
-            handle_component_input<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, instance_input, gen_flag);
+            handle_component_input<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, instance_input, comp_gen_params);
 
             components::generate_circuit(component_instance, bp, assignment, instance_input, start_row);
 
-            if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS)) {
+            if (std::uint8_t(comp_gen_params.genFlag & generate_flag::ASSIGNMENTS)) {
                 return components::generate_assignments(component_instance, assignment, instance_input,
                                                         start_row);
             } else {
@@ -223,7 +208,7 @@ namespace nil {
                 &assignment,
                 std::uint32_t start_row, std::uint32_t target_prover_idx,
                 typename ComponentType::input_type& instance_input,
-                generate_flag gen_flag,
+                component_creation_parameters_struct comp_gen_params,
                 Args... args) {
 
             const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType, ArithmetizationParams>::get_witness(0, args...));
@@ -231,7 +216,7 @@ namespace nil {
             ComponentType component_instance(p.witness, detail::ManifestReader<ComponentType, ArithmetizationParams>::get_constants(),
                                               detail::ManifestReader<ComponentType, ArithmetizationParams>::get_public_inputs(), args...);
 
-            handle_component_input<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, instance_input, gen_flag);
+            handle_component_input<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, instance_input, comp_gen_params);
 
             // copy constraints before execute component
             const auto num_copy_constraints = bp.copy_constraints().size();
@@ -239,11 +224,11 @@ namespace nil {
             // generate circuit in any case for fill selectors
             generate_circuit(component_instance, bp, assignment, instance_input, start_row);
 
-            if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS)) {
+            if (std::uint8_t(comp_gen_params.genFlag & generate_flag::ASSIGNMENTS)) {
                 return generate_assignments(component_instance, assignment, instance_input, start_row,
                                             target_prover_idx);
             } else {
-                if (std::uint8_t(gen_flag & generate_flag::FALSE_ASSIGNMENTS)) {
+                if (std::uint8_t(comp_gen_params.genFlag & generate_flag::FALSE_ASSIGNMENTS)) {
                     const auto rows_amount = ComponentType::get_rows_amount(p.witness.size(), 0, args...);
                     // disable selector
                     for (std::uint32_t i = 0; i < rows_amount; i++) {
@@ -297,14 +282,14 @@ namespace nil {
                 &assignment,
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-                const typename ComponentType::result_type& component_result, generate_flag gen_flag) {
+                const typename ComponentType::result_type& component_result, component_creation_parameters_struct comp_gen_params) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
             std::vector<var> output = component_result.all_vars();
 
             //touch result variables
-            if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS) == 0) {
+            if (std::uint8_t(comp_gen_params.genFlag & generate_flag::ASSIGNMENTS) == 0) {
                 const auto result_vars = component_result.all_vars();
                 for (const auto &v : result_vars) {
                     if (v.type == var::column_type::witness) {
@@ -328,12 +313,12 @@ namespace nil {
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
                 const std::vector<typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>& result,
-                generate_flag gen_flag) {
+                component_creation_parameters_struct comp_gen_params) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
             //touch result variables
-            if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS) == 0) {
+            if (std::uint8_t(comp_gen_params.genFlag & generate_flag::ASSIGNMENTS) == 0) {
                 for (const auto &v : result) {
                     if (v.type == var::column_type::witness) {
                         assignment.witness(v.index, v.rotation) = BlueprintFieldType::value_type::zero();
@@ -354,16 +339,16 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-                std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag,
+                std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct comp_gen_params,
                 typename ComponentType::input_type& instance_input,
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
                 Args... args) {
 
             const auto component_result = get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
-                    (bp, assignment, start_row, target_prover_idx, instance_input, gen_flag, args...);
+                    (bp, assignment, start_row, target_prover_idx, instance_input, comp_gen_params, args...);
 
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, inst, frame, component_result, gen_flag);
+            handle_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, inst, frame, component_result, comp_gen_params);
         }
 
     }    // namespace blueprint

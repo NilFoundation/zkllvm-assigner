@@ -52,6 +52,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
 
+#include <nil/blueprint/component_creation_parameters.hpp>
 #include <nil/blueprint/logger.hpp>
 #include <nil/blueprint/layout_resolver.hpp>
 #include <nil/blueprint/input_reader.hpp>
@@ -119,7 +120,7 @@ namespace nil {
                 log(log_level),
                 print_output_format(output_print_format),
                 validity_check(check_validity),
-                genFlag(gen_flag)
+                component_creation_parameters(gen_flag)
             {
 
                 detail::PolicyManager::set_policy(kind);
@@ -145,13 +146,13 @@ namespace nil {
                     predecessor = p.predecessor;
                     currProverIdx = p.currProverIdx;
                     cpp_values = p.cpp_values;
-                    genFlag = p.genFlag;
+                    component_creation_parameters = p.component_creation_parameters;
                     finished = p.finished;
                 }
                 const llvm::BasicBlock *predecessor;
                 std::uint32_t currProverIdx;
                 std::vector<const void *> cpp_values;
-                generate_flag genFlag;
+                component_creation_parameters_struct component_creation_parameters;
                 bool finished;
             };
 
@@ -203,12 +204,12 @@ namespace nil {
                     const auto start_row = assignments[currProverIdx].allocated_rows();
                     const auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         p, lhs, rhs, bitness,
-                        circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                        circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                     handle_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
-                            (assignments[currProverIdx], inst, frame, v, genFlag);
+                            (assignments[currProverIdx], inst, frame, v, component_creation_parameters);
                 } else {
                     bool res = false;
-                    if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                    if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                         switch (p) {
                             case llvm::CmpInst::ICMP_SGE:
                             case llvm::CmpInst::ICMP_UGE: {
@@ -264,12 +265,12 @@ namespace nil {
                     const auto start_row = assignments[currProverIdx].allocated_rows();
                     auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         inst->getPredicate(), lhs[i], rhs[i], bitness,
-                        circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                        circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
 
                     res.emplace_back(v.output);
                 }
                 handle_result<BlueprintFieldType, ArithmetizationParams>
-                        (assignments[currProverIdx], inst, frame, res, genFlag);
+                        (assignments[currProverIdx], inst, frame, res, component_creation_parameters);
             }
 
             void handle_curve_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
@@ -290,7 +291,7 @@ namespace nil {
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     auto v = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         inst->getPredicate(), lhs[i], rhs[i], 0,
-                        circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows(), targetProverIdx, genFlag);
+                        circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows(), targetProverIdx, component_creation_parameters);
                     res.emplace_back(v.output);
                 }
 
@@ -301,14 +302,14 @@ namespace nil {
                 for (size_t i = 1; i < lhs.size(); ++i) {
                     are_curves_equal = handle_logic_and<BlueprintFieldType, ArithmetizationParams>(
                         are_curves_equal, res[i], circuits[currProverIdx], assignments[currProverIdx],
-                        assignments[currProverIdx].allocated_rows(), targetProverIdx, genFlag);
+                        assignments[currProverIdx].allocated_rows(), targetProverIdx, component_creation_parameters);
                 }
                 handle_result<BlueprintFieldType, ArithmetizationParams>
-                    (assignments[currProverIdx], inst, frame, {are_curves_equal}, genFlag);
+                    (assignments[currProverIdx], inst, frame, {are_curves_equal}, component_creation_parameters);
             }
 
             void handle_ptr_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
-                if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                     ptr_type lhs = resolve_number<ptr_type>(frame, inst->getOperand(0));
                     ASSERT(frame.scalars.find(inst->getOperand(1)) != frame.scalars.end());
                     ptr_type rhs = resolve_number<ptr_type>(frame, inst->getOperand(1));
@@ -457,7 +458,7 @@ namespace nil {
 
                 switch (id) {
                     case llvm::Intrinsic::assigner_malloc: {
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             size_t bytes = resolve_number<size_t>(frame, inst->getOperand(0));
                             frame.scalars[inst] = put_into_assignment(stack_memory.malloc(bytes));
                         } else {
@@ -483,7 +484,7 @@ namespace nil {
                         typename component_type::input_type instance_input = {input_state_var};
 
                         handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
-                                (circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag, instance_input, inst, frame);
+                                (circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters, instance_input, inst, frame);
                         return true;
                         }
                         else {
@@ -495,12 +496,12 @@ namespace nil {
                                                                                              circuits[currProverIdx],
                                                                                              assignments[currProverIdx],
                                                                                              start_row, targetProverIdx,
-                                                                                             genFlag);
+                                                                                             component_creation_parameters);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_sha2_512: {
                         if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::curves::pallas::base_field_type>::value) {
-                            handle_sha2_512_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                            handle_sha2_512_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return true;
                         }
                         else {
@@ -515,7 +516,7 @@ namespace nil {
                             ASSERT(frame.vectors[inst->getOperand(0)].size() == 2);
                             ASSERT(frame.vectors[inst->getOperand(1)].size() == 4);
 
-                            if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                            if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                                 typename crypto3::algebra::curves::bls12<381>::template g1_type<>::value_type g1 = {
                                     var_value(assignments[currProverIdx], frame.vectors[inst->getOperand(0)][0]),
                                     var_value(assignments[currProverIdx], frame.vectors[inst->getOperand(0)][1]),
@@ -553,7 +554,7 @@ namespace nil {
                                                         put_into_assignment(gt.data[1].data[2].data[1])};
 
                                 handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                         inst, frame, res, genFlag);
+                                                                                         inst, frame, res, component_creation_parameters);
                             } else {
                                 std::vector<var> res = {put_into_assignment(0),
                                                         put_into_assignment(0),
@@ -569,7 +570,7 @@ namespace nil {
                                                         put_into_assignment(0)};
 
                                 handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                         inst, frame, res, genFlag);
+                                                                                         inst, frame, res, component_creation_parameters);
                             }
                             return true;
                         }
@@ -586,7 +587,7 @@ namespace nil {
                                                     frame.scalars[inst->getOperand(0)]};
 
                             handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                     inst, frame, res, genFlag);
+                                                                                     inst, frame, res, component_creation_parameters);
                             return true;
                         }
                         else {
@@ -599,7 +600,7 @@ namespace nil {
                             std::cerr << "warning: __builtin_assigner_is_in_g1_check            is an experimental feature, may be not stable\n";
 
                             handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                     inst, frame, {zero_var}, genFlag);
+                                                                                     inst, frame, {zero_var}, component_creation_parameters);
                             return true;
                         }
                         else {
@@ -612,7 +613,7 @@ namespace nil {
                             std::cerr << "warning: __builtin_assigner_is_in_g2_check            is an experimental feature, may be not stable\n";
 
                             handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                     inst, frame, {zero_var}, genFlag);
+                                                                                     inst, frame, {zero_var}, component_creation_parameters);
                             return true;
                         }
                         else {
@@ -624,7 +625,7 @@ namespace nil {
 
                             std::cerr << "warning: __builtin_assigner_gt_multiplication         is an experimental feature, may be not stable\n";
 
-                            if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                            if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                                 std::vector<var> vars_1 = frame.vectors[inst->getOperand(0)];
                                 ASSERT(vars_1.size() == 12);
                                 std::vector<typename BlueprintFieldType::value_type> A = {};
@@ -662,7 +663,7 @@ namespace nil {
                                                         put_into_assignment(e.data[1].data[2].data[1])};
 
                                 handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                         inst, frame, res, genFlag);
+                                                                                         inst, frame, res, component_creation_parameters);
                             } else {
                                 std::vector<var> res = {put_into_assignment(0),
                                                         put_into_assignment(0),
@@ -678,7 +679,7 @@ namespace nil {
                                                         put_into_assignment(0)};
 
                                 handle_result<BlueprintFieldType, ArithmetizationParams>(assignments[currProverIdx],
-                                                                                         inst, frame, res, genFlag);
+                                                                                         inst, frame, res, component_creation_parameters);
                             }
                             return true;
                         }
@@ -689,24 +690,24 @@ namespace nil {
                     case llvm::Intrinsic::assigner_bit_decomposition_field:
                     case llvm::Intrinsic::assigner_bit_decomposition: {
                         ASSERT(check_operands_constantness(inst, {1, 3}, frame));
-                        handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                        handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_bit_composition: {
                         ASSERT(check_operands_constantness(inst, {1, 2}, frame));
-                        handle_integer_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                        handle_integer_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_print_native_pallas_field: {
                         llvm::Value *input = inst->getOperand(0);
                         ASSERT(field_arg_num<BlueprintFieldType>(input->getType()) == 1);
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             std::cout << var_value(assignments[currProverIdx], frame.scalars[input]).data << std::endl;
                         }
                         return true;
                     }
                     case llvm::Intrinsic::memcpy: {
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             llvm::Value *src_val = inst->getOperand(1);
                             ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
                             ptr_type src = resolve_number<ptr_type>(frame, src_val);
@@ -716,7 +717,7 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::memset: {
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
                             unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
                             ASSERT(frame.scalars.find(inst->getOperand(1)) != frame.scalars.end());
@@ -765,9 +766,9 @@ namespace nil {
 
                         var comparison_result = handle_comparison_component<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                             llvm::CmpInst::ICMP_EQ, logical_statement, zero_var, bitness,
-                            circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows(), targetProverIdx, genFlag).output;
+                            circuits[currProverIdx], assignments[currProverIdx], assignments[currProverIdx].allocated_rows(), targetProverIdx, component_creation_parameters).output;
 
-                        if (validity_check && std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (validity_check && std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             bool assigner_exit_check_input = var_value(assignments[currProverIdx], comparison_result) == 0;
                             ASSERT_MSG(assigner_exit_check_input,
                                       "assigner_exit_check input is false, verification will fail!\n");
@@ -778,22 +779,22 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_lin_inter: {
-                        handle_fri_lin_inter_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                        handle_fri_lin_inter_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_cosets: {
                         ASSERT_MSG(check_operands_constantness(inst, {1, 2}, frame), "result length, omega and total_bits must be constants");
-                        handle_fri_cosets_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                        handle_fri_cosets_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_gate_arg_verifier: {
                         ASSERT_MSG(check_operands_constantness(inst, {1, 2, 4}, frame), "gates_sizes, gates and selectors amount must be constants");
-                        handle_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                        handle_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_permutation_arg_verifier: {
                         ASSERT_MSG(check_operands_constantness(inst, {3}, frame), "f, se, sigma size must be constant");
-                        handle_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                        handle_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_lookup_arg_verifier: {
@@ -801,12 +802,12 @@ namespace nil {
                         for (std::size_t i = 0; i < 8; i++) { constants_positions.push_back(i);}
                         for (std::size_t i = 4; i < 13; i++) { constants_positions.push_back(2*i + 1);}
                         ASSERT_MSG(check_operands_constantness(inst, constants_positions, frame), "vectors sizes must be constants");
-                        handle_lookup_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                        handle_lookup_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_array_swap: {
                         ASSERT_MSG(check_operands_constantness(inst, {1}, frame), "array size must be constant");
-                        handle_fri_array_swap_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                        handle_fri_array_swap_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                         return true;
                     }
 
@@ -855,7 +856,7 @@ namespace nil {
             void handle_load(ptr_type ptr, const llvm::Value *dest, stack_frame<var> &frame) {
                 size_t num_cells = layout_resolver->get_cells_num<BlueprintFieldType>(dest->getType());
                 if (num_cells == 1) {
-                    if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                    if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                         auto &cell = stack_memory[ptr];
                         frame.scalars[dest] = put_into_assignment(var_value(assignments[currProverIdx], cell.v));
                     } else {
@@ -863,7 +864,7 @@ namespace nil {
                     }
                 } else {
                     std::vector<var> res;
-                    if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                    if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                         for (size_t i = 0; i < num_cells; ++i) {
                             res.push_back(put_into_assignment(var_value(assignments[currProverIdx], stack_memory[ptr + i].v)));
                         }
@@ -951,7 +952,7 @@ namespace nil {
             }
 
             void handle_ptrtoint(const llvm::Value *inst, llvm::Value *operand, stack_frame<var> &frame) {
-                if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                     ptr_type ptr = resolve_number<ptr_type>(frame, operand);
                     size_t offset = stack_memory.ptrtoint(ptr);
                     log.debug(boost::format("PtrToInt %1% %2%") % ptr % offset);
@@ -1046,7 +1047,7 @@ namespace nil {
                         handle_ptrtoint(expr, expr->getOperand(0), frame);
                         break;
                     case llvm::Instruction::GetElementPtr: {
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                                 std::vector<int> gep_indices;
                                 for (unsigned i = 2; i < expr->getNumOperands(); ++i) {
                                     int gep_index = resolve_number<int>(frame, expr->getOperand(i));
@@ -1094,7 +1095,7 @@ namespace nil {
                 predecessor = parser_state.predecessor;
                 currProverIdx = parser_state.currProverIdx;
                 cpp_values = parser_state.cpp_values;
-                genFlag = parser_state.genFlag;
+                component_creation_parameters = parser_state.component_creation_parameters;
                 finished = parser_state.finished;
             }
 
@@ -1161,17 +1162,17 @@ namespace nil {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
                             handle_integer_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                                        inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                                        inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return inst->getNextNonDebugInstruction();
                         }
 
                         if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                                        inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                                        inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return inst->getNextNonDebugInstruction();
                         } else if (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isCurveTy()) {
                             handle_curve_addition_component<BlueprintFieldType, ArithmetizationParams>(
-                                        inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                                        inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return inst->getNextNonDebugInstruction();
                         } else {
                             UNREACHABLE("curve + scalar is undefined");
@@ -1182,17 +1183,17 @@ namespace nil {
                     case llvm::Instruction::Sub: {
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
                             handle_integer_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return inst->getNextNonDebugInstruction();
                         }
 
                         if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return inst->getNextNonDebugInstruction();
                         } else if (inst->getOperand(0)->getType()->isCurveTy() && inst->getOperand(1)->getType()->isCurveTy()) {
                             handle_curve_subtraction_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return inst->getNextNonDebugInstruction();
                         } else {
                             UNREACHABLE("curve - scalar is undefined");
@@ -1204,13 +1205,13 @@ namespace nil {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
                             handle_integer_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return inst->getNextNonDebugInstruction();
                         }
 
                         if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return inst->getNextNonDebugInstruction();
                         }
 
@@ -1224,7 +1225,7 @@ namespace nil {
                             (inst->getOperand(1)->getType()->isCurveTy() && inst->getOperand(0)->getType()->isFieldTy())) {
 
                             handle_curve_multiplication_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return inst->getNextNonDebugInstruction();
                         } else {
                             UNREACHABLE("cmul opcode is defined only for curveTy * fieldTy");
@@ -1233,12 +1234,12 @@ namespace nil {
                     case llvm::Instruction::UDiv: {
                         if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
                             handle_integer_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag, true);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters, true);
                             return inst->getNextNonDebugInstruction();
                         }
                         else if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return inst->getNextNonDebugInstruction();
                         }
                         else {
@@ -1248,7 +1249,7 @@ namespace nil {
                     case llvm::Instruction::URem: {
                         if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
                             handle_integer_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag, false);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters, false);
                             return inst->getNextNonDebugInstruction();
                         } else {
                             UNREACHABLE("URem opcode is defined only for integerTy");
@@ -1257,7 +1258,7 @@ namespace nil {
                     case llvm::Instruction::Shl: {
                         if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
                             handle_integer_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag,
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters,
                                         nil::blueprint::components::bit_shift_mode::LEFT);
                             return inst->getNextNonDebugInstruction();
                         } else {
@@ -1267,7 +1268,7 @@ namespace nil {
                     case llvm::Instruction::LShr: {
                         if (inst->getOperand(0)->getType()->isIntegerTy() && inst->getOperand(1)->getType()->isIntegerTy()) {
                             handle_integer_bit_shift_constant_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag,
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters,
                                         nil::blueprint::components::bit_shift_mode::RIGHT);
                             return inst->getNextNonDebugInstruction();
                         } else {
@@ -1278,13 +1279,13 @@ namespace nil {
 
                         if (inst->getOperand(0)->getType()->isIntegerTy()) {
                             handle_integer_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return inst->getNextNonDebugInstruction();
                         }
 
                         if (inst->getOperand(0)->getType()->isFieldTy() && inst->getOperand(1)->getType()->isFieldTy()) {
                             handle_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, genFlag);
+                                inst, frame, circuits[currProverIdx], assignments[currProverIdx], start_row, targetProverIdx, component_creation_parameters);
                             return inst->getNextNonDebugInstruction();
                         }
 
@@ -1353,7 +1354,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Select: {
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             var condition = variables[inst->getOperand(0)];
                             llvm::Value *true_val = inst->getOperand(1);
                             llvm::Value *false_val = inst->getOperand(2);
@@ -1369,7 +1370,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::And: {
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             const var &lhs = variables[inst->getOperand(0)];
                             const var &rhs = variables[inst->getOperand(1)];
 
@@ -1389,7 +1390,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Or: {
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             const var &lhs = variables[inst->getOperand(0)];
                             const var &rhs = variables[inst->getOperand(1)];
 
@@ -1409,7 +1410,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Xor: {
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             const var &lhs = variables[inst->getOperand(0)];
                             const var &rhs = variables[inst->getOperand(1)];
 
@@ -1446,19 +1447,19 @@ namespace nil {
                                 UNREACHABLE("Can't to process loop");
                             }
                             const auto stack_size = call_stack.size();
-                            if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                            if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                                 bool cond_val = (var_value(assignments[currProverIdx], cond) != 0);
 
                                 const ParserState parser_state(*this);
                                 curr_branch.push_back(branch_desc(false, stack_size));
                                 curr_branch.push_back(branch_desc(true, stack_size));
                                 if (!cond_val) {
-                                    genFlag = std::uint8_t(genFlag & (generate_flag::ASSIGNMENTS | generate_flag::FALSE_ASSIGNMENTS)) ?
-                                        (genFlag & generate_flag::CIRCUIT) | generate_flag::FALSE_ASSIGNMENTS :
-                                        genFlag & generate_flag::CIRCUIT;
+                                    component_creation_parameters.genFlag = std::uint8_t(component_creation_parameters.genFlag & (generate_flag::ASSIGNMENTS | generate_flag::FALSE_ASSIGNMENTS)) ?
+                                        (component_creation_parameters.genFlag & generate_flag::CIRCUIT) | generate_flag::FALSE_ASSIGNMENTS :
+                                        component_creation_parameters.genFlag & generate_flag::CIRCUIT;
                                 }
 
-                                log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS) == 0));
+                                log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS) == 0));
                                 const llvm::Instruction* true_next_inst = nullptr;
                                 if (!cond_val && true_name == "panic") {
                                     log.debug(boost::format("skip handle true branch as false positive panic: %1%") % curr_branch.size());
@@ -1472,12 +1473,12 @@ namespace nil {
                                 curr_branch.pop_back();
 
                                 if (cond_val) {
-                                    genFlag = std::uint8_t(genFlag & (generate_flag::ASSIGNMENTS | generate_flag::FALSE_ASSIGNMENTS)) ?
-                                                  (genFlag & generate_flag::CIRCUIT) | generate_flag::FALSE_ASSIGNMENTS :
-                                                  genFlag & generate_flag::CIRCUIT;
+                                    component_creation_parameters.genFlag = std::uint8_t(component_creation_parameters.genFlag & (generate_flag::ASSIGNMENTS | generate_flag::FALSE_ASSIGNMENTS)) ?
+                                                  (component_creation_parameters.genFlag & generate_flag::CIRCUIT) | generate_flag::FALSE_ASSIGNMENTS :
+                                                  component_creation_parameters.genFlag & generate_flag::CIRCUIT;
                                 }
 
-                                log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS) == 0));
+                                log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS) == 0));
                                 auto false_next_inst = true_next_inst;
                                 if (cond_val && false_name == "panic") {
                                     log.debug(boost::format("skip handle false branch as false positive panic: %1%") % curr_branch.size());
@@ -1501,7 +1502,7 @@ namespace nil {
                             curr_branch.push_back(branch_desc(false, stack_size));
                             curr_branch.push_back(branch_desc(true, stack_size));
 
-                            log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS) == 0));
+                            log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS) == 0));
                             const llvm::Instruction* true_next_inst = nullptr;
                             if (true_name == "panic") {
                                 log.debug(boost::format("skip handle true branch as false positive panic: %1%") % curr_branch.size());
@@ -1514,7 +1515,7 @@ namespace nil {
                             restore_state(parser_state);
                             curr_branch.pop_back();
 
-                            log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS) == 0));
+                            log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS) == 0));
                             auto false_next_inst = true_next_inst;
                             if (false_name == "panic") {
                                 log.debug(boost::format("skip handle false branch as false positive panic: %1%") % curr_branch.size());
@@ -1563,7 +1564,7 @@ namespace nil {
                         auto switch_inst = llvm::cast<llvm::SwitchInst>(inst);
                         llvm::Value *cond = switch_inst->getCondition();
                         ASSERT(cond->getType()->isIntegerTy());
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             unsigned bit_width = llvm::cast<llvm::IntegerType>(cond->getType())->getBitWidth();
                             ASSERT(bit_width <= 64);
                             auto cond_var = var_value(assignments[currProverIdx], frame.scalars[cond]);
@@ -1572,11 +1573,11 @@ namespace nil {
                                 (int64_t) static_cast<typename BlueprintFieldType::integral_type>(cond_var.data));
                             for (auto Case : switch_inst->cases()) {
                                 if (Case.getCaseValue()->getValue().eq(cond_val)) {
-                                    genFlag =
-                                        std::uint8_t(genFlag &
+                                    component_creation_parameters.genFlag =
+                                        std::uint8_t(component_creation_parameters.genFlag &
                                                      (generate_flag::ASSIGNMENTS | generate_flag::FALSE_ASSIGNMENTS)) ?
-                                            (genFlag & generate_flag::CIRCUIT) | generate_flag::FALSE_ASSIGNMENTS :
-                                            genFlag & generate_flag::CIRCUIT;
+                                            (component_creation_parameters.genFlag & generate_flag::CIRCUIT) | generate_flag::FALSE_ASSIGNMENTS :
+                                            component_creation_parameters.genFlag & generate_flag::CIRCUIT;
                                 }
                                 const ParserState parser_state(*this);
                                 curr_branch.push_back(branch_desc(false, call_stack.size()));
@@ -1614,7 +1615,7 @@ namespace nil {
                         llvm::Value *vec = extract_inst->getOperand(0);
                         llvm::Value *index_value = extract_inst->getOperand(1);
                         if (!llvm::isa<llvm::ConstantInt>(index_value)) {
-                            if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                            if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                                 int index = resolve_number<int>(frame, index_value);
                                 variables[inst] = frame.vectors[vec][index];
                             } else {
@@ -1637,7 +1638,7 @@ namespace nil {
                     }
                     case llvm::Instruction::GetElementPtr: {
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(inst);
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             std::vector<int> gep_indices;
                             for (unsigned i = 1; i < gep->getNumIndices(); ++i) {
                                 int gep_index = resolve_number<int>(frame, gep->getOperand(i + 1));
@@ -1662,7 +1663,7 @@ namespace nil {
                     case llvm::Instruction::Load: {
                         auto *load_inst = llvm::cast<llvm::LoadInst>(inst);
                         ptr_type ptr = 0;
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             ptr = resolve_number<ptr_type>(frame, load_inst->getPointerOperand());
                         }
                         log.debug(boost::format("Load: %1%") % ptr);
@@ -1670,7 +1671,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Store: {
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             auto *store_inst = llvm::cast<llvm::StoreInst>(inst);
                             ptr_type ptr = resolve_number<ptr_type>(frame, store_inst->getPointerOperand());
                             log.debug(boost::format("Store: %1%") % ptr);
@@ -1683,7 +1684,7 @@ namespace nil {
                     }
                     case llvm::Instruction::InsertValue: {
                         auto *insert_inst = llvm::cast<llvm::InsertValueInst>(inst);
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             ptr_type ptr = resolve_number<ptr_type>(frame, insert_inst->getAggregateOperand());
                             // TODO(maksenov): handle offset properly
                             ptr += layout_resolver
@@ -1697,7 +1698,7 @@ namespace nil {
                     }
                     case llvm::Instruction::ExtractValue: {
                         auto *extract_inst = llvm::cast<llvm::ExtractValueInst>(inst);
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             ptr_type ptr = resolve_number<ptr_type>(frame, extract_inst->getAggregateOperand());
                             // TODO(maksenov): handle offset properly
                             ptr += layout_resolver
@@ -1718,7 +1719,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::IndirectBr: {
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS) == 0) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS) == 0) {
                             UNREACHABLE("IndirectBr is not supported without generating assignment table");
                             return inst->getNextNonDebugInstruction();
                         }
@@ -1733,7 +1734,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::IntToPtr: {
-                        if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                        if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                             std::ostringstream oss;
                             size_t offset = resolve_number<size_t>(frame, inst->getOperand(0));
                             oss << var_value(assignments[currProverIdx], frame.scalars[inst->getOperand(0)]).data;
@@ -1774,7 +1775,7 @@ namespace nil {
                                 if(print_output_format == hex) {
                                     std::cout << std::hex;
                                 }
-                                if (inst->getNumOperands() != 0 && std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                                if (inst->getNumOperands() != 0 && std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                                     llvm::Value *ret_val = inst->getOperand(0);
                                     if (ret_val->getType()->isPointerTy()) {
                                         // TODO(maksenov): support printing complex results
@@ -1847,7 +1848,7 @@ namespace nil {
                                     auto res = extracted_frame.vectors[ret_val];
                                     upper_frame_vectors[extracted_frame.caller] = res;
                                 } else if (ret_type->isAggregateType()) {
-                                    if (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS)) {
+                                    if (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS)) {
                                         ptr_type ret_ptr = resolve_number<ptr_type>(extracted_frame, ret_val);
                                         ptr_type allocated_copy = stack_memory.add_cells(
                                             layout_resolver->get_type_layout<BlueprintFieldType>(ret_type));
@@ -1912,7 +1913,7 @@ namespace nil {
                 auto &function = *entry_point_it;
 
                 auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
-                    base_frame, stack_memory, assignments[currProverIdx], *layout_resolver, (std::uint8_t(genFlag & generate_flag::ASSIGNMENTS) != 0));
+                    base_frame, stack_memory, assignments[currProverIdx], *layout_resolver, (std::uint8_t(component_creation_parameters.genFlag & generate_flag::ASSIGNMENTS) != 0));
                 if (!input_reader.fill_public_input(function, public_input, private_input, log)) {
                     std::cerr << "Public input does not match the circuit signature";
                     const std::string &error = input_reader.get_error();
@@ -1995,7 +1996,7 @@ namespace nil {
             std::vector<const void *> cpp_values;
             print_format print_output_format = no_print;
             bool validity_check;
-            generate_flag genFlag;
+            component_creation_parameters_struct component_creation_parameters;
             std::vector<branch_desc> curr_branch;
         };
 

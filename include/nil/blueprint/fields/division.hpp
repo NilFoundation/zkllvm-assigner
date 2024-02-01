@@ -52,7 +52,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
-                    std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
+                    std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct comp_gen_params) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -65,7 +65,7 @@ namespace nil {
                 typename component_type::input_type instance_input({x, y});
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, target_prover_idx, instance_input, gen_flag);
+                    (bp, assignment, start_row, target_prover_idx, instance_input, comp_gen_params);
             }
 
         }    // namespace detail
@@ -77,7 +77,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct comp_gen_params) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
             using component_type = components::division<
@@ -100,8 +100,8 @@ namespace nil {
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         const auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx, gen_flag);
-                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, gen_flag);
+                                operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx, comp_gen_params);
+                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, comp_gen_params);
                     } else {
                         UNREACHABLE("Non-native bls12-381 is undefined yet");
                     }
@@ -114,8 +114,8 @@ namespace nil {
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         const auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx, gen_flag);
-                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, gen_flag);
+                                operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx, comp_gen_params);
+                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, comp_gen_params);
                     } else {
                         UNREACHABLE("Non-native pallas is undefined yet");
                     }
@@ -128,8 +128,8 @@ namespace nil {
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         const auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
-                                operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx, gen_flag);
-                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, gen_flag);
+                                operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx, comp_gen_params);
+                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, comp_gen_params);
                     } else {
                         UNREACHABLE("Non-native ed25519 division is not implemented yet");
                     }
