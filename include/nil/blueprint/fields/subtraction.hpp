@@ -52,7 +52,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
-                    std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct comp_gen_params) {
+                    std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct& comp_gen_params) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -78,7 +78,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
-                    std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct comp_gen_params) {
+                    std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct& comp_gen_params) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
                 using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
@@ -114,7 +114,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct comp_gen_params) {
+            std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct& comp_gen_params) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
             using native_component_type = components::subtraction<

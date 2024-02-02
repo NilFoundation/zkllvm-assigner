@@ -72,7 +72,7 @@ namespace nil {
         void handle_component_input(
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            typename ComponentType::input_type& instance_input, component_creation_parameters_struct comp_gen_params) {
+            typename ComponentType::input_type& instance_input, component_creation_parameters_struct& comp_gen_params) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -105,7 +105,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct comp_gen_params,
+            std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct& comp_gen_params,
             typename components::logic_and<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::input_type& instance_input) {
 
@@ -208,7 +208,7 @@ namespace nil {
                 &assignment,
                 std::uint32_t start_row, std::uint32_t target_prover_idx,
                 typename ComponentType::input_type& instance_input,
-                component_creation_parameters_struct comp_gen_params,
+                component_creation_parameters_struct& comp_gen_params,
                 Args... args) {
 
             const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType, ArithmetizationParams>::get_witness(0, args...));
@@ -282,7 +282,7 @@ namespace nil {
                 &assignment,
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-                const typename ComponentType::result_type& component_result, component_creation_parameters_struct comp_gen_params) {
+                const typename ComponentType::result_type& component_result, component_creation_parameters_struct& comp_gen_params) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -313,7 +313,7 @@ namespace nil {
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
                 const std::vector<typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>& result,
-                component_creation_parameters_struct comp_gen_params) {
+                component_creation_parameters_struct& comp_gen_params) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -339,7 +339,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-                std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct comp_gen_params,
+                std::uint32_t start_row, std::uint32_t target_prover_idx, component_creation_parameters_struct& comp_gen_params,
                 typename ComponentType::input_type& instance_input,
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,

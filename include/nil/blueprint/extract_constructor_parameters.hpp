@@ -77,7 +77,7 @@ namespace nil {
             typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
                 program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
-                    &assignment, component_creation_parameters_struct comp_gen_params
+                    &assignment, component_creation_parameters_struct& comp_gen_params
                 ) {
                 std::vector<var> res = {};
                 if (std::uint8_t(comp_gen_params.genFlag & generate_flag::ASSIGNMENTS)) {
