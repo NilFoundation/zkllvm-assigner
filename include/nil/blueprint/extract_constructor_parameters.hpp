@@ -77,10 +77,10 @@ namespace nil {
             typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
                 program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
-                    &assignment, generate_flag gen_flag
+                    &assignment, generation_mode gen_mode
                 ) {
                 std::vector<var> res = {};
-                if (std::uint8_t(gen_flag & generate_flag::ASSIGNMENTS)) {
+                if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
                     ptr_type input_ptr = static_cast<ptr_type>(
                         typename BlueprintFieldType::integral_type(var_value(assignment, variables[input_value]).data));
                     for (std::size_t i = 0; i < input_length; i++) {

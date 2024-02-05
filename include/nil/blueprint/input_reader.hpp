@@ -73,7 +73,7 @@ namespace nil {
                 std::vector<var> vector1;
                 std::vector<var> vector2;
                 llvm::GaloisFieldKind arg_field_type = curve_type->GetBaseFieldKind();
-                if (value.size() == 0) {
+                if (!has_values) {
                     vector1 =
                         process_empty_field(arg_field_type, is_private);
                     vector2 =
@@ -116,7 +116,7 @@ namespace nil {
 
             std::vector<var> process_empty_field (llvm::GaloisFieldKind arg_field_type, bool is_private) {
                 std::vector<var> res;
-                size_t arg_len = size_of_non_native_type<BlueprintFieldType>(arg_field_type);
+                size_t arg_len = field_kind_size<BlueprintFieldType>(arg_field_type);
                 typename BlueprintFieldType::value_type zero_val = 0;
                 for (std::size_t i = 0; i < arg_len; i++) {
                     res.push_back(put_into_assignment(zero_val, is_private));
@@ -176,7 +176,7 @@ namespace nil {
 
                 llvm::GaloisFieldKind arg_field_type = field_type->getFieldKind();
 
-                if (value.size() == 0) {
+                if (!has_values) {
                     return process_empty_field(arg_field_type, is_private);
                 }
 
@@ -218,7 +218,7 @@ namespace nil {
 
             std::vector<var> process_int(const boost::json::object &object, std::size_t bitness, bool is_private) {
                 std::vector<var> res = std::vector<var>(1);
-                if (object.size() == 0) {
+                if (!has_values) {
                     typename BlueprintFieldType::value_type zero_val = 0;
                     res[0] = put_into_assignment(zero_val, is_private);
                     return res;
@@ -284,7 +284,7 @@ namespace nil {
             }
 
             bool take_int(llvm::Value *int_arg, const boost::json::object &value, bool is_private) {
-                if (value.size() != 0 && (value.size() != 1 || !value.contains("int")))
+                if (has_values && (value.size() != 1 || !value.contains("int")))
                     return false;
                 std::size_t bitness = int_arg->getType()->getPrimitiveSizeInBits();
                 auto values = process_int(value, bitness, is_private);
@@ -296,7 +296,7 @@ namespace nil {
 
             bool take_vector(llvm::Value *vector_arg, llvm::Type *vector_type, const boost::json::object &value, bool is_private) {
                 size_t arg_len = llvm::cast<llvm::FixedVectorType>(vector_type)->getNumElements();
-                if (value.size() != 0 && value.size() != 1 && !value.contains("vector")) {
+                if (has_values && value.size() != 1 && !value.contains("vector")) {
                     return false;
                 }
                 frame.vectors[vector_arg] = process_vector(llvm::cast<llvm::FixedVectorType>(vector_type), value, is_private);
@@ -308,7 +308,7 @@ namespace nil {
                     return false;
                 }
 
-                if (value.size() == 0) {
+                if (!has_values) {
                     type_layout string_layout(1, {1,0});
                     ptr_type ptr = memory.add_cells(string_layout);
                     auto pointer_var = pointer_into_assignment(ptr);
@@ -358,7 +358,7 @@ namespace nil {
             }
 
             ptr_type process_array(llvm::ArrayType *array_type, const boost::json::object &value, ptr_type ptr, bool is_private) {
-                if (value.size() != 0) {
+                if (has_values) {
                     ASSERT(value.size() == 1 && value.contains("array"));
                     ASSERT(value.at("array").is_array());
                     auto &arr = value.at("array").as_array();
@@ -379,8 +379,8 @@ namespace nil {
             }
 
             ptr_type process_struct(llvm::StructType *struct_type, const boost::json::object &value, ptr_type ptr, bool is_private) {
-                ASSERT(value.size() == 1 || value.size() == 0);
-                if ((value.contains("array") || value.size() == 0) && struct_type->getNumElements() == 1 &&
+                ASSERT(value.size() == 1 || !has_values);
+                if ((value.contains("array") || !has_values) && struct_type->getNumElements() == 1 &&
                     struct_type->getElementType(0)->isArrayTy()) {
                     // Assuming std::array
                     return process_array(llvm::cast<llvm::ArrayType>(struct_type->getElementType(0)), value, ptr, is_private);
@@ -404,7 +404,7 @@ namespace nil {
             }
 
             std::vector<var> process_vector(llvm::FixedVectorType *vector_type, const boost::json::object &value, bool is_private) {
-                if (value.size() == 0) {
+                if (!has_values) {
                     std::vector<var> res;
                     for (size_t i = 0; i < vector_type->getNumElements(); ++i) {
                         auto elem_vector = process_leaf_type(vector_type->getElementType(), value, is_private);
@@ -480,7 +480,6 @@ namespace nil {
                 const boost::json::array &private_input,
                 logger &log
             ) {
-
                 size_t ret_gap = 0;
 
                 for (size_t i = 0; i < function.arg_size(); ++i) {

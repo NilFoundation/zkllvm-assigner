@@ -42,7 +42,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                     &assignment,
-                std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
+                const common_component_parameters& param) {
 
             using arithmetization_type = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
             using component_type = components::logic_and<arithmetization_type>;
@@ -51,8 +51,8 @@ namespace nil {
             instance_input.input[0] = x;
             instance_input.input[1] = y;
 
-            return get_component_result<BlueprintFieldType, ArithmetizationParams>
-                (bp, assignment, start_row, target_prover_idx, gen_flag, instance_input).output;
+            return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                (bp, assignment, param, instance_input).output;
         }
 
     }    // namespace blueprint
