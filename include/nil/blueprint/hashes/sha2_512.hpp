@@ -47,7 +47,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
+            common_component_parameters param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             using sha2_512_component_type = components::sha512<
@@ -74,25 +74,25 @@ namespace nil {
 
             typename sha2_512_component_type::result_type sha2_512_component_result =
                 get_component_result<BlueprintFieldType, ArithmetizationParams, sha2_512_component_type>
-                    (bp, assignment, start_row, target_prover_idx, sha2_512_instance_input, gen_flag);
+                    (bp, assignment, param, sha2_512_instance_input);
 
             handle_component_result<BlueprintFieldType, ArithmetizationParams, sha2_512_component_type>
-                (assignment, inst, frame, sha2_512_component_result, gen_flag);
+                (assignment, inst, frame, sha2_512_component_result, param.gen_mode);
 
             using reduction_component_type = components::reduction<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType,
                 basic_non_native_policy<BlueprintFieldType>>;
 
-            start_row = assignment.allocated_rows();
+            param.start_row = assignment.allocated_rows();
 
             typename reduction_component_type::input_type reduction_instance_input = {sha2_512_component_result.output_state};
 
             typename reduction_component_type::result_type reduction_component_result =
                     get_component_result<BlueprintFieldType, ArithmetizationParams, reduction_component_type>
-                            (bp, assignment, start_row, target_prover_idx, reduction_instance_input, gen_flag);
+                            (bp, assignment, param, reduction_instance_input);
 
             handle_component_result<BlueprintFieldType, ArithmetizationParams, reduction_component_type>
-                    (assignment, inst, frame, reduction_component_result, gen_flag);
+                    (assignment, inst, frame, reduction_component_result, param.gen_mode);
         }
     }    // namespace blueprint
 }    // namespace nil

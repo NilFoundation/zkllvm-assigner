@@ -48,7 +48,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
+            const common_component_parameters& param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             using component_type = components::division_remainder<
@@ -59,7 +59,7 @@ namespace nil {
             typename component_type::input_type instance_input({x, y});
 
             return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                (bp, assignment, start_row, target_prover_idx, instance_input, gen_flag, Bitness, true);
+                (bp, assignment, param, instance_input, Bitness, true);
             }
         }    // namespace detail
 
@@ -70,9 +70,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row,
-            std::uint32_t target_prover_idx,
-            generate_flag gen_flag,
+            const common_component_parameters& param,
             bool is_division) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
@@ -87,14 +85,14 @@ namespace nil {
             crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> res;
             if (is_division) {
                 res = detail::handle_native_field_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
-                                bitness, operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx, gen_flag).quotient;
+                                bitness, operand0, operand1, frame.scalars, bp, assignment, param).quotient;
             }
             else {
                 res = detail::handle_native_field_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
-                                bitness, operand0, operand1, frame.scalars, bp, assignment, start_row, target_prover_idx, gen_flag).remainder;
+                                bitness, operand0, operand1, frame.scalars, bp, assignment, param).remainder;
             }
             handle_result<BlueprintFieldType, ArithmetizationParams>
-                (assignment, inst, frame, {res}, gen_flag);
+                (assignment, inst, frame, {res}, param.gen_mode);
         }
 
     }    // namespace blueprint

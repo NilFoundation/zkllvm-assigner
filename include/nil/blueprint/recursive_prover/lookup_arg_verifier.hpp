@@ -45,7 +45,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
-            std::uint32_t start_row, std::uint32_t target_prover_idx, generate_flag gen_flag) {
+            const common_component_parameters& param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -72,7 +72,7 @@ namespace nil {
             for (std::size_t i = 0; i < 9; i++) {
                 size = detail::extract_constant_size_t_value<BlueprintFieldType>(inst->getOperand(8 + i * 2 + 1));
                 input_vectors.push_back(detail::extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
-                    inst->getOperand(8 + i * 2), size, frame.scalars, memory, assignment, gen_flag));
+                    inst->getOperand(8 + i * 2), size, frame.scalars, memory, assignment, param.gen_mode));
             }
 
             var theta = frame.scalars[inst->getOperand(26)];
@@ -110,7 +110,7 @@ namespace nil {
                 };
 
                 handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, start_row, target_prover_idx, gen_flag, instance_input, inst, frame,
+                    (bp, assignment, param, instance_input, inst, frame,
                      lookup_gate_size,
                      lookup_gate_constraints_sizes,
                      lookup_gate_constraints_lookup_input_sizes,
