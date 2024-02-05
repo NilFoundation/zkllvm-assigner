@@ -1043,6 +1043,7 @@ namespace nil {
                 }
             }
 
+            protected:
             const llvm::Instruction *handle_instruction(const llvm::Instruction *inst) {
                 log.log_instruction(inst);
                 stack_frame<var> &frame = call_stack.top();
@@ -1433,9 +1434,9 @@ namespace nil {
                     case llvm::Instruction::GetElementPtr: {
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(inst);
                         std::vector<int> gep_indices;
-                        for (unsigned i = 1; i < gep->getNumIndices(); ++i) {
-                            int gep_index = resolve_number<int>(frame, gep->getOperand(i + 1));
-                            gep_indices.push_back(gep_index);
+                        for (const auto& index : gep->indices()) {
+                            // TODO: we don't care about type here and simply cast to `int`. Is it ok?
+                            gep_indices.push_back(resolve_number<int>(frame, index.get()));
                         }
                         auto gep_res = handle_gep(gep->getPointerOperand(), gep->getOperand(1),
                                                   gep->getSourceElementType(), gep_indices, frame);
@@ -1569,55 +1570,32 @@ namespace nil {
                 return nullptr;
             }
 
-        public:
-            std::unique_ptr<llvm::Module> parseIRFile(const char *ir_file) {
-                llvm::SMDiagnostic diagnostic;
-                std::unique_ptr<llvm::Module> module = llvm::parseIRFile(ir_file, diagnostic, context);
-                if (module == nullptr) {
-                    diagnostic.print("assigner", llvm::errs());
-                }
-                return module;
-            }
-
-            bool evaluate(
+            /**
+             * @brief Initialize state of assigner. Return `true` on success.
+             *
+             * Set instruction pointer to entry (circuit) function. Read public and private input.
+             * Collect labels of basic blocks. Initialize constant zero and undef values.
+             */
+            bool initialize_state(
                 const llvm::Module &module,
                 const boost::json::array &public_input,
                 const boost::json::array &private_input
             ) {
                 layout_resolver = std::make_unique<LayoutResolver>(module.getDataLayout());
-                stack_frame<var> base_frame;
-                auto &variables = base_frame.scalars;
-                base_frame.caller = nullptr;
-                auto entry_point_it = module.end();
-                for (auto function_it = module.begin(); function_it != module.end(); ++function_it) {
-                    if (function_it->hasFnAttribute(llvm::Attribute::Circuit)) {
-                        if (entry_point_it != module.end()) {
-                            std::cerr << "More then one functions with [[circuit]] attribute in the module"
-                                      << std::endl;
-                            return false;
-                        }
-                        entry_point_it = function_it;
-                    }
-                }
-                if (entry_point_it == module.end()) {
-                    std::cerr << "Entry point is not found" << std::endl;
-                    return false;
-                }
-                auto &function = *entry_point_it;
 
-                auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
-                    base_frame, memory, assignments[currProverIdx], *layout_resolver);
-                if (!input_reader.fill_public_input(function, public_input, private_input, log)) {
-                    std::cerr << "Public input does not match the circuit signature";
-                    const std::string &error = input_reader.get_error();
-                    if (!error.empty()) {
-                        std::cout << ": " << error;
-                    }
-                    std::cout << std::endl;
+                const llvm::Function* entry_point = find_entry_point(module);
+                if (entry_point == nullptr) {
                     return false;
                 }
+
+                stack_frame<var> base_frame;
+                base_frame.caller = nullptr;
+
+                if (!read_input(*entry_point, base_frame, public_input, private_input)) {
+                    return false;
+                }
+
                 call_stack.emplace(std::move(base_frame));
-                constant_idx = input_reader.get_idx();
 
                 // Collect all the possible labels that could be an argument in IndirectBrInst
                 for (const llvm::Function &function : module) {
@@ -1649,16 +1627,76 @@ namespace nil {
                 undef_var = put_into_assignment(typename BlueprintFieldType::value_type(), true);
                 zero_var = put_into_assignment(typename BlueprintFieldType::value_type(0), true);
 
-                const llvm::Instruction *next_inst = &function.begin()->front();
-                while (true) {
-                    next_inst = handle_instruction(next_inst);
-                    if (finished) {
-                        return true;
-                    }
-                    if (next_inst == nullptr) {
-                        return false;
+                return true;
+            }
+
+            /// @brief Find entry point (circuit function) and set instruction pointer to it.
+            const llvm::Function* find_entry_point(const llvm::Module &module)  {
+                auto entry_point_it = module.end();
+                for (auto function_it = module.begin(); function_it != module.end(); ++function_it) {
+                    if (function_it->hasFnAttribute(llvm::Attribute::Circuit)) {
+                        if (entry_point_it != module.end()) {
+                            std::cerr << "More then one functions with [[circuit]] attribute in the module"
+                                      << std::endl;
+                            return nullptr;
+                        }
+                        entry_point_it = function_it;
                     }
                 }
+                if (entry_point_it == module.end()) {
+                    std::cerr << "Entry point is not found" << std::endl;
+                    return nullptr;
+                }
+                ip = &entry_point_it->begin()->front();
+                return &*entry_point_it;
+            }
+
+            /// @brief Read public and private inputs. Return `true` on success.
+            bool read_input(
+                const llvm::Function& circuit_function,
+                stack_frame<var>& frame,
+                const boost::json::array &public_input,
+                const boost::json::array &private_input
+            ) {
+                auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
+                    frame, memory, assignments[currProverIdx], *layout_resolver);
+                if (!input_reader.fill_public_input(circuit_function, public_input, private_input, log)) {
+                    std::cerr << "Public input does not match the circuit signature";
+                    const std::string &error = input_reader.get_error();
+                    if (!error.empty()) {
+                        std::cout << ": " << error;
+                    }
+                    std::cout << std::endl;
+                    return false;
+                }
+                constant_idx = input_reader.get_idx();
+                return true;
+            }
+
+        public:
+            std::unique_ptr<llvm::Module> parseIRFile(const char *ir_file) {
+                llvm::SMDiagnostic diagnostic;
+                std::unique_ptr<llvm::Module> module = llvm::parseIRFile(ir_file, diagnostic, context);
+                if (module == nullptr) {
+                    diagnostic.print("assigner", llvm::errs());
+                }
+                return module;
+            }
+
+            bool evaluate(
+                const llvm::Module &module,
+                const boost::json::array &public_input,
+                const boost::json::array &private_input
+            ) {
+                if (!initialize_state(module, public_input, private_input)) {
+                    return false;
+                }
+
+                while (ip != nullptr) {
+                    ip = handle_instruction(ip);
+                }
+
+                return finished;
             }
 
             template<typename InputType>
@@ -1694,6 +1732,10 @@ namespace nil {
             std::vector<const void *> cpp_values;
             print_format print_output_format = no_print;
             bool validity_check;
+
+        protected:
+            /// @brief Instruction pointer.
+            const llvm::Instruction* ip;
         };
 
     }     // namespace blueprint
