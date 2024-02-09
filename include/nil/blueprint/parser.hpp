@@ -1006,7 +1006,7 @@ namespace nil {
                     }
                 } else if (llvm::isa<llvm::UndefValue>(c)) {
                     llvm::Type *undef_type = c->getType();
-                    if (undef_type->isIntegerTy() || undef_type->isFieldTy()) {
+                    if (undef_type->isIntegerTy() || undef_type->isFieldTy() || llvm::isa<llvm::PoisonValue>(c)) {
                         frame.scalars[c] = undef_var;
                     } else if (auto vector_type = llvm::dyn_cast<llvm::FixedVectorType>(undef_type)) {
                         std::size_t arg_num = field_arg_num<BlueprintFieldType>(vector_type->getElementType());
