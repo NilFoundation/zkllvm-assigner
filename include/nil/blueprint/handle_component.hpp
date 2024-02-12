@@ -223,11 +223,13 @@ namespace nil {
             ComponentType component_instance(p.witness, detail::ManifestReader<ComponentType, ArithmetizationParams>::get_constants(),
                                               detail::ManifestReader<ComponentType, ArithmetizationParams>::get_public_inputs(), args...);
 
-            handle_component_input<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, instance_input, param.gen_mode);
 /////////////////////////
+
+            BOOST_LOG_TRIVIAL(debug) << "Using component \"" << component_instance.component_name << "\"";
 
             bool enable_experimental = true;
 
+            if (std::uint8_t(param.gen_mode & generation_mode::SIZE_ESTIMATION)) {
             ++component_counter[component_instance.component_name];
             component_rows[component_instance.component_name] = component_instance.rows_amount;
             component_gates[component_instance.component_name] = component_instance.gates_amount;
@@ -238,16 +240,19 @@ namespace nil {
                 component_finished[component_instance.component_name] = true;
             }
 
-            BOOST_LOG_TRIVIAL(debug) << "Using component \"" << component_instance.component_name << "\"";
+
 
             if (!(component_finished[component_instance.component_name] || enable_experimental)) {
                 std::string error_message = "component " + component_instance.component_name + " is experimental, but experimental components usage is disabled. " \
                 "Use --enable-experimental flag to allow non-production-grade components usage.";
 
-                ASSERT_MSG(component_finished[component_instance.component_name] || enable_experimental, error_message.c_str());
-            }
+                ASSERT_MSG((component_finished[component_instance.component_name] || enable_experimental), error_message.c_str());
+                }
+            } else {
 
 ///////////////////////////
+            handle_component_input<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, instance_input, param.gen_mode);
+
             // copy constraints before execute component
             const auto num_copy_constraints = bp.copy_constraints().size();
 
@@ -302,8 +307,9 @@ namespace nil {
                         }
                     }
                 }
-                return typename ComponentType::result_type(component_instance, param.start_row);
+                }
             }
+            return typename ComponentType::result_type(component_instance, param.start_row);
         }
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
