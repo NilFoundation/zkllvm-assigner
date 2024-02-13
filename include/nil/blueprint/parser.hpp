@@ -1327,7 +1327,7 @@ namespace nil {
                                 }
                                 curr_branch.pop_back();
 
-                                assert((stack_size - 1) == call_stack.size());
+                                ASSERT((stack_size - 1) == call_stack.size() || finished);
 
                                 return false_next_inst;
                             }
@@ -1364,7 +1364,7 @@ namespace nil {
                             }
                             curr_branch.pop_back();
 
-                            assert((stack_size - 1) == call_stack.size());
+                            ASSERT((stack_size - 1) == call_stack.size() || finished);
 
                             return false_next_inst;
                         }
@@ -1605,37 +1605,6 @@ namespace nil {
                             // Final return
                             finished = true;
 
-                            if (std::uint8_t(gen_mode & generation_mode::SIZE_ESTIMATION)) {
-
-                                std::cout << "\n=====================================================================================\n";
-                                std::cout << "statistics:\n";
-
-                                std::size_t circuit_rows_amount = 0;
-
-                                for (const auto& pair : nil::blueprint::component_rows) {
-                                    circuit_rows_amount += (pair.second * component_counter[pair.first]);
-                                }
-
-                                std::cout << "total rows amount estimation: " << circuit_rows_amount << "\n";
-                                std::cout << "total rows amount real:       " << assignments[currProverIdx].allocated_rows() << "\n";
-                                std::cout << "_______________________________________________________________________________________\n";
-
-                                for (const auto& pair : nil::blueprint::component_counter) {
-                                    std::cout << "component name: " << pair.first << "\n";
-                                    std::cout << "Component was used " << pair.second << " times\n";
-                                    if (!nil::blueprint::component_finished[pair.first]) {
-                                        std::cout << "WARNING: component contains experimental features. Parameters are subject to change, do not fully trust to numbers below.\n";
-                                    }
-                                    std::cout << "gates amount: " << nil::blueprint::component_gates[pair.first] << "\n";
-                                    std::cout << "witness size: " << nil::blueprint::component_witness[pair.first] << "\n";
-                                    std::cout << "rows amount:  " << nil::blueprint::component_rows[pair.first];
-                                    std::size_t total_rows = nil::blueprint::component_rows[pair.first] * pair.second;
-                                    std::cout << " (" << total_rows << " in total)\n";
-                                    std::cout << "_______________________________________________________________________________________\n";
-                                }
-                                std::cout << std::endl;
-                            }
-
                             if(print_output_format != no_print) {
                                 if(print_output_format == hex) {
                                     std::cout << std::hex;
@@ -1824,6 +1793,9 @@ namespace nil {
                 while (true) {
                     next_inst = handle_instruction(next_inst);
                     if (finished) {
+                        if (std::uint8_t(gen_mode & generation_mode::SIZE_ESTIMATION)) {
+                            statistics.print();
+                        }
                         return true;
                     }
                     if (next_inst == nullptr) {

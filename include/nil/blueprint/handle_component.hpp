@@ -67,6 +67,7 @@
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/statistics.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
 #include <typeinfo>
 
@@ -96,20 +97,6 @@ namespace nil {
             std::uint32_t start_row;
             std::uint32_t target_prover_idx;
             generation_mode gen_mode;
-        };
-        std::map<std::string, int> component_counter;
-        std::map<std::string, int> component_rows;
-        std::map<std::string, int> component_gates;
-        std::map<std::string, int> component_witness;
-        std::map<std::string, bool> component_finished;
-
-        std::set<std::string> unfinished_components = {
-            "non_native fp12 multiplication",
-            "is_in_g1",
-            "is_in_g2",
-            "native_bls12_381_pairing",
-            "hash to curve",
-            "comparison",
         };
 
 
@@ -223,34 +210,19 @@ namespace nil {
             ComponentType component_instance(p.witness, detail::ManifestReader<ComponentType, ArithmetizationParams>::get_constants(),
                                               detail::ManifestReader<ComponentType, ArithmetizationParams>::get_public_inputs(), args...);
 
-/////////////////////////
 
             BOOST_LOG_TRIVIAL(debug) << "Using component \"" << component_instance.component_name << "\"";
 
-            bool enable_experimental = true;
-
             if (std::uint8_t(param.gen_mode & generation_mode::SIZE_ESTIMATION)) {
-            ++component_counter[component_instance.component_name];
-            component_rows[component_instance.component_name] = component_instance.rows_amount;
-            component_gates[component_instance.component_name] = component_instance.gates_amount;
-            component_witness[component_instance.component_name] = component_instance.witness_amount();
-            if (unfinished_components.find(component_instance.component_name) != unfinished_components.end()) {
-                component_finished[component_instance.component_name] = false;
-            } else {
-                component_finished[component_instance.component_name] = true;
+                statistics.add_record(
+                    component_instance.component_name,
+                    component_instance.rows_amount,
+                    component_instance.gates_amount,
+                    component_instance.witness_amount()
+                );
+                return typename ComponentType::result_type(component_instance, param.start_row);
             }
 
-
-
-            if (!(component_finished[component_instance.component_name] || enable_experimental)) {
-                std::string error_message = "component " + component_instance.component_name + " is experimental, but experimental components usage is disabled. " \
-                "Use --enable-experimental flag to allow non-production-grade components usage.";
-
-                ASSERT_MSG((component_finished[component_instance.component_name] || enable_experimental), error_message.c_str());
-                }
-            } else {
-
-///////////////////////////
             handle_component_input<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, instance_input, param.gen_mode);
 
             // copy constraints before execute component
@@ -306,7 +278,6 @@ namespace nil {
                             std::cout << "wrong copy constraint\n";
                         }
                     }
-                }
                 }
             }
             return typename ComponentType::result_type(component_instance, param.start_row);
