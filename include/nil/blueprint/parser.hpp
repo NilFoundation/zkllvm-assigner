@@ -118,7 +118,7 @@ namespace nil {
         struct parser {
 
             parser(long stack_size, boost::log::trivial::severity_level log_level, std::uint32_t max_num_provers, std::uint32_t target_prover_idx, generation_mode gen_mode,
-                   const std::string &kind = "", print_format output_print_format = no_print, bool check_validity = false, bool size_estimation = false) :
+                   const std::string &kind = "", print_format output_print_format = no_print, bool check_validity = false) :
                 stack_memory(stack_size),
                 maxNumProvers(max_num_provers),
                 targetProverIdx(target_prover_idx),
@@ -126,7 +126,6 @@ namespace nil {
                 log(log_level),
                 print_output_format(output_print_format),
                 validity_check(check_validity),
-                estimate_size(size_estimation),
                 gen_mode(gen_mode)
             {
 
@@ -1832,7 +1831,6 @@ namespace nil {
             std::shared_ptr<assignment<ArithmetizationType>> assignment_ptr;
             std::vector<const void *> cpp_values;
             print_format print_output_format = no_print;
-            bool estimate_size;
             bool validity_check;
             generation_mode gen_mode;
             std::vector<branch_desc> curr_branch;

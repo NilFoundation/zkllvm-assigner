@@ -99,7 +99,6 @@ namespace nil {
             generation_mode gen_mode;
         };
 
-
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
         void handle_component_input(
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
@@ -279,8 +278,8 @@ namespace nil {
                         }
                     }
                 }
+                return typename ComponentType::result_type(component_instance, param.start_row);
             }
-            return typename ComponentType::result_type(component_instance, param.start_row);
         }
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
