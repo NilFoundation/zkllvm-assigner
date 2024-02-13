@@ -69,7 +69,6 @@
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/statistics.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
-#include <typeinfo>
 
 
 namespace nil {
