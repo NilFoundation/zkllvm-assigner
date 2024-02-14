@@ -1722,7 +1722,7 @@ namespace nil {
             }
 
         public:
-            bool parseIRFile(const char *ir_file) {
+            bool parse_ir_file(const char *ir_file) {
                 llvm::SMDiagnostic diagnostic;
                 module = llvm::parseIRFile(ir_file, diagnostic, context);
                 if (module == nullptr) {
