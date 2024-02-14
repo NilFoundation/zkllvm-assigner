@@ -115,9 +115,9 @@ namespace nil {
         };
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
-        struct parser {
+        struct assigner {
 
-            parser(long stack_size, boost::log::trivial::severity_level log_level, std::uint32_t max_num_provers, std::uint32_t target_prover_idx, generation_mode gen_mode,
+            assigner(long stack_size, boost::log::trivial::severity_level log_level, std::uint32_t max_num_provers, std::uint32_t target_prover_idx, generation_mode gen_mode,
                    const std::string &kind = "", print_format output_print_format = no_print, bool check_validity = false) :
                 memory(stack_size),
                 maxNumProvers(max_num_provers),
@@ -147,8 +147,8 @@ namespace nil {
 
         private:
 
-            struct ParserState {
-                ParserState(const parser& p) {
+            struct AssignerState {
+                AssignerState(const assigner& p) {
                     predecessor = p.predecessor;
                     currProverIdx = p.currProverIdx;
                     cpp_values = p.cpp_values;
@@ -925,12 +925,12 @@ namespace nil {
                 }
             }
 
-            void restore_state(const ParserState& parser_state) {
-                predecessor = parser_state.predecessor;
-                currProverIdx = parser_state.currProverIdx;
-                cpp_values = parser_state.cpp_values;
-                gen_mode = parser_state.gen_mode;
-                finished = parser_state.finished;
+            void restore_state(const AssignerState& assigner_state) {
+                predecessor = assigner_state.predecessor;
+                currProverIdx = assigner_state.currProverIdx;
+                cpp_values = assigner_state.cpp_values;
+                gen_mode = assigner_state.gen_mode;
+                finished = assigner_state.finished;
             }
 
             const llvm::Instruction *handle_branch(const llvm::Instruction* inst) {
@@ -1286,7 +1286,7 @@ namespace nil {
                             if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
                                 bool cond_val = (var_value(assignments[currProverIdx], cond) != 0);
 
-                                const ParserState parser_state(*this);
+                                const AssignerState assigner_state(*this);
                                 curr_branch.push_back(branch_desc(false, stack_size));
                                 curr_branch.push_back(branch_desc(true, stack_size));
                                 if (!cond_val) {
@@ -1305,7 +1305,7 @@ namespace nil {
                                               true_next_inst);
                                 }
 
-                                restore_state(parser_state);
+                                restore_state(assigner_state);
                                 curr_branch.pop_back();
 
                                 if (cond_val) {
@@ -1325,7 +1325,7 @@ namespace nil {
                                 }
 
                                 if (false_next_inst) {
-                                    restore_state(parser_state);
+                                    restore_state(assigner_state);
                                 }
                                 curr_branch.pop_back();
 
@@ -1334,7 +1334,7 @@ namespace nil {
                                 return false_next_inst;
                             }
 
-                            const ParserState parser_state(*this);
+                            const AssignerState assigner_state(*this);
                             curr_branch.push_back(branch_desc(false, stack_size));
                             curr_branch.push_back(branch_desc(true, stack_size));
 
@@ -1348,7 +1348,7 @@ namespace nil {
                                           true_next_inst);
                             }
 
-                            restore_state(parser_state);
+                            restore_state(assigner_state);
                             curr_branch.pop_back();
 
                             log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) == 0));
@@ -1362,7 +1362,7 @@ namespace nil {
                             }
 
                             if (false_next_inst) {
-                                restore_state(parser_state);
+                                restore_state(assigner_state);
                             }
                             curr_branch.pop_back();
 
@@ -1415,14 +1415,14 @@ namespace nil {
                                             (gen_mode & generation_mode::CIRCUIT) | generation_mode::FALSE_ASSIGNMENTS :
                                             gen_mode & generation_mode::CIRCUIT;
                                 }
-                                const ParserState parser_state(*this);
+                                const AssignerState assigner_state(*this);
                                 curr_branch.push_back(branch_desc(false, call_stack.size()));
                                 const auto next_inst = handle_branch(&Case.getCaseSuccessor()->front());
                                 curr_branch.pop_back();
                             }
                         } else {
                             for (auto Case : switch_inst->cases()) {
-                                const ParserState parser_state(*this);
+                                const AssignerState assigner_state(*this);
                                 curr_branch.push_back(branch_desc(false, call_stack.size()));
                                 const auto next_inst = handle_branch(&Case.getCaseSuccessor()->front());
                                 curr_branch.pop_back();
