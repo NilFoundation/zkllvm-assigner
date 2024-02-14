@@ -79,7 +79,8 @@ namespace nil {
             CIRCUIT = 1 << 0,
             ASSIGNMENTS = 1 << 1,
             FALSE_ASSIGNMENTS = 1 << 2,
-            SIZE_ESTIMATION = 1 << 3
+            SIZE_ESTIMATION = 1 << 3,
+            PUBLIC_INPUT_COLUMN = 1 << 4,
         };
 
         constexpr enum generation_mode operator |( const enum generation_mode self, const enum generation_mode val )

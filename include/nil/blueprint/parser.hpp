@@ -644,7 +644,9 @@ namespace nil {
                     }
 
                     default:
-                        UNREACHABLE("Unexpected intrinsic!");
+                        llvm::Function *intrinsic_func = llvm::cast<llvm::CallInst>(inst)->getCalledFunction();
+                        std::string intrinsic_name = intrinsic_func->getName().str();
+                        UNREACHABLE("Unexpected intrinsic: " + intrinsic_name);
                 }
                 return false;
             }
@@ -1740,8 +1742,9 @@ namespace nil {
 
             bool dump_public_input(const boost::json::array &public_input, const std::string &output_file) {
                 stack_frame<var> frame;
-                auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
-                    frame, stack_memory, *layout_resolver);
+                std::nullptr_t empty_assignmnt;
+                auto input_reader = InputReader<BlueprintFieldType, var, std::nullptr_t>(
+                    frame, stack_memory, empty_assignmnt, *layout_resolver);
                 auto empty_private_input = boost::json::array();
                 if (!input_reader.fill_public_input(*circuit_function_it, public_input, empty_private_input, log)) {
                     std::cerr << "Public input does not match the circuit signature";
@@ -1766,7 +1769,7 @@ namespace nil {
                 base_frame.caller = nullptr;
 
                 auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
-                    base_frame, stack_memory, &assignments[currProverIdx], *layout_resolver, (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) != 0));
+                    base_frame, stack_memory, assignments[currProverIdx], *layout_resolver, (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) != 0));
                 if (!input_reader.fill_public_input(*circuit_function_it, public_input, private_input, log)) {
                     std::cerr << "Public input does not match the circuit signature";
                     const std::string &error = input_reader.get_error();

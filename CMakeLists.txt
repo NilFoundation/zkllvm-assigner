@@ -82,7 +82,7 @@ target_link_libraries(${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME} INTERFACE
                       LLVMSupport
 
                       ${Boost_LIBRARIES}
-                      
+
                       crypto3::algebra
                       crypto3::block
                       crypto3::blueprint
@@ -93,7 +93,7 @@ target_link_libraries(${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME} INTERFACE
                       crypto3::pubkey
                       crypto3::random
                       crypto3::zk
-                      
+
                       marshalling::core
                       marshalling::crypto3_algebra
                       marshalling::crypto3_multiprecision
