@@ -119,7 +119,7 @@ namespace nil {
 
             parser(long stack_size, boost::log::trivial::severity_level log_level, std::uint32_t max_num_provers, std::uint32_t target_prover_idx, generation_mode gen_mode,
                    const std::string &kind = "", print_format output_print_format = no_print, bool check_validity = false) :
-                stack_memory(stack_size),
+                memory(stack_size),
                 maxNumProvers(max_num_provers),
                 targetProverIdx(target_prover_idx),
                 currProverIdx(0),
@@ -330,7 +330,7 @@ namespace nil {
                 // So we use deep-first search for scalar elements of the struct (or array)
                 std::stack<const llvm::Constant *> component_stack;
                 component_stack.push(constant_init);
-                ptr_type ptr = stack_memory.add_cells(layout_resolver->get_type_layout<BlueprintFieldType>(constant_init->getType()));
+                ptr_type ptr = memory.add_cells(layout_resolver->get_type_layout<BlueprintFieldType>(constant_init->getType()));
                 ptr_type res = ptr;
                 while (!component_stack.empty()) {
                     const llvm::Constant *constant = component_stack.top();
@@ -338,11 +338,11 @@ namespace nil {
                     llvm::Type *type = constant->getType();
                     if (type->isPointerTy()) {
                         if (constant->isZeroValue()) {
-                            stack_memory.store(ptr++, zero_var);
+                            memory.store(ptr++, zero_var);
                             continue;
                         }
                         if (globals.find(constant) != globals.end()) {
-                            stack_memory.store(ptr++, globals[constant]);
+                            memory.store(ptr++, globals[constant]);
                             continue;
                         }
                         UNREACHABLE("Unsupported pointer initialization!");
@@ -351,7 +351,7 @@ namespace nil {
                         std::vector<typename BlueprintFieldType::value_type> marshalled_field_val = marshal_field_val<BlueprintFieldType>(constant);
                         for (int i = 0; i < marshalled_field_val.size(); i++) {
                             auto variable = put_into_assignment(marshalled_field_val[i]);
-                            stack_memory.store(ptr++, variable);
+                            memory.store(ptr++, variable);
                         }
                         continue;
                     }
@@ -376,12 +376,12 @@ namespace nil {
             void memcpy(ptr_type dst, ptr_type src, unsigned width) {
                 unsigned copied = 0;
                 while (copied < width) {
-                    ASSERT(stack_memory[dst].size == stack_memory[src].size);
-                    unsigned following = stack_memory[dst].following;
-                    copied += stack_memory[dst].size;
-                    stack_memory[dst++].v = stack_memory[src++].v;
+                    ASSERT(memory[dst].size == memory[src].size);
+                    unsigned following = memory[dst].following;
+                    copied += memory[dst].size;
+                    memory[dst++].v = memory[src++].v;
                     while (following != 0) {
-                        stack_memory[dst++].v = stack_memory[src++].v;
+                        memory[dst++].v = memory[src++].v;
                         --following;
                     }
                 }
@@ -390,8 +390,8 @@ namespace nil {
             void memset(ptr_type dst, var val, unsigned width) {
                 unsigned filled = 0;
                 while (filled < width) {
-                    filled += stack_memory[dst].size;
-                    stack_memory[dst++].v = val;
+                    filled += memory[dst].size;
+                    memory[dst++].v = val;
                 }
             }
 
@@ -421,7 +421,7 @@ namespace nil {
                     case llvm::Intrinsic::assigner_malloc: {
                         if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
                             size_t bytes = resolve_number<size_t>(frame, inst->getOperand(0));
-                            frame.scalars[inst] = put_into_assignment(stack_memory.malloc(bytes));
+                            frame.scalars[inst] = put_into_assignment(memory.malloc(bytes));
                         } else {
                             frame.scalars[inst] = put_into_assignment(0);
                         }
@@ -522,12 +522,12 @@ namespace nil {
                     case llvm::Intrinsic::assigner_bit_decomposition_field:
                     case llvm::Intrinsic::assigner_bit_decomposition: {
                         ASSERT(check_operands_constantness(inst, {1, 3}, frame));
-                        handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
+                        handle_integer_bit_decomposition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_bit_composition: {
                         ASSERT(check_operands_constantness(inst, {1, 2}, frame));
-                        handle_integer_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
+                        handle_integer_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_print_native_pallas_field: {
@@ -611,22 +611,22 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_lin_inter: {
-                        handle_fri_lin_inter_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
+                        handle_fri_lin_inter_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_cosets: {
                         ASSERT_MSG(check_operands_constantness(inst, {1, 2}, frame), "result length, omega and total_bits must be constants");
-                        handle_fri_cosets_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
+                        handle_fri_cosets_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_gate_arg_verifier: {
                         ASSERT_MSG(check_operands_constantness(inst, {1, 2, 4}, frame), "gates_sizes, gates and selectors amount must be constants");
-                        handle_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
+                        handle_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_permutation_arg_verifier: {
                         ASSERT_MSG(check_operands_constantness(inst, {3}, frame), "f, se, sigma size must be constant");
-                        handle_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
+                        handle_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_lookup_arg_verifier: {
@@ -634,12 +634,12 @@ namespace nil {
                         for (std::size_t i = 0; i < 8; i++) { constants_positions.push_back(i);}
                         for (std::size_t i = 4; i < 13; i++) { constants_positions.push_back(2*i + 1);}
                         ASSERT_MSG(check_operands_constantness(inst, constants_positions, frame), "vectors sizes must be constants");
-                        handle_lookup_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
+                        handle_lookup_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_fri_array_swap: {
                         ASSERT_MSG(check_operands_constantness(inst, {1}, frame), "array size must be constant");
-                        handle_fri_array_swap_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, stack_memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
+                        handle_fri_array_swap_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
                         return true;
                     }
 
@@ -653,7 +653,7 @@ namespace nil {
 
             void handle_store(ptr_type ptr, const llvm::Value *val, stack_frame<var> &frame) {
                 auto store_scalar = [this](ptr_type ptr, var v, size_t type_size) ->ptr_type {
-                    auto &cell = stack_memory[ptr];
+                    auto &cell = memory[ptr];
                     size_t cur_offset = cell.offset;
                     size_t cell_size = cell.size;
                     if (cell_size != type_size) {
@@ -662,7 +662,7 @@ namespace nil {
                         cell.v = v;
 
                         for (int i = 1; i < type_size; ++i) {
-                            auto &idle_cell = stack_memory[ptr + i];
+                            auto &idle_cell = memory[ptr + i];
                             ASSERT(idle_cell.offset == ++cur_offset);
                             idle_cell.offset = cell.offset;
                             idle_cell.size = 0;
@@ -691,7 +691,7 @@ namespace nil {
                 size_t num_cells = layout_resolver->get_cells_num<BlueprintFieldType>(dest->getType());
                 if (num_cells == 1) {
                     if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
-                        auto &cell = stack_memory[ptr];
+                        auto &cell = memory[ptr];
                         frame.scalars[dest] = put_into_assignment(var_value(assignments[currProverIdx], cell.v));
                     } else {
                         frame.scalars[dest] = put_into_assignment(0);
@@ -700,7 +700,7 @@ namespace nil {
                     std::vector<var> res;
                     if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
                         for (size_t i = 0; i < num_cells; ++i) {
-                            res.push_back(put_into_assignment(var_value(assignments[currProverIdx], stack_memory[ptr + i].v)));
+                            res.push_back(put_into_assignment(var_value(assignments[currProverIdx], memory[ptr + i].v)));
                         }
                     } else {
                         for (size_t i = 0; i < num_cells; ++i) {
@@ -713,7 +713,7 @@ namespace nil {
 
             ptr_type find_offset(ptr_type left_border, ptr_type right_border, size_t offset) {
                 for (ptr_type i = left_border; i <= right_border; ++i) {
-                    if (stack_memory[i].offset == offset) {
+                    if (memory[i].offset == offset) {
                         return i;
                     }
                 }
@@ -746,7 +746,7 @@ namespace nil {
                 }
                 size_t type_size = layout_resolver->get_type_size(gep_ty);
                 size_t offset_diff = resolved_idx * type_size;
-                size_t desired_offset = stack_memory[base_ptr_number].offset + offset_diff;
+                size_t desired_offset = memory[base_ptr_number].offset + offset_diff;
 
                 if (resolved_idx < 0) {
                     ptr_type left_border = base_ptr_number + resolved_idx * type_size;
@@ -765,7 +765,7 @@ namespace nil {
                                                                const std::vector<int> &gep_indices,
                                                                stack_frame<var> &frame) {
                 auto ptr_number = handle_initial_gep_adjustment(pointer_operand, initial_idx_operand, frame, gep_ty);
-                ASSERT(stack_memory[ptr_number].size != 0);
+                ASSERT(memory[ptr_number].size != 0);
 
                 if (gep_indices.size() > 0) {
                     if (!gep_ty->isAggregateType()) {
@@ -774,11 +774,11 @@ namespace nil {
                         return 0;
                     }
                     auto [resolved_offset, hint] = layout_resolver->resolve_offset_with_index_hint<BlueprintFieldType>(gep_ty, gep_indices);
-                    size_t expected_offset = stack_memory[ptr_number].offset + resolved_offset;
-                    while (stack_memory[ptr_number + hint].size == 0) {
+                    size_t expected_offset = memory[ptr_number].offset + resolved_offset;
+                    while (memory[ptr_number + hint].size == 0) {
                         ++hint;
                     };
-                    size_t desired_offset = stack_memory[ptr_number].offset + resolved_offset;
+                    size_t desired_offset = memory[ptr_number].offset + resolved_offset;
                     size_t type_size = layout_resolver->get_type_size(gep_ty);
                     ptr_number = find_offset(ptr_number + hint, ptr_number + type_size, desired_offset);
                 }
@@ -788,7 +788,7 @@ namespace nil {
             void handle_ptrtoint(const llvm::Value *inst, llvm::Value *operand, stack_frame<var> &frame) {
                 if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
                     ptr_type ptr = resolve_number<ptr_type>(frame, operand);
-                    size_t offset = stack_memory.ptrtoint(ptr);
+                    size_t offset = memory.ptrtoint(ptr);
                     log.debug(boost::format("PtrToInt %1% %2%") % ptr % offset);
                     frame.scalars[inst] = put_into_assignment(offset);
                 } else {
@@ -809,15 +809,15 @@ namespace nil {
                            (initializer->getType()->isFieldTy() &&
                             field_arg_num<BlueprintFieldType>(initializer->getType()) == 1)) {
                     unsigned constant_width = layout_resolver->get_type_size(initializer->getType());
-                    ptr_type ptr = stack_memory.add_cells({{constant_width, 0}});
+                    ptr_type ptr = memory.add_cells({{constant_width, 0}});
                     std::vector<typename BlueprintFieldType::value_type> marshalled_field_val =
                         marshal_field_val<BlueprintFieldType>(initializer);
-                    stack_memory.store(ptr, put_into_assignment(marshalled_field_val[0], true));
+                    memory.store(ptr, put_into_assignment(marshalled_field_val[0], true));
                     globals[global] = put_into_assignment(ptr, true);
                 } else if (llvm::isa<llvm::ConstantPointerNull>(initializer)) {
                     unsigned ptr_width = layout_resolver->get_type_size(initializer->getType());
-                    ptr_type ptr = stack_memory.add_cells({{ptr_width, 0}});
-                    stack_memory.store(ptr, zero_var);
+                    ptr_type ptr = memory.add_cells({{ptr_width, 0}});
+                    memory.store(ptr, zero_var);
                     globals[global] = put_into_assignment(ptr, true);
                 } else {
                     UNREACHABLE("Unhandled global variable");
@@ -846,9 +846,9 @@ namespace nil {
                     } else {
                         ASSERT(undef_type->isAggregateType());
                         auto layout = layout_resolver->get_type_layout<BlueprintFieldType>(undef_type);
-                        ptr_type ptr = stack_memory.add_cells(layout);
+                        ptr_type ptr = memory.add_cells(layout);
                         for (size_t i = 0; i < layout_resolver->get_cells_num<BlueprintFieldType>(undef_type); ++i) {
-                            stack_memory.store(ptr+i, undef_var);
+                            memory.store(ptr+i, undef_var);
                         }
                         frame.scalars[c] = put_into_assignment(ptr);
                     }
@@ -1170,7 +1170,7 @@ namespace nil {
                         }
                         new_frame.caller = call_inst;
                         call_stack.emplace(std::move(new_frame));
-                        stack_memory.push_frame();
+                        memory.push_frame();
                         return &fun->begin()->front();
                     }
                     case llvm::Instruction::ICmp: {
@@ -1467,7 +1467,7 @@ namespace nil {
                         auto *alloca = llvm::cast<llvm::AllocaInst>(inst);
                         auto vec = layout_resolver->get_type_layout<BlueprintFieldType>(alloca->getAllocatedType());
 
-                        ptr_type res_ptr = stack_memory.add_cells(vec);
+                        ptr_type res_ptr = memory.add_cells(vec);
                         log.debug(boost::format("Alloca: %1%") % res_ptr);
                         frame.scalars[inst] = put_into_assignment(res_ptr);
                         return inst->getNextNonDebugInstruction();
@@ -1527,7 +1527,7 @@ namespace nil {
                                        ->resolve_offset_with_index_hint<BlueprintFieldType>(
                                            insert_inst->getAggregateOperand()->getType(), insert_inst->getIndices())
                                        .second;
-                            stack_memory.store(ptr, frame.scalars[insert_inst->getInsertedValueOperand()]);
+                            memory.store(ptr, frame.scalars[insert_inst->getInsertedValueOperand()]);
                         }
                         frame.scalars[inst] = frame.scalars[insert_inst->getAggregateOperand()];
                         return inst->getNextNonDebugInstruction();
@@ -1541,7 +1541,7 @@ namespace nil {
                                        ->resolve_offset_with_index_hint<BlueprintFieldType>(
                                            extract_inst->getAggregateOperand()->getType(), extract_inst->getIndices())
                                        .second;
-                            const auto origin_var = stack_memory.load(ptr);
+                            const auto origin_var = memory.load(ptr);
                             const auto wrapper = detail::put_constant<typename BlueprintFieldType::value_type,
                                                                       BlueprintFieldType, ArithmetizationParams, var>
                                 (var_value(assignments[currProverIdx], origin_var), assignments[currProverIdx]);
@@ -1560,7 +1560,7 @@ namespace nil {
                             return inst->getNextNonDebugInstruction();
                         }
                         ptr_type ptr = resolve_number<ptr_type>(frame, inst->getOperand(0));
-                        var bb_var = stack_memory.load(ptr);
+                        var bb_var = memory.load(ptr);
                         llvm::BasicBlock *bb = (llvm::BasicBlock *)(resolve_number<uintptr_t>(bb_var));
                         ASSERT(labels.find(bb) != labels.end());
                         return &bb->front();
@@ -1574,7 +1574,7 @@ namespace nil {
                             std::ostringstream oss;
                             size_t offset = resolve_number<size_t>(frame, inst->getOperand(0));
                             oss << var_value(assignments[currProverIdx], frame.scalars[inst->getOperand(0)]).data;
-                            ptr_type ptr = stack_memory.inttoptr(offset);
+                            ptr_type ptr = memory.inttoptr(offset);
                             log.debug(boost::format("IntToPtr %1% %2%") % oss.str() % ptr);
                             ASSERT(ptr != 0);
                             frame.scalars[inst] = put_into_assignment(ptr);
@@ -1664,7 +1664,7 @@ namespace nil {
                             }
                             if (curr_branch.size() <= 1) {
                                 call_stack.pop();
-                                stack_memory.pop_frame();
+                                memory.pop_frame();
                             }
                             return nullptr;
                         }
@@ -1673,7 +1673,7 @@ namespace nil {
                             curr_branch.back().second < call_stack.size()) {
                             auto extracted_frame = std::move(call_stack.top());
                             call_stack.pop();
-                            stack_memory.pop_frame();
+                            memory.pop_frame();
                             if (inst->getNumOperands() != 0) {
                                 llvm::Value *ret_val = inst->getOperand(0);
                                 llvm::Type *ret_type = ret_val->getType();
@@ -1686,7 +1686,7 @@ namespace nil {
                                 } else if (ret_type->isAggregateType()) {
                                     if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
                                         ptr_type ret_ptr = resolve_number<ptr_type>(extracted_frame, ret_val);
-                                        ptr_type allocated_copy = stack_memory.add_cells(
+                                        ptr_type allocated_copy = memory.add_cells(
                                             layout_resolver->get_type_layout<BlueprintFieldType>(ret_type));
                                         auto size = layout_resolver->get_type_size(ret_type);
                                         // TODO(maksenov): check if overwriting is possible here
@@ -1769,7 +1769,7 @@ namespace nil {
                 base_frame.caller = nullptr;
 
                 auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
-                    base_frame, stack_memory, assignments[currProverIdx], *layout_resolver, (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) != 0));
+                    base_frame, memory, assignments[currProverIdx], *layout_resolver, (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) != 0));
                 if (!input_reader.fill_public_input(*circuit_function, public_input, private_input, log)) {
                     std::cerr << "Public input does not match the circuit signature";
                     const std::string &error = input_reader.get_error();
@@ -1795,11 +1795,11 @@ namespace nil {
                                 }
                                 auto label_type = llvm::Type::getInt8PtrTy(module->getContext());
                                 unsigned label_type_size = layout_resolver->get_type_size(label_type);
-                                ptr_type ptr = stack_memory.add_cells({{label_type_size, 0}});
+                                ptr_type ptr = memory.add_cells({{label_type_size, 0}});
 
                                 // Store the pointer to BasicBlock to memory
                                 // TODO(maksenov): avoid C++ pointers in assignment table
-                                stack_memory.store(ptr, put_into_assignment((const uintptr_t)succ, true));
+                                memory.store(ptr, put_into_assignment((const uintptr_t)succ, true));
 
                                 labels[succ] = put_into_assignment(ptr, true);
                             }
@@ -1843,7 +1843,7 @@ namespace nil {
             std::unique_ptr<llvm::Module> module;
             llvm::Function *circuit_function;
             std::stack<stack_frame<var>> call_stack;
-            program_memory<var> stack_memory;
+            program_memory<var> memory;
             std::unordered_map<const llvm::Value *, var> globals;
             std::unordered_map<const llvm::BasicBlock *, var> labels;
             bool finished = false;
