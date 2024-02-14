@@ -31,7 +31,7 @@
 #include "llvm/IR/Type.h"
 
 #include <nil/blueprint/layout_resolver.hpp>
-
+#include <nil/blueprint/signature_parser.hpp>
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
 
@@ -43,44 +43,97 @@
 
 namespace nil {
     namespace blueprint {
+
         template<typename BlueprintFieldType, typename var, typename Assignment>
         class InputReader {
         public:
-            InputReader(stack_frame<var> &frame, program_memory<var> &memory, Assignment *assignmnt, LayoutResolver &layout_resolver, bool has_values) :
-                frame(frame), layout_resolver(layout_resolver), memory(memory),
-                assignmnt(assignmnt), public_input_idx(0), private_input_idx(0), constant_idx(0),
-                priv_iter(0), pub_iter(0), has_values(has_values) {}
-
-            InputReader(stack_frame<var> &frame, program_memory<var> &memory, LayoutResolver &layout_resolver) :
-                frame(frame), layout_resolver(layout_resolver), memory(memory), assignmnt(nullptr), public_input_only(true), has_values(true) {
+            InputReader(stack_frame<var> &frame, program_memory<var> &memory, Assignment &assignmnt,
+                        LayoutResolver &layout_resolver, bool has_values) :
+                frame(frame),
+                layout_resolver(layout_resolver), memory(memory), assignmnt(assignmnt), has_values(has_values) {
+                ASSERT(public_input_only == false);
+                reset();
             }
+
+            InputReader(stack_frame<var> &frame, program_memory<var> &memory, Assignment &assignmnt,
+                        LayoutResolver &layout_resolver) :
+                frame(frame),
+                layout_resolver(layout_resolver), memory(memory), assignmnt(assignmnt), has_values(true) {
+                ASSERT(public_input_only == true);
+                reset();
+            }
+
+            void reset() {
+                parsed_public_input.clear();
+                public_input_idx = 0;
+                private_input_idx = 0;
+                constant_idx = 0;
+                error.str("");
+                pub_iter = 0;
+                priv_iter = 0;
+            }
+
+            constexpr static bool public_input_only = std::is_same_v<Assignment, std::nullptr_t>;
 
             template<typename InputType>
             var put_into_assignment(InputType &input, bool is_private) {
-                ASSERT(!(public_input_only && is_private));
-                if (is_private) {
-                    assignmnt->private_storage(private_input_idx) = input;
-                    return var(Assignment::private_storage_index, private_input_idx++, false, var::column_type::public_input);
+                if constexpr (public_input_only) {
+                    ASSERT(!is_private);
+                    parsed_public_input.push_back(input);
+                    return var();
                 } else {
-                    if (public_input_only) {
-                        parsed_public_input.push_back(input);
-                        return var();
+                    if (is_private) {
+                        assignmnt.private_storage(private_input_idx) = input;
+                        return var(Assignment::private_storage_index, private_input_idx++, false, var::column_type::public_input);
+                    } else {
+                        assignmnt.public_input(0, public_input_idx) = input;
+                        return var(0, public_input_idx++, false, var::column_type::public_input);
                     }
-                    assignmnt->public_input(0, public_input_idx) = input;
-                    return var(0, public_input_idx++, false, var::column_type::public_input);
                 }
             }
 
             template<typename InputType>
             var pointer_into_assignment(InputType &ptr) {
-                if (public_input_only) {
+                if constexpr (public_input_only) {
                     return var();
+                } else {
+                    assignmnt.constant(1, constant_idx) = ptr; // TODO: column index is hardcoded but shouldn't be in the future
+                    return var(1, constant_idx++, false, var::column_type::constant);
                 }
-                assignmnt->constant(1, constant_idx) = ptr; // TODO: column index is hardcoded but shouldn't be in the future
-                return var(1, constant_idx++, false, var::column_type::constant);
             }
 
-            std::vector<var> process_curve (llvm::EllipticCurveType *curve_type, const boost::json::object &value, bool is_private) {
+            bool check_curve(const signature_node &node, llvm::EllipticCurveKind curve_kind) {
+                if (node.elem != json_elem::CURVE) {
+                    error << "Expected curve argument in the input, got \"" /* << node.elem */ << "\"";
+                    return false;
+                }
+                if (node.children.size() > 1) {
+                    error << "Too much";
+                    return false;
+                }
+                if (node.children.size() == 1) {
+                    auto corresponding_elem = [](llvm::EllipticCurveKind curve_kind) {
+                        switch (curve_kind) {
+                            case llvm::ELLIPTIC_CURVE_PALLAS:
+                                return json_elem::PALLAS;
+                            case llvm::ELLIPTIC_CURVE_CURVE25519:
+                                return json_elem::ED25519;
+                            case llvm::ELLIPTIC_CURVE_BLS12381:
+                                return json_elem::BLS12381;
+                            default:
+                                return json_elem::UNDEFINED;
+                        }
+                    };
+                    const signature_node &child_node = node.children[0];
+                    if (child_node.elem != corresponding_elem(curve_kind) || child_node.children.size() > 0) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            std::vector<var> process_curve(llvm::EllipticCurveType *curve_type, const boost::json::value &curve_value,
+                                           const signature_node &node, bool is_private) {
                 size_t arg_len = curve_arg_num<BlueprintFieldType>(curve_type);
                 ASSERT_MSG(arg_len >= 2, "arg_len of curveTy cannot be less than two");
                 std::vector<var> vector1;
@@ -90,11 +143,10 @@ namespace nil {
                     vector1 = process_empty_field(arg_field_type, is_private);
                     vector2 = process_empty_field(arg_field_type, is_private);
                 } else {
-                    if (value.size() != 1 || !value.contains("curve")) {
-                        error << "Expected curve argument in the input, got \"" << value << "\"";
+                    if (!check_curve(node, curve_type->getCurveKind())) {
+                        error << "Unexpected signature for curve argument: " << node.type_string;
                         return {};
                     }
-                    const boost::json::value &curve_value = value.at("curve");
                     if (!(curve_value.is_array() && curve_value.as_array().size() == 2)) {
                         error << "curve argument must be array and must consist of two field elements, got \""
                             << curve_value << "\"";
@@ -111,9 +163,10 @@ namespace nil {
                 return vector1;
             }
 
-            bool take_curve(llvm::Value *curve_arg, llvm::Type *curve_type, const boost::json::object &value, bool is_private) {
+            bool take_curve(llvm::Value *curve_arg, llvm::Type *curve_type, const boost::json::value &value,
+                            const signature_node &node, bool is_private) {
                 ASSERT(llvm::isa<llvm::EllipticCurveType>(curve_type));
-                frame.vectors[curve_arg] = process_curve(llvm::cast<llvm::EllipticCurveType>(curve_type), value, is_private);
+                frame.vectors[curve_arg] = process_curve(llvm::cast<llvm::EllipticCurveType>(curve_type), value, node, is_private);
                 return !frame.vectors[curve_arg].empty();
             }
 
@@ -183,37 +236,62 @@ namespace nil {
                 }
             }
 
-            std::vector<var> process_field (llvm::GaloisFieldType *field_type, const boost::json::object &value, bool is_private) {
-                ASSERT(llvm::isa<llvm::GaloisFieldType>(field_type));
+            bool check_field(const signature_node &node, llvm::GaloisFieldKind kind) {
+                if (node.elem != json_elem::FIELD) {
+                    return false;
+                }
+                if (node.children.size() > 1) {
+                    return false;
+                }
+                if (node.children.size() == 1) {
+                    auto corresponding_elem = [](llvm::GaloisFieldKind kind) {
+                        switch (kind) {
+                            case llvm::GALOIS_FIELD_PALLAS_BASE:
+                                return json_elem::PALLAS_BASE;
+                            case llvm::GALOIS_FIELD_CURVE25519_BASE:
+                                return json_elem::ED25519_BASE;
+                            case llvm::GALOIS_FIELD_BLS12381_BASE:
+                                return json_elem::BLS12381_BASE;
+                            default:
+                                return json_elem::UNDEFINED;
+                        }
+                    };
+                    const signature_node &child_node = node.children[0];
+                    if (child_node.elem != corresponding_elem(kind) || child_node.children.size() != 0) {
+                        return false;
+                    }
+                }
+                return true;
+            }
 
-                size_t arg_len = field_arg_num<BlueprintFieldType>(field_type);
-                ASSERT_MSG(arg_len != 0, "wrong input size");
-
+            std::vector<var> process_field(llvm::GaloisFieldType *field_type, const boost::json::value &value,
+                                           const signature_node &node, bool is_private) {
                 llvm::GaloisFieldKind arg_field_type = field_type->getFieldKind();
-
                 if (!has_values) {
                     return process_empty_field(arg_field_type, is_private);
                 }
-
-                if (value.size() != 1 || !value.contains("field")){
-                    error << "Expected field argument in the input, got \"" << value << "\"";
+                if (!check_field(node, arg_field_type)) {
+                    error << "Unexpected signature for field argument: " << node.type_string;
                     return {};
                 }
+                size_t arg_len = field_arg_num<BlueprintFieldType>(field_type);
+                ASSERT_MSG(arg_len != 0, "wrong input size");
 
-                if (value.at("field").is_double()) {
+                if (value.is_double()) {
                     std::cerr << "error in json value:\n" << value << "\n";
                     error <<
                         "got double value for field argument. Probably the value is too big to be represented as "
                         "integer. You can put it in \"\" to avoid JSON parser restrictions.";
                     return {};
                 }
-                return process_non_native_field(value.at("field"), arg_field_type, is_private);
+                return process_non_native_field(value, arg_field_type, is_private);
             }
 
 
-            bool take_field(llvm::Value *field_arg, llvm::Type *field_type, const boost::json::object &value, bool is_private) {
+            bool take_field(llvm::Value *field_arg, llvm::Type *field_type, const boost::json::value &value,
+                            const signature_node &node, bool is_private) {
                 ASSERT(field_type->isFieldTy());
-                std::vector<var> values = process_field(llvm::cast<llvm::GaloisFieldType>(field_type), value, is_private);
+                std::vector<var> values = process_field(llvm::cast<llvm::GaloisFieldType>(field_type), value, node, is_private);
                 if (values.empty()) {
                     return false;
                 }
@@ -225,7 +303,20 @@ namespace nil {
                 return true;
             }
 
-            std::vector<var> process_int(const boost::json::object &object, std::size_t bitness, bool is_private) {
+            bool check_int(const signature_node &node) {
+                if (node.elem != json_elem::INT) {
+                    error << "Expected int as argument";
+                    return false;
+                }
+                if (node.children.size() != 0) {
+                    error << "Unexpected children";
+                    return false;
+                }
+                return true;
+            }
+
+            std::vector<var> process_int(const boost::json::value &value, const signature_node &node, std::size_t bitness,
+                                         bool is_private) {
                 std::vector<var> res = std::vector<var>(1);
                 if (!has_values) {
                     typename BlueprintFieldType::value_type zero_val = 0;
@@ -233,27 +324,26 @@ namespace nil {
                     return res;
                 }
 
-                if (object.size() != 1 || !object.contains("int")) {
-                    error << "Expected int argument in the input, got \"" << object << "\"";
+                if (!check_int(node)) {
+                    error << "Unexpected signature for int argument: " << node.type_string;
                     return {};
                 }
-
                 typename BlueprintFieldType::value_type out;
 
-                switch (object.at("int").kind()) {
+                switch (value.kind()) {
                 case boost::json::kind::int64:
-                    if (bitness < 64 && object.at("int").as_int64() >> bitness > 0) {
-                        error << "int value " << object.at("int").as_int64() << " does not fit into " << bitness << " bits";
+                    if (bitness < 64 && value.as_int64() >> bitness > 0) {
+                        error << "int value " << value.as_int64() << " does not fit into " << bitness << " bits";
                         return {};
                     }
-                    out = object.at("int").as_int64();
+                    out = value.as_int64();
                     break;
                 case boost::json::kind::uint64:
-                    if (bitness < 64 && object.at("int").as_uint64() >> bitness > 0) {
-                        error << "uint value " << object.at("int").as_uint64() << " does not fit into " << bitness << " bits";
+                    if (bitness < 64 && value.as_uint64() >> bitness > 0) {
+                        error << "uint value " << value.as_uint64() << " does not fit into " << bitness << " bits";
                         return {};
                     }
-                    out = object.at("int").as_uint64();
+                    out = value.as_uint64();
                     break;
                 case boost::json::kind::double_: {
                     error <<
@@ -265,14 +355,14 @@ namespace nil {
                     const std::size_t buflen = 256;
                     char buf[buflen];
 
-                    std::size_t numlen = object.at("int").as_string().size();
+                    std::size_t numlen = value.as_string().size();
 
                     if (numlen > buflen - 1) {
-                        error << "value " << object.at("int").as_string() << " exceeds buffer size (" << buflen - 1 << ")";
+                        error << "value " << value.as_string() << " exceeds buffer size (" << buflen - 1 << ")";
                         return {};
                     }
 
-                    object.at("int").as_string().copy(buf, numlen);
+                    value.as_string().copy(buf, numlen);
                     buf[numlen] = '\0';
                     typename BlueprintFieldType::extended_integral_type number = typename BlueprintFieldType::extended_integral_type(buf);
                     typename BlueprintFieldType::extended_integral_type one = 1;
@@ -289,7 +379,7 @@ namespace nil {
                     break;
                 }
                 default:
-                    error << "Expected int or string as an int argument, got \"" << object.at("int") << "\"";
+                    error << "Expected int or string as an int argument, got \"" << value << "\"";
                     return {};
                 }
 
@@ -297,22 +387,35 @@ namespace nil {
                 return res;
             }
 
-            bool take_int(llvm::Value *int_arg, const boost::json::object &value, bool is_private) {
+            bool take_int(llvm::Value *int_arg, const boost::json::value &value, const signature_node &node, bool is_private) {
                 std::size_t bitness = int_arg->getType()->getPrimitiveSizeInBits();
-                auto values = process_int(value, bitness, is_private);
+                auto values = process_int(value, node, bitness, is_private);
                 if (values.size() != 1)
                     return false;
                 frame.scalars[int_arg] = values[0];
                 return true;
             }
 
-            bool take_vector(llvm::Value *vector_arg, llvm::Type *vector_type, const boost::json::object &value, bool is_private) {
+            bool take_vector(llvm::Value *vector_arg, llvm::Type *vector_type, const boost::json::value &value,
+                             const signature_node &node, bool is_private) {
                 size_t arg_len = llvm::cast<llvm::FixedVectorType>(vector_type)->getNumElements();
-                frame.vectors[vector_arg] = process_vector(llvm::cast<llvm::FixedVectorType>(vector_type), value, is_private);
+                frame.vectors[vector_arg] =
+                    process_vector(llvm::cast<llvm::FixedVectorType>(vector_type), value, node, is_private);
                 return frame.vectors[vector_arg].size() > 0;
             }
 
-            bool try_string(llvm::Value *arg, llvm::Type *arg_type, const boost::json::object &value, bool is_private) {
+            bool check_string(const signature_node &node) {
+                if (node.elem != json_elem::STRING) {
+                    return false;
+                }
+                if (node.children.size() != 0) {
+                    return false;
+                }
+                return true;
+            }
+
+            bool try_string(llvm::Value *arg, llvm::Type *arg_type, const boost::json::value &value, const signature_node &node,
+                            bool is_private) {
                 if (!arg_type->isPointerTy()) {
                     return false;
                 }
@@ -325,13 +428,14 @@ namespace nil {
                     return true;
                 }
 
-                if (value.size() != 1 || !value.contains("string")) {
+                if (!check_string(node)) {
+                    error << "Unexpected signature for string argument: " << node.type_string;
                     return false;
                 }
-                if (!value.at("string").is_string()) {
+                if (!value.is_string()) {
                     return false;
                 }
-                const auto &json_str = value.at("string").as_string();
+                const auto &json_str = value.as_string();
                 size_t string_size = json_str.size() + 1;  // add memory for '\0'
                 type_layout string_layout(string_size, {1,0});
                 ptr_type ptr = memory.add_cells(string_layout);
@@ -350,9 +454,10 @@ namespace nil {
                 return true;
             }
 
-            bool try_struct(llvm::Value *arg, llvm::StructType *struct_type, const boost::json::object &value, bool is_private) {
+            bool try_struct(llvm::Value *arg, llvm::StructType *struct_type, const boost::json::value &value,
+                            const signature_node &node, bool is_private) {
                 ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(struct_type));
-                if (process_struct(struct_type, value, ptr, is_private) == ptr_type(0)) {
+                if (process_struct(struct_type, value, node, ptr, is_private) == ptr_type(0)) {
                     return false;
                 }
                 auto variable = pointer_into_assignment(ptr);
@@ -360,9 +465,10 @@ namespace nil {
                 return true;
             }
 
-            bool try_array(llvm::Value *arg, llvm::ArrayType *array_type, const boost::json::object &value, bool is_private) {
+            bool try_array(llvm::Value *arg, llvm::ArrayType *array_type, const boost::json::value &value,
+                           const signature_node &node, bool is_private) {
                 ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(array_type));
-                if (process_array(array_type, value, ptr, is_private) == ptr_type(0)) {
+                if (process_array(array_type, value, node, ptr, is_private) == ptr_type(0)) {
                     return false;
                 }
                 auto variable = pointer_into_assignment(ptr);
@@ -370,26 +476,55 @@ namespace nil {
                 return true;
             }
 
-            ptr_type process_array(llvm::ArrayType *array_type, const boost::json::object &value, ptr_type ptr, bool is_private) {
+            bool check_array(const signature_node &node) {
+                if (node.elem != json_elem::ARRAY) {
+                    return false;
+                }
+                if (node.children.size() > 1) {
+                    return false;
+                }
+                return true;
+            }
+
+            ptr_type process_array(llvm::ArrayType *array_type, const boost::json::value &value, const signature_node &node, ptr_type ptr, bool is_private) {
                 if (!has_values) {
                     for (size_t i = 0; i < array_type->getNumElements(); ++i) {
-                        auto obj = boost::json::object();
-                        ptr = dispatch_type(array_type->getElementType(), obj, ptr, is_private);
+                        ptr = dispatch_type(array_type->getElementType(), value, node, ptr, is_private);
                     }
                     return ptr;
                 }
-                if (value.size() != 1 || !value.contains("array") || !value.at("array").is_array()) {
-                    error << "Expected array argument, got \"" << value << "\"";
+                if (!check_array(node)) {
+                    error << "Unexpected signature for array argument: " << node.type_string;
                     return ptr_type(0);
                 }
-                auto &arr = value.at("array").as_array();
+                if (!value.is_array()) {
+                    error << "Ex";
+                    return ptr_type(0);
+                }
+                auto &arr = value.as_array();
                 if (array_type->getNumElements() != arr.size()) {
                     error << "Expected an array with " << array_type->getNumElements() << " arguments, got \"" << arr
                           << "\"";
                     return ptr_type(0);
                 }
                 for (size_t i = 0; i < array_type->getNumElements(); ++i) {
-                    ptr = dispatch_type(array_type->getElementType(), arr[i], ptr, is_private);
+                    if (node.children.size() == 1) {
+                        ptr = dispatch_type(array_type->getElementType(), arr[i], node.children[0], ptr, is_private);
+                    } else {
+                        if (!arr[i].is_object() || arr[i].as_object().size() != 1) {
+                            error << "Expected obj";
+                            return ptr_type(0);
+                        }
+                        std::string signature(arr[i].as_object().begin()->key());
+                        signature_parser sp;
+                        if (!sp.parse(signature)) {
+                            error << "Wrong signature: " << signature;
+                            return ptr_type(0);
+                        }
+                        ptr = dispatch_type(array_type->getElementType(), arr[i].as_object().at(signature), sp.get_tree(),
+                                            ptr, is_private);
+                    }
+
                     if (ptr == ptr_type(0)) {
                         return ptr_type(0);
                     }
@@ -398,26 +533,42 @@ namespace nil {
                 return ptr;
             }
 
-            ptr_type process_struct(llvm::StructType *struct_type, const boost::json::object &value, ptr_type ptr, bool is_private) {
-                bool possible_array_input = !has_values || (value.size() == 1 && value.contains("array"));
-                if (possible_array_input && struct_type->getNumElements() == 1 &&
-                    struct_type->getElementType(0)->isArrayTy()) {
-                    // Assuming std::array
-                    return process_array(llvm::cast<llvm::ArrayType>(struct_type->getElementType(0)), value, ptr, is_private);
+            bool check_struct(const signature_node &node, llvm::StructType *struct_type) {
+                if (node.elem != json_elem::STRUCT) {
+                    return false;
                 }
+                size_t children_size = node.children.size();
+                if (children_size != 0 && children_size != struct_type->getNumElements()) {
+                    return false;
+                }
+                return true;
+            }
+
+            ptr_type process_struct(llvm::StructType *struct_type, const boost::json::value &value, const signature_node &node,
+                                    ptr_type ptr, bool is_private) {
                 if (!has_values) {
                     for (unsigned i = 0; i < struct_type->getNumElements(); ++i) {
                         auto elem_ty = struct_type->getElementType(i);
-                        auto obj = boost::json::object();
-                        ptr = dispatch_type(elem_ty, obj, ptr, is_private);
+                        ptr = dispatch_type(elem_ty, value, node, ptr, is_private);
                     }
                     return ptr;
                 }
-                if (value.size() != 1 || !value.contains("struct") || !value.at("struct").is_array()) {
-                    error << "Expected a struct as an argument, got \"" << value << "\"";
+                if (node.elem == json_elem::ARRAY && struct_type->getNumElements() == 1 &&
+                    struct_type->getElementType(0)->isArrayTy()) {
+                    // Assuming std::array
+                    return process_array(llvm::cast<llvm::ArrayType>(struct_type->getElementType(0)), value, node, ptr,
+                                         is_private);
+                }
+
+                if (!check_struct(node, struct_type)) {
+                    error << "Unexpected signature for struct argument: " << node.type_string;
                     return ptr_type(0);
                 }
-                auto &arr = value.at("struct").as_array();
+                if (!value.is_array()) {
+                    error << "Struct argument must be represented as JSON array, got \"" << value << "\"";
+                    return ptr_type(0);
+                }
+                auto &arr = value.as_array();
                 if (arr.size() != struct_type->getNumElements()) {
                     error << "Expected a struct with " << struct_type->getNumElements() << " elements, got \"" << arr
                           << "\"";
@@ -425,7 +576,21 @@ namespace nil {
                 }
                 for (unsigned i = 0; i < struct_type->getNumElements(); ++i) {
                     auto elem_ty = struct_type->getElementType(i);
-                    ptr = dispatch_type(elem_ty, arr[i], ptr, is_private);
+                    if (node.children.size() == struct_type->getNumElements()) {
+                        ptr = dispatch_type(elem_ty, arr[i], node.children[i], ptr, is_private);
+                    } else {
+                        if (!arr[i].is_object() || arr[i].as_object().size() != 1) {
+                            error << "Expected obj";
+                            return ptr_type(0);
+                        }
+                        std::string signature(arr[i].as_object().begin()->key());
+                        signature_parser sp;
+                        if (!sp.parse(signature)) {
+                            error << "Wrong signature: " << signature;
+                            return ptr_type(0);
+                        }
+                        ptr = dispatch_type(elem_ty, arr[i].as_object().at(signature), sp.get_tree(), ptr, is_private);
+                    }
                     if (ptr == ptr_type(0)) {
                         return ptr_type(0);
                     }
@@ -433,26 +598,36 @@ namespace nil {
                 return ptr;
             }
 
-            std::vector<var> process_vector(llvm::FixedVectorType *vector_type, const boost::json::object &value,
-                                            bool is_private) {
+            bool check_vector(const signature_node &node) {
+                if (node.elem != json_elem::VECTOR) {
+                    return false;
+                }
+                if (node.children.size() > 1) {
+                    return false;
+                }
+                return true;
+            }
+
+            std::vector<var> process_vector(llvm::FixedVectorType *vector_type, const boost::json::value &value,
+                                            const signature_node &node, bool is_private) {
                 if (!has_values) {
                     std::vector<var> res;
                     for (size_t i = 0; i < vector_type->getNumElements(); ++i) {
-                        auto elem_vector = process_leaf_type(vector_type->getElementType(), value, is_private);
+                        auto elem_vector = process_leaf_type(vector_type->getElementType(), value, node, is_private);
                         ASSERT(!elem_vector.empty());
                         res.insert(res.end(), elem_vector.begin(), elem_vector.end());
                     }
                     return res;
                 }
-                if (value.size() != 1 || !value.contains("vector")) {
-                    error << "Expected vector argument in the input, got \"" << value << "\"";
+                if (!check_vector(node)) {
+                    error << "Unexpected signature for vector argument: " << node.type_string;
                     return {};
                 }
-                if (!value.at("vector").is_array()) {
+                if (!value.is_array()) {
                     error << "Vector argument must be represented as JSON array, got \"" << value.at("vector") << "\"";
                     return {};
                 }
-                auto &vec = value.at("vector").as_array();
+                auto &vec = value.as_array();
                 if (vector_type->getNumElements() != vec.size()) {
                     error << "Expected a vector with " << vector_type->getNumElements() << " elements, got \"" << vec
                           << "\"";
@@ -460,7 +635,22 @@ namespace nil {
                 }
                 std::vector<var> res;
                 for (size_t i = 0; i < vector_type->getNumElements(); ++i) {
-                    auto elem_vector = process_leaf_type(vector_type->getElementType(), vec[i].as_object(), is_private);
+                    std::vector<var> elem_vector;
+                    if (node.children.size() == 1) {
+                        elem_vector = process_leaf_type(vector_type->getElementType(), vec[i].as_object(), node.children[0], is_private);
+                    } else {
+                        if (!vec[i].is_object() || vec[i].as_object().size() != 1) {
+                            error << "Expected obj";
+                            return {};
+                        }
+                        std::string signature(vec[i].as_object().begin()->key());
+                        signature_parser sp;
+                        if (!sp.parse(signature)) {
+                            error << "Wrong signature: " << signature;
+                            return {};
+                        }
+                        elem_vector = process_leaf_type(vector_type->getElementType(), vec[i].as_object().at(signature), sp.get_tree(), is_private);
+                    }
                     if (elem_vector.empty()) {
                         return {};
                     }
@@ -469,33 +659,29 @@ namespace nil {
                 return res;
             }
 
-            std::vector<var> process_leaf_type(llvm::Type *type, const boost::json::object &value, bool is_private) {
+            std::vector<var> process_leaf_type(llvm::Type *type, const boost::json::value &value, const signature_node &node, bool is_private) {
                 switch (type->getTypeID()) {
                 case llvm::Type::GaloisFieldTyID:
-                    return process_field(llvm::cast<llvm::GaloisFieldType>(type), value, is_private);
+                    return process_field(llvm::cast<llvm::GaloisFieldType>(type), value, node, is_private);
                 case llvm::Type::EllipticCurveTyID:
-                    return process_curve(llvm::cast<llvm::EllipticCurveType>(type), value, is_private);
+                    return process_curve(llvm::cast<llvm::EllipticCurveType>(type), value, node, is_private);
                 case llvm::Type::IntegerTyID:
-                    return process_int(value, type->getPrimitiveSizeInBits(), is_private);
+                    return process_int(value, node, type->getPrimitiveSizeInBits(), is_private);
                 case llvm::Type::FixedVectorTyID:
-                    return process_vector(llvm::cast<llvm::FixedVectorType>(type), value, is_private);
+                    return process_vector(llvm::cast<llvm::FixedVectorType>(type), value, node, is_private);
                 default:
                     UNREACHABLE("Unexpected leaf type");
                 }
             }
 
-            ptr_type dispatch_type(llvm::Type *type, const boost::json::value &value, ptr_type ptr, bool is_private) {
+            ptr_type dispatch_type(llvm::Type *type, const boost::json::value &value, const signature_node &node, ptr_type ptr,
+                                   bool is_private) {
                 switch (type->getTypeID()) {
                 case llvm::Type::GaloisFieldTyID:
                 case llvm::Type::EllipticCurveTyID:
                 case llvm::Type::IntegerTyID:
                 case llvm::Type::FixedVectorTyID:{
-                    if (!value.is_object()) {
-                        std::ostringstream error;
-                        error << "Unexpected JSON element: expected object, got " << value;
-                        UNREACHABLE(error.str().c_str());
-                    }
-                    auto flat_components = process_leaf_type(type, value.as_object(), is_private);
+                    auto flat_components = process_leaf_type(type, value, node, is_private);
                     if (flat_components.empty()) {
                         return ptr_type(0);
                     }
@@ -505,9 +691,9 @@ namespace nil {
                     return ptr;
                 }
                 case llvm::Type::ArrayTyID:
-                    return process_array(llvm::cast<llvm::ArrayType>(type), value.as_object(), ptr, is_private);
+                    return process_array(llvm::cast<llvm::ArrayType>(type), value, node, ptr, is_private);
                 case llvm::Type::StructTyID: {
-                    return process_struct(llvm::cast<llvm::StructType>(type), value.as_object(), ptr, is_private);
+                    return process_struct(llvm::cast<llvm::StructType>(type), value, node, ptr, is_private);
                 }
                 default:
                     UNREACHABLE("Unsupported type");
@@ -581,45 +767,68 @@ namespace nil {
                         }
                     }
 
-                    const boost::json::value &input_elem = has_values ?
-                        (is_private ?
-                        private_input[priv_iter].as_object() :
-                        public_input[pub_iter].as_object()) : boost::json::value(boost::json::object());
-                    if (!input_elem.is_object()) {
+                    boost::json::value empty_value;
+                    boost::json::object empty_object;
+                    const boost::json::value &input_elem =
+                        has_values ?
+                            (is_private ? private_input[priv_iter].as_object() : public_input[pub_iter].as_object()) :
+                            empty_value;
+
+                    if (has_values && !input_elem.is_object()) {
                         error << "Expected JSON object as a part of an input array, got \"" << input_elem << "\"";
                         return false;
                     }
-                    const boost::json::object &current_value = input_elem.as_object();
+                    const boost::json::object &arg_obj = has_values ? input_elem.as_object() : empty_object;
+                    std::string signature;
+                    signature_parser sp;
+                    if (has_values) {
+                        if (arg_obj.size() != 1) {
+                            error << "Input object size must be 1, got \"" << arg_obj << "\"";
+                            return false;
+                        }
+                        signature = std::string(arg_obj.begin()->key());
+                        if (!sp.parse(signature)) {
+                            error << "Failed parsing of the signature: " << signature;
+                            return false;
+                        }
+                    }
+                    const boost::json::value &current_value = has_values ? arg_obj.at(signature) : empty_value;
                     increment_iter(is_private);
 
                     if (llvm::isa<llvm::PointerType>(arg_type)) {
                         if (current_arg->hasAttribute(llvm::Attribute::ByVal)) {
                             auto pointee = current_arg->getAttribute(llvm::Attribute::ByVal).getValueAsType();
                             if (pointee->isStructTy()) {
-                                if (try_struct(current_arg, llvm::cast<llvm::StructType>(pointee), current_value, is_private))
-                                    continue;
-                            } else if (pointee->isArrayTy()) {
-                                if (try_array(current_arg, llvm::cast<llvm::ArrayType>(pointee), current_value, is_private))
-                                    continue;
-                            } else {
-                                UNREACHABLE("unsupported pointer type");
+                                if (!try_struct(current_arg, llvm::cast<llvm::StructType>(pointee), current_value,
+                                                sp.get_tree(), is_private)) {
+                                    return false;
+                                }
+                                continue;
                             }
+                            if (pointee->isArrayTy()) {
+                                if (!try_array(current_arg, llvm::cast<llvm::ArrayType>(pointee), current_value,
+                                               sp.get_tree(), is_private)) {
+                                    return false;
+                                }
+                                continue;
+                            }
+                            UNREACHABLE("Unsupported pointer type");
                         }
-                        if (!try_string(current_arg, arg_type, current_value, is_private)) {
+                        if (!try_string(current_arg, arg_type, current_value, sp.get_tree(), is_private)) {
                             error << "Unhandled pointer argument";
                             return false;
                         }
                     } else if (llvm::isa<llvm::FixedVectorType>(arg_type)) {
-                        if (!take_vector(current_arg, arg_type, current_value, is_private))
+                        if (!take_vector(current_arg, arg_type, current_value, sp.get_tree(), is_private))
                             return false;
                     } else if (llvm::isa<llvm::EllipticCurveType>(arg_type)) {
-                        if (!take_curve(current_arg, arg_type, current_value, is_private))
+                        if (!take_curve(current_arg, arg_type, current_value, sp.get_tree(), is_private))
                             return false;
                     } else if (llvm::isa<llvm::GaloisFieldType>(arg_type)) {
-                        if (!take_field(current_arg, arg_type, current_value, is_private))
+                        if (!take_field(current_arg, arg_type, current_value, sp.get_tree(), is_private))
                             return false;
                     } else if (llvm::isa<llvm::IntegerType>(arg_type)) {
-                        if (!take_int(current_arg, current_value, is_private))
+                        if (!take_int(current_arg, current_value, sp.get_tree(), is_private))
                             return false;
                     }
                     else {
@@ -651,16 +860,15 @@ namespace nil {
         private:
             stack_frame<var> &frame;
             program_memory<var> &memory;
-            Assignment *assignmnt;
+            Assignment &assignmnt;
             LayoutResolver &layout_resolver;
             std::vector<typename BlueprintFieldType::value_type> parsed_public_input;
-            size_t public_input_idx = 0;
-            size_t private_input_idx = 0;
-            size_t constant_idx = 0;
+            size_t public_input_idx;
+            size_t private_input_idx;
+            size_t constant_idx;
             std::ostringstream error;
-            size_t pub_iter = 0;
-            size_t priv_iter = 0;
-            bool public_input_only = false;
+            size_t pub_iter;
+            size_t priv_iter;
             bool has_values;
         };
     }   // namespace blueprint

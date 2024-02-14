@@ -20,11 +20,17 @@ cm_test_link_libraries(${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME}
                        ${CMAKE_WORKSPACE_NAME}::multiprecision
                        ${CMAKE_WORKSPACE_NAME}::random
                        ${CMAKE_WORKSPACE_NAME}::zk
+                       marshalling::core
+                       marshalling::crypto3_algebra
+                       marshalling::crypto3_multiprecision
                        marshalling::crypto3_zk
+                       LLVMIRReader
+                       LLVMCore
+                       LLVMSupport
 
                        ${Boost_LIBRARIES})
 
-macro(define_assigner_test)
+macro(define_assigner_test test)
     string(REPLACE "/" "_" full_test_name zkllvm_assigner_${test}_test)
 
     cm_test(NAME ${full_test_name} SOURCES ${test}.cpp)
@@ -32,6 +38,8 @@ macro(define_assigner_test)
     target_include_directories(${full_test_name} PRIVATE
                                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                                "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>"
+                               ${CMAKE_CURRENT_SOURCE_DIR}/../../circifier/llvm/include
+                               ${CMAKE_BINARY_DIR}/libs/circifier/llvm/include
 
                                ${Boost_INCLUDE_DIRS})
 
@@ -52,6 +60,7 @@ macro(define_assigner_test)
 endmacro()
 
 SET(ALL_TESTS_FILES
+    "signature_parser"
     )
 
 foreach(TEST_FILE ${ALL_TESTS_FILES})
