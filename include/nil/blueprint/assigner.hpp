@@ -1712,6 +1712,15 @@ namespace nil {
                 return nullptr;
             }
 
+            template<typename InputType>
+            var put_into_assignment(InputType input, bool is_shared = false) { // TODO: column index is hardcoded but shouldn't be in the future
+                if (is_shared && maxNumProvers > 1) {
+                    return detail::put_shared<InputType, BlueprintFieldType, ArithmetizationParams, var>(input, assignments[currProverIdx]);
+                } else {
+                    return detail::put_constant<InputType, BlueprintFieldType, ArithmetizationParams, var>(input, assignments[currProverIdx]);
+                }
+            }
+
         public:
             bool parseIRFile(const char *ir_file) {
                 llvm::SMDiagnostic diagnostic;
@@ -1824,16 +1833,6 @@ namespace nil {
                     if (next_inst == nullptr) {
                         return false;
                     }
-                }
-            }
-
-        private:
-            template<typename InputType>
-            var put_into_assignment(InputType input, bool is_shared = false) { // TODO: column index is hardcoded but shouldn't be in the future
-                if (is_shared && maxNumProvers > 1) {
-                    return detail::put_shared<InputType, BlueprintFieldType, ArithmetizationParams, var>(input, assignments[currProverIdx]);
-                } else {
-                    return detail::put_constant<InputType, BlueprintFieldType, ArithmetizationParams, var>(input, assignments[currProverIdx]);
                 }
             }
 
