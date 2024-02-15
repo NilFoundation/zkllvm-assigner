@@ -80,7 +80,7 @@ namespace nil {
                     &assignment, generation_mode gen_mode
                 ) {
                 std::vector<var> res = {};
-                if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                if (gen_mode.has_assignments()) {
                     ptr_type input_ptr = static_cast<ptr_type>(
                         typename BlueprintFieldType::integral_type(var_value(assignment, variables[input_value]).data));
                     for (std::size_t i = 0; i < input_length; i++) {
