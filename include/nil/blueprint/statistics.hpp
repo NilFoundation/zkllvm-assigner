@@ -112,9 +112,6 @@ namespace nil {
 
             }
         };
-
-        nil::blueprint::component_calls statistics;
-
     }     // namespace blueprint
 }    // namespace nil
 

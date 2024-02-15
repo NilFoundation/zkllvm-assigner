@@ -46,6 +46,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+                component_calls &statistics,
                 const common_component_parameters& param) {
 
             typename ComponentType::input_type instance_input({x, y});
@@ -53,12 +54,12 @@ namespace nil {
             switch (p) {
                 case llvm::CmpInst::ICMP_EQ: {
                     return get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
-                            (bp, assignment, param, instance_input, false);
+                            (bp, assignment, statistics, param, instance_input, false);
                     break;
                 }
                 case llvm::CmpInst::ICMP_NE:{
                     return get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
-                            (bp, assignment, param, instance_input, true);
+                            (bp, assignment, statistics, param, instance_input, true);
                     break;
                 }
                 default:
@@ -77,6 +78,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+                component_calls &statistics,
                 const common_component_parameters& param) {
 
 
@@ -107,7 +109,7 @@ namespace nil {
             }
 
             return get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
-                (bp, assignment, param, instance_input, Mode);
+                (bp, assignment, statistics, param, instance_input, Mode);
 
         }
 
@@ -119,6 +121,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+                component_calls &statistics,
                 const common_component_parameters& param
             ) {
 
@@ -138,7 +141,7 @@ namespace nil {
 
                     const auto& component_result = handle_comparison_component_eq_neq<
                         BlueprintFieldType, ArithmetizationParams, eq_component_type>(
-                            p, x, y, bitness, bp, assignment, param);
+                            p, x, y, bitness, bp, assignment, statistics, param);
 
                     handle_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
                         (assignment, inst, frame, component_result, param.gen_mode);
@@ -158,7 +161,7 @@ namespace nil {
 
                     const auto& component_result = handle_comparison_component_others<
                         BlueprintFieldType, ArithmetizationParams, comp_component_type>(
-                            p, x, y, bitness, bp, assignment, param);
+                            p, x, y, bitness, bp, assignment, statistics, param);
 
                     handle_component_result<BlueprintFieldType, ArithmetizationParams, comp_component_type>
                         (assignment, inst, frame, component_result, param.gen_mode);

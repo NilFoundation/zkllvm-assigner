@@ -48,6 +48,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+            component_calls &statistics,
             const common_component_parameters& param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -59,7 +60,7 @@ namespace nil {
             typename component_type::input_type instance_input({x, y});
 
             return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                (bp, assignment, param, instance_input, Bitness, true);
+                (bp, assignment, statistics, param, instance_input, Bitness, true);
             }
         }    // namespace detail
 
@@ -70,6 +71,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+            component_calls &statistics,
             const common_component_parameters& param,
             bool is_division) {
 
@@ -85,11 +87,11 @@ namespace nil {
             crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> res;
             if (is_division) {
                 res = detail::handle_native_field_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
-                                bitness, operand0, operand1, frame.scalars, bp, assignment, param).quotient;
+                                bitness, operand0, operand1, frame.scalars, bp, assignment, statistics, param).quotient;
             }
             else {
                 res = detail::handle_native_field_division_remainder_component<BlueprintFieldType, ArithmetizationParams>(
-                                bitness, operand0, operand1, frame.scalars, bp, assignment, param).remainder;
+                                bitness, operand0, operand1, frame.scalars, bp, assignment, statistics, param).remainder;
             }
             handle_result<BlueprintFieldType, ArithmetizationParams>
                 (assignment, inst, frame, {res}, param.gen_mode);

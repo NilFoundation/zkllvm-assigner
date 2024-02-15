@@ -52,6 +52,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
+                    component_calls &statistics,
                     const common_component_parameters& param) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -65,7 +66,7 @@ namespace nil {
                 typename component_type::input_type instance_input({x, y});
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, param, instance_input);
+                    (bp, assignment, statistics, param, instance_input);
             }
 
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename OperatingFieldType>
@@ -78,6 +79,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                         &assignment,
+                    component_calls &statistics,
                     const common_component_parameters& param) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -102,7 +104,7 @@ namespace nil {
                 typename component_type::input_type instance_input({x, y});
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, param, instance_input);
+                    (bp, assignment, statistics, param, instance_input);
             }
 
         }    // namespace detail
@@ -114,6 +116,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+            component_calls &statistics,
             const common_component_parameters& param) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
@@ -138,7 +141,7 @@ namespace nil {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
                                                                                                    ArithmetizationParams>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, param);
+                                                  operand0, operand1, frame.scalars, bp, assignment, statistics, param);
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>
                                     (assignment, inst, frame, res, param.gen_mode);
                         } else {
@@ -158,7 +161,7 @@ namespace nil {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
                                                                                                    ArithmetizationParams>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, param);
+                                                  operand0, operand1, frame.scalars, bp, assignment, statistics, param);
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>
                                     (assignment, inst, frame, res, param.gen_mode);
                         } else {
@@ -181,13 +184,13 @@ namespace nil {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
                                                                                                    ArithmetizationParams>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, param);
+                                                  operand0, operand1, frame.scalars, bp, assignment, statistics, param);
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>
                                     (assignment, inst, frame, res, param.gen_mode);
                         } else {
                             const auto& component_result = detail::handle_non_native_field_multiplication_component<
                                                        BlueprintFieldType, ArithmetizationParams, operating_field_type>(
-                                                       operand0, operand1, frame.vectors, bp, assignment, param);
+                                                       operand0, operand1, frame.vectors, bp, assignment, statistics, param);
 
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, no_native_component_type>
                                     (assignment, inst, frame, component_result, param.gen_mode);

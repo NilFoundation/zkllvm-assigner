@@ -58,6 +58,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                     &assignment,
+                component_calls &statistics,
                 const common_component_parameters& param) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -97,7 +98,7 @@ namespace nil {
                     };
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, param, instance_input, input_length);
+                    (bp, assignment, statistics, param, instance_input, input_length);
 
             }
 
@@ -111,6 +112,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+            component_calls &statistics,
             const common_component_parameters& param) {
 
             llvm::Value *f_value = inst->getOperand(0);
@@ -133,7 +135,7 @@ namespace nil {
             typename component_type::result_type res = detail::handle_native_permutation_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(
                 f_value, Se_value, Ssigma_value, input_length_value, L0_value,
                     V_value, V_zeta_value, q_last_value, q_pad_value, thetas_value,
-                        frame.vectors, frame.scalars, memory, bp, assignment, param);
+                        frame.vectors, frame.scalars, memory, bp, assignment, statistics, param);
 
             handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, param.gen_mode);
 
