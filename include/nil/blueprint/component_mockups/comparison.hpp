@@ -325,6 +325,9 @@ namespace nil {
                         case comparison_mode::GREATER_EQUAL:
                             output = (x >= y);
                             break;
+                        case comparison_mode::FLAG:
+                            UNREACHABLE("invalid comparison mode");
+                            break;
                     }
 
                     assignment.witness(component.W(0), row) = output;
@@ -369,6 +372,9 @@ namespace nil {
                         case comparison_mode::GREATER_EQUAL:
                             output = (x >= y);
                             break;
+                        case comparison_mode::FLAG:
+                            UNREACHABLE("invalid comparison mode");
+                            break;
                     }
 
                     assignment.witness(component.W(0), row) = output;
@@ -381,147 +387,3 @@ namespace nil {
 }   // namespace nil
 
 #endif  // CRYPTO3_BLUEPRINT_COMPONENTS_NON_NATIVE_comparison_HPP
-
-////////////
-// namespace nil {
-//     namespace blueprint {
-//         namespace components {
-
-//             template<typename ArithmetizationType, typename FieldType>
-//             class comparison;
-
-//             template<typename BlueprintFieldType, typename ArithmetizationParams, typename FieldType>
-//             class comparison<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
-//                            FieldType>
-//                 : public plonk_component<BlueprintFieldType, ArithmetizationParams, 0, 0> {
-
-//             public:
-//                 using component_type = plonk_component<BlueprintFieldType, ArithmetizationParams, 0, 0>;
-
-
-//                 constexpr static const std::size_t gates_amount = 0;
-//                 const std::size_t rows_amount = get_rows_amount(this->witness_amount(), 0);
-//                 const std::string component_name = "comparison";
-
-//                 using var = typename component_type::var;
-//                 using manifest_type = nil::blueprint::plonk_component_manifest;
-
-//                 class gate_manifest_type : public component_gate_manifest {
-//                 public:
-//                     std::uint32_t gates_amount() const override {
-//                         return comparison::gates_amount;
-//                     }
-//                 };
-
-//                 static gate_manifest get_gate_manifest(std::size_t witness_amount,
-//                                                         std::size_t lookup_column_amount) {
-//                     static gate_manifest manifest = gate_manifest(gate_manifest_type());
-//                     return manifest;
-//                 }
-
-
-//                 static manifest_type get_manifest() {
-//                     using manifest_param = nil::blueprint::manifest_param;
-//                     using manifest_single_value_param = nil::blueprint::manifest_single_value_param;
-//                     static manifest_type manifest = manifest_type(
-//                         std::shared_ptr<manifest_param>(new manifest_single_value_param(15)),
-//                         false
-//                     );
-//                     return manifest;
-//                 }
-
-//                 constexpr static std::size_t get_rows_amount(std::size_t witness_amount,
-//                                                              std::size_t lookup_column_amount) {
-//                     return 0;
-//                 }
-
-//                 struct input_type {
-//                     std::array<var, 2> X;
-//                     std::array<var, 2> Y;
-
-//                     std::vector<std::reference_wrapper<var>> all_vars() {
-//                         std::vector<std::reference_wrapper<var>> result;
-//                         result.insert(result.end(), X.begin(), X.end());
-//                         result.insert(result.end(), Y.begin(), Y.end());
-//                         return result;
-//                     }
-//                 };
-
-//                 struct result_type {
-//                     var output;
-
-//                     result_type(const comparison<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType,
-//                                                                                            ArithmetizationParams>,
-//                                                FieldType> &component,
-//                                 std::uint32_t start_row_index) {
-//                         output = var(component.W(0), start_row_index, false);
-//                     }
-
-//                     std::vector<var> all_vars() const {
-//                         std::vector<var> result;
-//                         result.push_back(output);
-//                         return result;
-//                     }
-//                 };
-
-
-//                 template<typename ContainerType>
-//                 explicit comparison(ContainerType witness) : component_type(witness, {}, {}, get_manifest()) {};
-
-//                 template<typename WitnessContainerType, typename ConstantContainerType,
-//                          typename PublicInputContainerType>
-//                 comparison(WitnessContainerType witness, ConstantContainerType constant,
-//                          PublicInputContainerType public_input) :
-//                     component_type(witness, constant, public_input, get_manifest()) {};
-
-//                 comparison(std::initializer_list<typename component_type::witness_container_type::value_type> witnesses,
-//                          std::initializer_list<typename component_type::constant_container_type::value_type>
-//                              constants,
-//                          std::initializer_list<typename component_type::public_input_container_type::value_type>
-//                              public_inputs) :
-//                     component_type(witnesses, constants, public_inputs, get_manifest()) {};
-//             };
-
-//             template<typename BlueprintFieldType, typename ArithmetizationParams, typename FieldType>
-//             using plonk_comparison =
-//                 comparison<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
-//                          FieldType>;
-
-//             template<typename BlueprintFieldType, typename ArithmetizationParams, typename FieldType>
-//             typename plonk_comparison<BlueprintFieldType, ArithmetizationParams, FieldType>::result_type
-//                 generate_assignments(
-//                     const plonk_comparison<BlueprintFieldType, ArithmetizationParams, FieldType> &component,
-//                     assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
-//                         &assignment,
-//                     const typename plonk_comparison<BlueprintFieldType, ArithmetizationParams, FieldType>::input_type
-//                         instance_input,
-//                     const std::uint32_t start_row_index) {
-
-//                 using component_type = plonk_comparison<BlueprintFieldType, ArithmetizationParams, FieldType>;
-
-//                 assignment.witness(component.W(0), start_row_index) = 1;
-
-//                 return typename plonk_comparison<BlueprintFieldType, ArithmetizationParams, FieldType>::result_type(
-//                     component, start_row_index);
-//             }
-
-
-//             template<typename BlueprintFieldType, typename ArithmetizationParams, typename FieldType>
-//             typename plonk_comparison<BlueprintFieldType, ArithmetizationParams, FieldType>::result_type
-//                 generate_circuit(
-//                     const plonk_comparison<BlueprintFieldType, ArithmetizationParams, FieldType> &component,
-//                     circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-//                     assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
-//                         &assignment,
-//                     const typename plonk_comparison<BlueprintFieldType, ArithmetizationParams, FieldType>::input_type
-//                         &instance_input,
-//                     const std::size_t start_row_index) {
-
-//                 return typename plonk_comparison<BlueprintFieldType, ArithmetizationParams, FieldType>::result_type(
-//                     component, start_row_index);
-//             }
-//         }    // namespace components
-//     }        // namespace blueprint
-// }    // namespace nil
-
-// #endif    // CRYPTO3_BLUEPRINT_PLONK_COMPARISON_HPP
