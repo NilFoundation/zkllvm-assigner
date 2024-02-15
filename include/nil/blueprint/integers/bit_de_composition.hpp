@@ -50,6 +50,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+            component_calls &statistics,
             const common_component_parameters& param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -63,7 +64,7 @@ namespace nil {
             typename component_type::input_type instance_input({component_input});
 
             auto result = get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                (bp, assignment, param, instance_input, BitsAmount, Mode).output;
+                (bp, assignment, statistics, param, instance_input, BitsAmount, Mode).output;
 
             if (std::uint8_t(param.gen_mode & generation_mode::ASSIGNMENTS)) {
                 ptr_type result_ptr = static_cast<ptr_type>(
@@ -88,6 +89,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+            component_calls &statistics,
             const common_component_parameters& param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -106,7 +108,7 @@ namespace nil {
             typename component_type::input_type instance_input({component_input});
 
             return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                (bp, assignment, param, instance_input, bitness_from_intrinsic, true, Mode);
+                (bp, assignment, statistics, param, instance_input, bitness_from_intrinsic, true, Mode);
             }
         }    // namespace detail
 
@@ -118,6 +120,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+            component_calls &statistics,
             const common_component_parameters& param) {
 
             llvm::Value *result_value = inst->getOperand(0);
@@ -134,7 +137,7 @@ namespace nil {
 
             detail::handle_native_field_decomposition_component<BlueprintFieldType, ArithmetizationParams>(
                                 bitness_from_intrinsic, result_value, input, is_msb, frame.vectors,
-                                frame.scalars, memory, bp, assignment, param);
+                                frame.scalars, memory, bp, assignment, statistics, param);
         }
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
@@ -145,6 +148,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+            component_calls &statistics,
             const common_component_parameters& param) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
@@ -157,7 +161,7 @@ namespace nil {
 
             const auto res = detail::handle_native_field_bit_composition_component<BlueprintFieldType, ArithmetizationParams>(
                                 result_value, bitness_value, operand_sig_bit, frame.vectors,
-                                frame.scalars, memory,  bp, assignment, param);
+                                frame.scalars, memory,  bp, assignment, statistics, param);
 
             handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, param.gen_mode);
         }

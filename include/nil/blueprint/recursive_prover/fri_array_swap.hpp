@@ -45,6 +45,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+            component_calls &statistics,
             const common_component_parameters& param) {
 
             llvm::Value *result_value = inst->getOperand(0);
@@ -71,7 +72,7 @@ namespace nil {
             };
 
             std::vector<var> res = get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, param, instance_input, array_size / 2).output;
+                    (bp, assignment, statistics, param, instance_input, array_size / 2).output;
 
             if (std::uint8_t(param.gen_mode & generation_mode::ASSIGNMENTS)) {
                 ptr_type result_ptr = static_cast<ptr_type>(typename BlueprintFieldType::integral_type(

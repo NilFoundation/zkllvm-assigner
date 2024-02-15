@@ -53,6 +53,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                     &assignment,
+                component_calls &statistics,
                 const common_component_parameters& param) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -95,7 +96,7 @@ namespace nil {
                 typename component_type::input_type instance_input = {theta, constraints, selectors};
 
                 return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
-                    (bp, assignment, param, instance_input, gates_sizes);
+                    (bp, assignment, statistics, param, instance_input, gates_sizes);
 
             }
 
@@ -109,6 +110,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
                 &assignment,
+            component_calls &statistics,
             const common_component_parameters& param) {
 
             llvm::Value *selectors_value = inst->getOperand(0);
@@ -123,7 +125,7 @@ namespace nil {
 
             const auto& res = detail::handle_native_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(
                     selectors_value, gates_sizes_value, gates_amount_value, constraints_value, constraints_amount_value, theta_value,
-                    frame.scalars, memory, bp, assignment, param);
+                    frame.scalars, memory, bp, assignment, statistics, param);
             handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, param.gen_mode);
         }
     }    // namespace blueprint
