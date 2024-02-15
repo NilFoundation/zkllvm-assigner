@@ -268,7 +268,7 @@ namespace nil {
             }
 
             void handle_ptr_cmp(const llvm::ICmpInst *inst, stack_frame<var> &frame) {
-                if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                if (gen_mode.has_assignments()) {
                     ptr_type lhs = resolve_number<ptr_type>(frame, inst->getOperand(0));
                     ASSERT(frame.scalars.find(inst->getOperand(1)) != frame.scalars.end());
                     ptr_type rhs = resolve_number<ptr_type>(frame, inst->getOperand(1));
@@ -419,7 +419,7 @@ namespace nil {
 
                 switch (id) {
                     case llvm::Intrinsic::assigner_malloc: {
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             size_t bytes = resolve_number<size_t>(frame, inst->getOperand(0));
                             frame.scalars[inst] = put_into_assignment(memory.malloc(bytes));
                         } else {
@@ -533,13 +533,13 @@ namespace nil {
                     case llvm::Intrinsic::assigner_print_native_pallas_field: {
                         llvm::Value *input = inst->getOperand(0);
                         ASSERT(field_arg_num<BlueprintFieldType>(input->getType()) == 1);
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             std::cout << var_value(assignments[currProverIdx], frame.scalars[input]).data << std::endl;
                         }
                         return true;
                     }
                     case llvm::Intrinsic::memcpy: {
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             llvm::Value *src_val = inst->getOperand(1);
                             ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
                             ptr_type src = resolve_number<ptr_type>(frame, src_val);
@@ -549,7 +549,7 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::memset: {
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
                             unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
                             ASSERT(frame.scalars.find(inst->getOperand(1)) != frame.scalars.end());
@@ -600,7 +600,7 @@ namespace nil {
                             llvm::CmpInst::ICMP_EQ, logical_statement, zero_var, bitness,
                             circuits[currProverIdx], assignments[currProverIdx], statistics, param).output;
 
-                        if (validity_check && std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (validity_check && gen_mode.has_assignments()) {
                             bool assigner_exit_check_input = var_value(assignments[currProverIdx], comparison_result) == 0;
                             ASSERT_MSG(assigner_exit_check_input,
                                       "assigner_exit_check input is false, verification will fail!\n");
@@ -690,7 +690,7 @@ namespace nil {
             void handle_load(ptr_type ptr, const llvm::Value *dest, stack_frame<var> &frame) {
                 size_t num_cells = layout_resolver->get_cells_num<BlueprintFieldType>(dest->getType());
                 if (num_cells == 1) {
-                    if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                    if (gen_mode.has_assignments()) {
                         auto &cell = memory[ptr];
                         frame.scalars[dest] = put_into_assignment(var_value(assignments[currProverIdx], cell.v));
                     } else {
@@ -698,7 +698,7 @@ namespace nil {
                     }
                 } else {
                     std::vector<var> res;
-                    if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                    if (gen_mode.has_assignments()) {
                         for (size_t i = 0; i < num_cells; ++i) {
                             res.push_back(put_into_assignment(var_value(assignments[currProverIdx], memory[ptr + i].v)));
                         }
@@ -786,7 +786,7 @@ namespace nil {
             }
 
             void handle_ptrtoint(const llvm::Value *inst, llvm::Value *operand, stack_frame<var> &frame) {
-                if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                if (gen_mode.has_assignments()) {
                     ptr_type ptr = resolve_number<ptr_type>(frame, operand);
                     size_t offset = memory.ptrtoint(ptr);
                     log.debug(boost::format("PtrToInt %1% %2%") % ptr % offset);
@@ -881,7 +881,7 @@ namespace nil {
                         handle_ptrtoint(expr, expr->getOperand(0), frame);
                         break;
                     case llvm::Instruction::GetElementPtr: {
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                                 std::vector<int> gep_indices;
                                 for (unsigned i = 2; i < expr->getNumOperands(); ++i) {
                                     int gep_index = resolve_number<int>(frame, expr->getOperand(i));
@@ -1190,7 +1190,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Select: {
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             var condition = variables[inst->getOperand(0)];
                             llvm::Value *true_val = inst->getOperand(1);
                             llvm::Value *false_val = inst->getOperand(2);
@@ -1206,7 +1206,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::And: {
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             const var &lhs = variables[inst->getOperand(0)];
                             const var &rhs = variables[inst->getOperand(1)];
 
@@ -1226,7 +1226,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Or: {
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             const var &lhs = variables[inst->getOperand(0)];
                             const var &rhs = variables[inst->getOperand(1)];
 
@@ -1246,7 +1246,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Xor: {
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             const var &lhs = variables[inst->getOperand(0)];
                             const var &rhs = variables[inst->getOperand(1)];
 
@@ -1283,19 +1283,19 @@ namespace nil {
                                 UNREACHABLE("Can't to process loop");
                             }
                             const auto stack_size = call_stack.size();
-                            if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                            if (gen_mode.has_assignments()) {
                                 bool cond_val = (var_value(assignments[currProverIdx], cond) != 0);
 
                                 const AssignerState assigner_state(*this);
                                 curr_branch.push_back(branch_desc(false, stack_size));
                                 curr_branch.push_back(branch_desc(true, stack_size));
                                 if (!cond_val) {
-                                    gen_mode = std::uint8_t(gen_mode & (generation_mode::ASSIGNMENTS | generation_mode::FALSE_ASSIGNMENTS)) ?
-                                        (gen_mode & generation_mode::CIRCUIT) | generation_mode::FALSE_ASSIGNMENTS :
-                                        gen_mode & generation_mode::CIRCUIT;
+                                    gen_mode = (gen_mode.has_assignments() && gen_mode.has_false_assignments()) ?
+                                        (gen_mode & generation_mode::circuit()) | generation_mode::false_assignments() :
+                                        gen_mode & generation_mode::circuit();
                                 }
 
-                                log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) == 0));
+                                log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % !gen_mode.has_assignments());
                                 const llvm::Instruction* true_next_inst = nullptr;
                                 if (!cond_val && true_name == "panic") {
                                     log.debug(boost::format("skip handle true branch as false positive panic: %1%") % curr_branch.size());
@@ -1309,12 +1309,12 @@ namespace nil {
                                 curr_branch.pop_back();
 
                                 if (cond_val) {
-                                    gen_mode = std::uint8_t(gen_mode & (generation_mode::ASSIGNMENTS | generation_mode::FALSE_ASSIGNMENTS)) ?
-                                                  (gen_mode & generation_mode::CIRCUIT) | generation_mode::FALSE_ASSIGNMENTS :
-                                                  gen_mode & generation_mode::CIRCUIT;
+                                    gen_mode = (gen_mode.has_assignments() && gen_mode.has_false_assignments()) ?
+                                                  (gen_mode & generation_mode::circuit()) | generation_mode::false_assignments() :
+                                                  gen_mode & generation_mode::circuit();
                                 }
 
-                                log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) == 0));
+                                log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % !gen_mode.has_assignments());
                                 auto false_next_inst = true_next_inst;
                                 if (cond_val && false_name == "panic") {
                                     log.debug(boost::format("skip handle false branch as false positive panic: %1%") % curr_branch.size());
@@ -1338,7 +1338,7 @@ namespace nil {
                             curr_branch.push_back(branch_desc(false, stack_size));
                             curr_branch.push_back(branch_desc(true, stack_size));
 
-                            log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) == 0));
+                            log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % !gen_mode.has_assignments());
                             const llvm::Instruction* true_next_inst = nullptr;
                             if (true_name == "panic") {
                                 log.debug(boost::format("skip handle true branch as false positive panic: %1%") % curr_branch.size());
@@ -1351,7 +1351,7 @@ namespace nil {
                             restore_state(assigner_state);
                             curr_branch.pop_back();
 
-                            log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) == 0));
+                            log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % (gen_mode.has_assignments() == 0));
                             auto false_next_inst = true_next_inst;
                             if (false_name == "panic") {
                                 log.debug(boost::format("skip handle false branch as false positive panic: %1%") % curr_branch.size());
@@ -1400,7 +1400,7 @@ namespace nil {
                         auto switch_inst = llvm::cast<llvm::SwitchInst>(inst);
                         llvm::Value *cond = switch_inst->getCondition();
                         ASSERT(cond->getType()->isIntegerTy());
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             unsigned bit_width = llvm::cast<llvm::IntegerType>(cond->getType())->getBitWidth();
                             ASSERT(bit_width <= 64);
                             auto cond_var = var_value(assignments[currProverIdx], frame.scalars[cond]);
@@ -1409,11 +1409,9 @@ namespace nil {
                                 (int64_t) static_cast<typename BlueprintFieldType::integral_type>(cond_var.data));
                             for (auto Case : switch_inst->cases()) {
                                 if (Case.getCaseValue()->getValue().eq(cond_val)) {
-                                    gen_mode =
-                                        std::uint8_t(gen_mode &
-                                                     (generation_mode::ASSIGNMENTS | generation_mode::FALSE_ASSIGNMENTS)) ?
-                                            (gen_mode & generation_mode::CIRCUIT) | generation_mode::FALSE_ASSIGNMENTS :
-                                            gen_mode & generation_mode::CIRCUIT;
+                                    gen_mode = (gen_mode.has_assignments() && gen_mode.has_false_assignments()) ?
+                                            (gen_mode & generation_mode::circuit()) | generation_mode::false_assignments() :
+                                            gen_mode & generation_mode::circuit();
                                 }
                                 const AssignerState assigner_state(*this);
                                 curr_branch.push_back(branch_desc(false, call_stack.size()));
@@ -1451,7 +1449,7 @@ namespace nil {
                         llvm::Value *vec = extract_inst->getOperand(0);
                         llvm::Value *index_value = extract_inst->getOperand(1);
                         if (!llvm::isa<llvm::ConstantInt>(index_value)) {
-                            if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                            if (gen_mode.has_assignments()) {
                                 int index = resolve_number<int>(frame, index_value);
                                 variables[inst] = frame.vectors[vec][index];
                             } else {
@@ -1474,7 +1472,7 @@ namespace nil {
                     }
                     case llvm::Instruction::GetElementPtr: {
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(inst);
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             std::vector<int> gep_indices;
                             for (unsigned i = 1; i < gep->getNumIndices(); ++i) {
                                 int gep_index = resolve_number<int>(frame, gep->getOperand(i + 1));
@@ -1499,7 +1497,7 @@ namespace nil {
                     case llvm::Instruction::Load: {
                         auto *load_inst = llvm::cast<llvm::LoadInst>(inst);
                         ptr_type ptr = 0;
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             ptr = resolve_number<ptr_type>(frame, load_inst->getPointerOperand());
                         }
                         log.debug(boost::format("Load: %1%") % ptr);
@@ -1507,7 +1505,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Store: {
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             auto *store_inst = llvm::cast<llvm::StoreInst>(inst);
                             ptr_type ptr = resolve_number<ptr_type>(frame, store_inst->getPointerOperand());
                             log.debug(boost::format("Store: %1%") % ptr);
@@ -1520,7 +1518,7 @@ namespace nil {
                     }
                     case llvm::Instruction::InsertValue: {
                         auto *insert_inst = llvm::cast<llvm::InsertValueInst>(inst);
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             ptr_type ptr = resolve_number<ptr_type>(frame, insert_inst->getAggregateOperand());
                             // TODO(maksenov): handle offset properly
                             ptr += layout_resolver
@@ -1534,7 +1532,7 @@ namespace nil {
                     }
                     case llvm::Instruction::ExtractValue: {
                         auto *extract_inst = llvm::cast<llvm::ExtractValueInst>(inst);
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             ptr_type ptr = resolve_number<ptr_type>(frame, extract_inst->getAggregateOperand());
                             // TODO(maksenov): handle offset properly
                             ptr += layout_resolver
@@ -1555,7 +1553,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::IndirectBr: {
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) == 0) {
+                        if (!gen_mode.has_assignments()) {
                             UNREACHABLE("IndirectBr is not supported without generating assignment table");
                             return inst->getNextNonDebugInstruction();
                         }
@@ -1570,7 +1568,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::IntToPtr: {
-                        if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (gen_mode.has_assignments()) {
                             std::ostringstream oss;
                             size_t offset = resolve_number<size_t>(frame, inst->getOperand(0));
                             oss << var_value(assignments[currProverIdx], frame.scalars[inst->getOperand(0)]).data;
@@ -1611,7 +1609,7 @@ namespace nil {
                                 if(print_output_format == hex) {
                                     std::cout << std::hex;
                                 }
-                                if (inst->getNumOperands() != 0 && std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                                if (inst->getNumOperands() != 0 && gen_mode.has_assignments()) {
                                     llvm::Value *ret_val = inst->getOperand(0);
                                     if (ret_val->getType()->isPointerTy()) {
                                         // TODO(maksenov): support printing complex results
@@ -1684,7 +1682,7 @@ namespace nil {
                                     auto res = extracted_frame.vectors[ret_val];
                                     upper_frame_vectors[extracted_frame.caller] = res;
                                 } else if (ret_type->isAggregateType()) {
-                                    if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                                    if (gen_mode.has_assignments()) {
                                         ptr_type ret_ptr = resolve_number<ptr_type>(extracted_frame, ret_val);
                                         ptr_type allocated_copy = memory.add_cells(
                                             layout_resolver->get_type_layout<BlueprintFieldType>(ret_type));
@@ -1778,7 +1776,7 @@ namespace nil {
                 base_frame.caller = nullptr;
 
                 auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
-                    base_frame, memory, assignments[currProverIdx], *layout_resolver, (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) != 0));
+                    base_frame, memory, assignments[currProverIdx], *layout_resolver, gen_mode.has_assignments());
                 if (!input_reader.fill_public_input(*circuit_function, public_input, private_input, log)) {
                     std::cerr << "Public input does not match the circuit signature";
                     const std::string &error = input_reader.get_error();
@@ -1824,7 +1822,7 @@ namespace nil {
                 while (true) {
                     next_inst = handle_instruction(next_inst);
                     if (finished) {
-                        if (std::uint8_t(gen_mode & generation_mode::SIZE_ESTIMATION)) {
+                        if (gen_mode.has_size_estimation()) {
                             std::cout << "\nallocated_rows: " <<  assignments[currProverIdx].allocated_rows() << "\n";
                             statistics.print();
                         }

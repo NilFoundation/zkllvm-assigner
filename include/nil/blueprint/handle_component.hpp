@@ -73,25 +73,128 @@
 
 namespace nil {
     namespace blueprint {
+        /**
+         * @brief Assigner generation mode, defining which output types will be produced.
+         *
+         * A number of flags may be set:
+         *
+         * - CIRCUIT - generate circuit;
+         * - ASSIGNMENTS - generate assignment table;
+         * - FALSE_ASSIGNMENTS;
+         * - SIZE_ESTIMATION - print circuit stats (generate nothing);
+         * - PUBLIC_INPUT_COLUMN - generate public input column.
+         *
+         * Binary AND and OR can be applied to modes:
+         * `mode_a | mode_b`, `mode_a & mode_b`.
+         **/
+        class generation_mode {
+        private:
+            enum modes : uint8_t {
+                NONE = 0,
+                CIRCUIT = 1 << 0,
+                ASSIGNMENTS = 1 << 1,
+                FALSE_ASSIGNMENTS = 1 << 2,
+                SIZE_ESTIMATION = 1 << 3,
+                PUBLIC_INPUT_COLUMN = 1 << 4,
+            };
 
-        enum class generation_mode : uint8_t {
-            NONE = 0,
-            CIRCUIT = 1 << 0,
-            ASSIGNMENTS = 1 << 1,
-            FALSE_ASSIGNMENTS = 1 << 2,
-            SIZE_ESTIMATION = 1 << 3,
-            PUBLIC_INPUT_COLUMN = 1 << 4,
+        public:
+            constexpr generation_mode() : mode_(NONE) {
+            }
+
+            constexpr generation_mode(uint8_t mode) : mode_(mode) {
+            }
+
+            constexpr generation_mode(const generation_mode& other) : mode_(other.mode_) {
+            }
+
+            /// @brief "Do nothing" mode.
+            constexpr static generation_mode none() {
+                return generation_mode(NONE);
+            }
+
+            /// @brief Generate circuit.
+            constexpr static generation_mode circuit() {
+                return generation_mode(CIRCUIT);
+            }
+
+            /// @brief Generate assignment table.
+            constexpr static generation_mode assignments() {
+                return generation_mode(ASSIGNMENTS);
+            }
+
+            constexpr static generation_mode false_assignments() {
+                return generation_mode(FALSE_ASSIGNMENTS);
+            }
+
+            /// @brief Generate public input column.
+            constexpr static generation_mode public_input_column() {
+                return generation_mode(PUBLIC_INPUT_COLUMN);
+            }
+
+            /// @brief Print circuit statistics (generate nothing).
+            constexpr static generation_mode size_estimation() {
+                return generation_mode(SIZE_ESTIMATION);
+            }
+
+            constexpr bool operator==(generation_mode other) const {
+                return mode_ == other.mode_;
+            }
+
+            constexpr bool operator!=(generation_mode other) const {
+                return mode_ != other.mode_;
+            }
+
+            constexpr generation_mode operator|(const generation_mode other) const {
+                return generation_mode(mode_ | other.mode_);
+            }
+
+            constexpr generation_mode operator&(const generation_mode other) const {
+                return generation_mode(mode_ & other.mode_);
+            }
+
+            generation_mode& operator=(const generation_mode& other) {
+                mode_ = other.mode_;
+                return *this;
+            }
+
+            generation_mode& operator|=(const generation_mode& other) {
+                mode_ |= other.mode_;
+                return *this;
+            }
+
+            generation_mode& operator&=(const generation_mode& other) {
+                mode_ &= other.mode_;
+                return *this;
+            }
+
+            /// @brief Whether generate circuit or not in this mode.
+            constexpr bool has_circuit() const {
+                return mode_ & CIRCUIT;
+            }
+
+            /// @brief Whether generate assignment table or not in this mode.
+            constexpr bool has_assignments() const {
+                return mode_ & ASSIGNMENTS;
+            }
+
+            constexpr bool has_false_assignments() const {
+                return mode_ & FALSE_ASSIGNMENTS;
+            }
+
+            /// @brief Whether print circuit statistics or not in this mode.
+            constexpr bool has_size_estimation() const {
+                return mode_ & SIZE_ESTIMATION;
+            }
+
+            /// @brief Whether generate public input column or not in this mode.
+            constexpr bool has_public_input_column() const {
+                return mode_ & PUBLIC_INPUT_COLUMN;
+            }
+
+        private:
+            uint8_t mode_;
         };
-
-        constexpr enum generation_mode operator |( const enum generation_mode self, const enum generation_mode val )
-        {
-            return (enum generation_mode)(uint8_t(self) | uint8_t(val));
-        }
-
-        constexpr enum generation_mode operator &( const enum generation_mode self, const enum generation_mode val )
-        {
-            return (enum generation_mode)(uint8_t(self) & uint8_t(val));
-        }
 
         struct common_component_parameters {
             std::uint32_t start_row;
@@ -114,7 +217,7 @@ namespace nil {
                 bool found = (used_rows.find(v.get().rotation) != used_rows.end());
                 if (!found && (v.get().type == var::column_type::witness || v.get().type == var::column_type::constant)) {
                     var new_v;
-                    if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                    if (gen_mode.has_assignments()) {
                         new_v = save_shared_var(assignment, v);
                     } else {
                         const auto& shared_idx = assignment.shared_column_size(0);
@@ -213,7 +316,7 @@ namespace nil {
 
             BOOST_LOG_TRIVIAL(debug) << "Using component \"" << component_instance.component_name << "\"";
 
-            if (std::uint8_t(param.gen_mode & generation_mode::SIZE_ESTIMATION)) {
+            if (param.gen_mode.has_size_estimation()) {
                 statistics.add_record(
                     component_instance.component_name,
                     component_instance.rows_amount,
@@ -231,11 +334,11 @@ namespace nil {
             // generate circuit in any case for fill selectors
             generate_circuit(component_instance, bp, assignment, instance_input, param.start_row);
 
-            if (std::uint8_t(param.gen_mode & generation_mode::ASSIGNMENTS)) {
+            if (param.gen_mode.has_assignments()) {
                 return generate_assignments(component_instance, assignment, instance_input, param.start_row,
                                             param.target_prover_idx);
             } else {
-                if (std::uint8_t(param.gen_mode & generation_mode::FALSE_ASSIGNMENTS)) {
+                if (param.gen_mode.has_false_assignments()) {
                     const auto rows_amount = ComponentType::get_rows_amount(p.witness.size(), 0, args...);
                     // disable selector
                     for (std::uint32_t i = 0; i < rows_amount; i++) {
@@ -296,7 +399,7 @@ namespace nil {
             std::vector<var> output = component_result.all_vars();
 
             //touch result variables
-            if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) == 0) {
+            if (!gen_mode.has_assignments()) {
                 const auto result_vars = component_result.all_vars();
                 for (const auto &v : result_vars) {
                     if (v.type == var::column_type::witness) {
@@ -325,7 +428,7 @@ namespace nil {
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
             //touch result variables
-            if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) == 0) {
+            if (!gen_mode.has_assignments()) {
                 for (const auto &v : result) {
                     if (v.type == var::column_type::witness) {
                         assignment.witness(v.index, v.rotation) = BlueprintFieldType::value_type::zero();

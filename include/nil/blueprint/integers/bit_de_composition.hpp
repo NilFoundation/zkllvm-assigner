@@ -66,7 +66,7 @@ namespace nil {
             auto result = get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
                 (bp, assignment, statistics, param, instance_input, BitsAmount, Mode).output;
 
-            if (std::uint8_t(param.gen_mode & generation_mode::ASSIGNMENTS)) {
+            if (param.gen_mode.has_assignments()) {
                 ptr_type result_ptr = static_cast<ptr_type>(
                     typename BlueprintFieldType::integral_type(var_value(assignment, variables[result_value]).data));
                 for (var v : result) {
