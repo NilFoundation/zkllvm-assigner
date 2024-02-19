@@ -64,7 +64,7 @@ namespace nil {
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
             typename component_type::input_type instance_input({component_input});
 
-            const auto& result = get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+            auto result = get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
                 (bp, assignment, statistics, param, instance_input, res_length, omega).output;
 
             if (std::uint8_t(param.gen_mode & generation_mode::ASSIGNMENTS)) {

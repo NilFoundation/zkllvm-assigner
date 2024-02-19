@@ -288,16 +288,17 @@ namespace nil {
                 &assignment,
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-                const typename ComponentType::result_type& component_result, generation_mode gen_mode) {
+                typename ComponentType::result_type& component_result, generation_mode gen_mode) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
-            std::vector<var> output = component_result.all_vars();
+            std::vector<std::reference_wrapper<var>> output = component_result.all_vars();
 
             //touch result variables
             if (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) == 0) {
-                const auto result_vars = component_result.all_vars();
-                for (const auto &v : result_vars) {
+                std::vector<std::reference_wrapper<var>> result_vars = component_result.all_vars();
+                for (const auto &v_wrapper : result_vars) {
+                    const auto& v = v_wrapper.get();
                     if (v.type == var::column_type::witness) {
                         assignment.witness(v.index, v.rotation) = BlueprintFieldType::value_type::zero();
                     } else if (v.type == var::column_type::constant) {
@@ -308,7 +309,10 @@ namespace nil {
             if (output.size() == 1) {
                 frame.scalars[inst] = output[0];
             } else {
-                frame.vectors[inst] = output;
+                frame.vectors[inst] = {};
+                for (const auto& ref : output) {
+                    frame.vectors[inst].push_back(ref.get());
+                }
             }
         }
 
@@ -352,7 +356,7 @@ namespace nil {
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
                 Args... args) {
 
-            const auto component_result = get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
+            auto component_result = get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
                     (bp, assignment, statistics, param, instance_input, args...);
 
             handle_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>(assignment, inst, frame, component_result, param.gen_mode);

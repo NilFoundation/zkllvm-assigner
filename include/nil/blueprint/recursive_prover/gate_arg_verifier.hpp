@@ -123,7 +123,7 @@ namespace nil {
             using component_type = components::basic_constraints_verifier<
             crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
 
-            const auto& res = detail::handle_native_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(
+            auto res = detail::handle_native_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(
                     selectors_value, gates_sizes_value, gates_amount_value, constraints_value, constraints_amount_value, theta_value,
                     frame.scalars, memory, bp, assignment, statistics, param);
             handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, param.gen_mode);

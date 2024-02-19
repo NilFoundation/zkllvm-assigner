@@ -139,7 +139,7 @@ namespace nil {
                     using eq_component_type = components::equality_flag<
                         crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
 
-                    const auto& component_result = handle_comparison_component_eq_neq<
+                    auto component_result = handle_comparison_component_eq_neq<
                         BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                             p, x, y, bitness, bp, assignment, statistics, param);
 
@@ -159,7 +159,7 @@ namespace nil {
                     using comp_component_type = components::comparison<
                         crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
 
-                    const auto& component_result = handle_comparison_component_others<
+                    auto component_result = handle_comparison_component_others<
                         BlueprintFieldType, ArithmetizationParams, comp_component_type>(
                             p, x, y, bitness, bp, assignment, statistics, param);
 

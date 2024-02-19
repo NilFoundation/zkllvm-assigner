@@ -139,7 +139,7 @@ namespace nil {
 
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                            const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
+                            auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
                                                                                                    ArithmetizationParams>(
                                                   operand0, operand1, frame.scalars, bp, assignment, statistics, param);
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>
@@ -159,7 +159,7 @@ namespace nil {
 
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                            const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
+                            auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
                                                                                                    ArithmetizationParams>(
                                                   operand0, operand1, frame.scalars, bp, assignment, statistics, param);
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>
@@ -182,13 +182,13 @@ namespace nil {
 
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                            const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
+                            auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
                                                                                                    ArithmetizationParams>(
                                                   operand0, operand1, frame.scalars, bp, assignment, statistics, param);
                             handle_component_result<BlueprintFieldType, ArithmetizationParams, native_component_type>
                                     (assignment, inst, frame, res, param.gen_mode);
                         } else {
-                            const auto& component_result = detail::handle_non_native_field_multiplication_component<
+                            auto component_result = detail::handle_non_native_field_multiplication_component<
                                                        BlueprintFieldType, ArithmetizationParams, operating_field_type>(
                                                        operand0, operand1, frame.vectors, bp, assignment, statistics, param);
 

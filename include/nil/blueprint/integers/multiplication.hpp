@@ -60,7 +60,7 @@ namespace nil {
             llvm::Value *operand0 = inst->getOperand(0);
             llvm::Value *operand1 = inst->getOperand(1);
 
-            const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
+            auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
                                                                                     ArithmetizationParams>(
                                     operand0, operand1, frame.scalars, bp, assignment, statistics, param);
             handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, param.gen_mode);
