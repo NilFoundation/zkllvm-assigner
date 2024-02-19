@@ -610,6 +610,22 @@ namespace nil {
 
                         return true;
                     }
+                    case llvm::Intrinsic::assigner_exit_check_eq: {
+
+                        const var &x = frame.scalars[inst->getOperand(0)];
+                        const var &y = frame.scalars[inst->getOperand(1)];
+
+
+                        if (validity_check && std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                            bool exit_check_res = var_value(assignments[currProverIdx], x) == var_value(assignments[currProverIdx], y);
+                            ASSERT_MSG(exit_check_res,
+                                      "assigner_exit_check_eq_pallas input is false, verification will fail!\n");
+                        }
+
+                        circuits[currProverIdx].add_copy_constraint({x, y});
+
+                        return true;
+                    }
                     case llvm::Intrinsic::assigner_fri_lin_inter: {
                         handle_fri_lin_inter_component<BlueprintFieldType, ArithmetizationParams>(inst, frame, memory, circuits[currProverIdx], assignments[currProverIdx], statistics, param);
                         return true;
