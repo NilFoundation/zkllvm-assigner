@@ -1751,7 +1751,7 @@ namespace nil {
                 stack_frame<var> frame;
                 std::nullptr_t empty_assignmnt;
                 auto input_reader = InputReader<BlueprintFieldType, var, std::nullptr_t>(
-                    frame, stack_memory, empty_assignmnt, *layout_resolver);
+                    frame, memory, empty_assignmnt, *layout_resolver);
                 auto empty_private_input = boost::json::array();
                 if (!input_reader.fill_public_input(*circuit_function, public_input, empty_private_input, log)) {
                     std::cerr << "Public input does not match the circuit signature";
