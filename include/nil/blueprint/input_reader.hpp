@@ -103,14 +103,6 @@ namespace nil {
             }
 
             bool check_curve(const signature_node &node, llvm::EllipticCurveKind curve_kind) {
-                if (node.elem != json_elem::CURVE) {
-                    error << "Expected curve argument in the input, got \"" /* << node.elem */ << "\"";
-                    return false;
-                }
-                if (node.children.size() > 1) {
-                    error << "Too much";
-                    return false;
-                }
                 if (node.children.size() == 1) {
                     auto corresponding_elem = [](llvm::EllipticCurveKind curve_kind) {
                         switch (curve_kind) {
@@ -144,7 +136,7 @@ namespace nil {
                     vector2 = process_empty_field(arg_field_type, is_private);
                 } else {
                     if (!check_curve(node, curve_type->getCurveKind())) {
-                        error << "Unexpected signature for curve argument: " << node.type_string;
+                        error << "Unexpected signature for curve argument";
                         return {};
                     }
                     if (!(curve_value.is_array() && curve_value.as_array().size() == 2)) {
@@ -237,12 +229,6 @@ namespace nil {
             }
 
             bool check_field(const signature_node &node, llvm::GaloisFieldKind kind) {
-                if (node.elem != json_elem::FIELD) {
-                    return false;
-                }
-                if (node.children.size() > 1) {
-                    return false;
-                }
                 if (node.children.size() == 1) {
                     auto corresponding_elem = [](llvm::GaloisFieldKind kind) {
                         switch (kind) {
@@ -271,7 +257,7 @@ namespace nil {
                     return process_empty_field(arg_field_type, is_private);
                 }
                 if (!check_field(node, arg_field_type)) {
-                    error << "Unexpected signature for field argument: " << node.type_string;
+                    error << "Unexpected signature for field argument";
                     return {};
                 }
                 size_t arg_len = field_arg_num<BlueprintFieldType>(field_type);
@@ -303,19 +289,7 @@ namespace nil {
                 return true;
             }
 
-            bool check_int(const signature_node &node) {
-                if (node.elem != json_elem::INT) {
-                    error << "Expected int as argument";
-                    return false;
-                }
-                if (node.children.size() != 0) {
-                    error << "Unexpected children";
-                    return false;
-                }
-                return true;
-            }
-
-            std::vector<var> process_int(const boost::json::value &value, const signature_node &node, std::size_t bitness,
+            std::vector<var> process_int(const boost::json::value &value, std::size_t bitness,
                                          bool is_private) {
                 std::vector<var> res = std::vector<var>(1);
                 if (!has_values) {
@@ -324,10 +298,6 @@ namespace nil {
                     return res;
                 }
 
-                if (!check_int(node)) {
-                    error << "Unexpected signature for int argument: " << node.type_string;
-                    return {};
-                }
                 typename BlueprintFieldType::value_type out;
 
                 switch (value.kind()) {
@@ -387,9 +357,9 @@ namespace nil {
                 return res;
             }
 
-            bool take_int(llvm::Value *int_arg, const boost::json::value &value, const signature_node &node, bool is_private) {
+            bool take_int(llvm::Value *int_arg, const boost::json::value &value, bool is_private) {
                 std::size_t bitness = int_arg->getType()->getPrimitiveSizeInBits();
-                auto values = process_int(value, node, bitness, is_private);
+                auto values = process_int(value, bitness, is_private);
                 if (values.size() != 1)
                     return false;
                 frame.scalars[int_arg] = values[0];
@@ -404,17 +374,7 @@ namespace nil {
                 return frame.vectors[vector_arg].size() > 0;
             }
 
-            bool check_string(const signature_node &node) {
-                if (node.elem != json_elem::STRING) {
-                    return false;
-                }
-                if (node.children.size() != 0) {
-                    return false;
-                }
-                return true;
-            }
-
-            bool try_string(llvm::Value *arg, llvm::Type *arg_type, const boost::json::value &value, const signature_node &node,
+            bool try_string(llvm::Value *arg, llvm::Type *arg_type, const boost::json::value &value,
                             bool is_private) {
                 if (!arg_type->isPointerTy()) {
                     return false;
@@ -428,10 +388,6 @@ namespace nil {
                     return true;
                 }
 
-                if (!check_string(node)) {
-                    error << "Unexpected signature for string argument: " << node.type_string;
-                    return false;
-                }
                 if (!value.is_string()) {
                     return false;
                 }
@@ -476,26 +432,12 @@ namespace nil {
                 return true;
             }
 
-            bool check_array(const signature_node &node) {
-                if (node.elem != json_elem::ARRAY) {
-                    return false;
-                }
-                if (node.children.size() > 1) {
-                    return false;
-                }
-                return true;
-            }
-
             ptr_type process_array(llvm::ArrayType *array_type, const boost::json::value &value, const signature_node &node, ptr_type ptr, bool is_private) {
                 if (!has_values) {
                     for (size_t i = 0; i < array_type->getNumElements(); ++i) {
                         ptr = dispatch_type(array_type->getElementType(), value, node, ptr, is_private);
                     }
                     return ptr;
-                }
-                if (!check_array(node)) {
-                    error << "Unexpected signature for array argument: " << node.type_string;
-                    return ptr_type(0);
                 }
                 if (!value.is_array()) {
                     error << "Ex";
@@ -534,9 +476,6 @@ namespace nil {
             }
 
             bool check_struct(const signature_node &node, llvm::StructType *struct_type) {
-                if (node.elem != json_elem::STRUCT) {
-                    return false;
-                }
                 size_t children_size = node.children.size();
                 if (children_size != 0 && children_size != struct_type->getNumElements()) {
                     return false;
@@ -561,7 +500,7 @@ namespace nil {
                 }
 
                 if (!check_struct(node, struct_type)) {
-                    error << "Unexpected signature for struct argument: " << node.type_string;
+                    error << "Unexpected signature for struct argument";
                     return ptr_type(0);
                 }
                 if (!value.is_array()) {
@@ -598,16 +537,6 @@ namespace nil {
                 return ptr;
             }
 
-            bool check_vector(const signature_node &node) {
-                if (node.elem != json_elem::VECTOR) {
-                    return false;
-                }
-                if (node.children.size() > 1) {
-                    return false;
-                }
-                return true;
-            }
-
             std::vector<var> process_vector(llvm::FixedVectorType *vector_type, const boost::json::value &value,
                                             const signature_node &node, bool is_private) {
                 if (!has_values) {
@@ -618,10 +547,6 @@ namespace nil {
                         res.insert(res.end(), elem_vector.begin(), elem_vector.end());
                     }
                     return res;
-                }
-                if (!check_vector(node)) {
-                    error << "Unexpected signature for vector argument: " << node.type_string;
-                    return {};
                 }
                 if (!value.is_array()) {
                     error << "Vector argument must be represented as JSON array, got \"" << value.at("vector") << "\"";
@@ -666,7 +591,7 @@ namespace nil {
                 case llvm::Type::EllipticCurveTyID:
                     return process_curve(llvm::cast<llvm::EllipticCurveType>(type), value, node, is_private);
                 case llvm::Type::IntegerTyID:
-                    return process_int(value, node, type->getPrimitiveSizeInBits(), is_private);
+                    return process_int(value, type->getPrimitiveSizeInBits(), is_private);
                 case llvm::Type::FixedVectorTyID:
                     return process_vector(llvm::cast<llvm::FixedVectorType>(type), value, node, is_private);
                 default:
@@ -814,7 +739,7 @@ namespace nil {
                             }
                             UNREACHABLE("Unsupported pointer type");
                         }
-                        if (!try_string(current_arg, arg_type, current_value, sp.get_tree(), is_private)) {
+                        if (!try_string(current_arg, arg_type, current_value, is_private)) {
                             error << "Unhandled pointer argument";
                             return false;
                         }
@@ -828,7 +753,7 @@ namespace nil {
                         if (!take_field(current_arg, arg_type, current_value, sp.get_tree(), is_private))
                             return false;
                     } else if (llvm::isa<llvm::IntegerType>(arg_type)) {
-                        if (!take_int(current_arg, current_value, sp.get_tree(), is_private))
+                        if (!take_int(current_arg, current_value, is_private))
                             return false;
                     }
                     else {
