@@ -1736,7 +1736,7 @@ namespace nil {
                     std::cerr << "Entry point is not found" << std::endl;
                     return false;
                 }
-                circuit_function_it = entry_point_it;
+                circuit_function = &*entry_point_it;
                 return true;
             }
 
@@ -1746,7 +1746,7 @@ namespace nil {
                 auto input_reader = InputReader<BlueprintFieldType, var, std::nullptr_t>(
                     frame, stack_memory, empty_assignmnt, *layout_resolver);
                 auto empty_private_input = boost::json::array();
-                if (!input_reader.fill_public_input(*circuit_function_it, public_input, empty_private_input, log)) {
+                if (!input_reader.fill_public_input(*circuit_function, public_input, empty_private_input, log)) {
                     std::cerr << "Public input does not match the circuit signature";
                     const std::string &error = input_reader.get_error();
                     if (!error.empty()) {
@@ -1770,7 +1770,7 @@ namespace nil {
 
                 auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
                     base_frame, stack_memory, assignments[currProverIdx], *layout_resolver, (std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS) != 0));
-                if (!input_reader.fill_public_input(*circuit_function_it, public_input, private_input, log)) {
+                if (!input_reader.fill_public_input(*circuit_function, public_input, private_input, log)) {
                     std::cerr << "Public input does not match the circuit signature";
                     const std::string &error = input_reader.get_error();
                     if (!error.empty()) {
@@ -1811,7 +1811,7 @@ namespace nil {
                 undef_var = put_into_assignment(typename BlueprintFieldType::value_type(), true);
                 zero_var = put_into_assignment(typename BlueprintFieldType::value_type(0), true);
 
-                const llvm::Instruction *next_inst = &circuit_function_it->begin()->front();
+                const llvm::Instruction *next_inst = &circuit_function->begin()->front();
                 while (true) {
                     next_inst = handle_instruction(next_inst);
                     if (finished) {
@@ -1841,7 +1841,7 @@ namespace nil {
             llvm::LLVMContext context;
             const llvm::BasicBlock *predecessor = nullptr;
             std::unique_ptr<llvm::Module> module;
-            llvm::Module::iterator circuit_function_it;
+            llvm::Function *circuit_function;
             std::stack<stack_frame<var>> call_stack;
             program_memory<var> stack_memory;
             std::unordered_map<const llvm::Value *, var> globals;
