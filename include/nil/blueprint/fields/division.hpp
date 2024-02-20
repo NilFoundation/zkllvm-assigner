@@ -44,13 +44,13 @@ namespace nil {
 
             template<typename BlueprintFieldType, typename ArithmetizationParams>
             typename components::division<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                 BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_native_field_division_component(
                     llvm::Value *operand0, llvm::Value *operand1,
                     typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
-                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
                     component_calls &statistics,
                     const common_component_parameters& param) {
@@ -58,7 +58,7 @@ namespace nil {
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
                 using component_type = components::division<
-                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                     BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
 
                 var x = variables[operand0];
@@ -75,15 +75,15 @@ namespace nil {
         void handle_field_division_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             const common_component_parameters& param) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
             using component_type = components::division<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                 BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
 
             llvm::Value *operand0 = inst->getOperand(0);

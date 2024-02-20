@@ -93,7 +93,7 @@ namespace nil {
 
             template<typename InputType, typename BlueprintFieldType, typename ArithmetizationParams, typename var>
             var put_shared(InputType input,
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &assignment) {
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &assignment) {
                 const auto& shared_idx = assignment.shared_column_size(0);
                 assignment.shared(0, shared_idx) = input;
                 return var(1, shared_idx, false, var::column_type::public_input);
@@ -102,7 +102,7 @@ namespace nil {
             // TODO: column index is hardcoded but shouldn't be in the future
             template<typename InputType, typename BlueprintFieldType, typename ArithmetizationParams, typename var>
             var put_constant(InputType input,
-                           assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &assignment) {
+                           assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &assignment) {
                 const auto& constant_idx = assignment.constant(1).size();
                 assignment.constant(1, constant_idx) = input;
                 return var(1, constant_idx, false, var::column_type::constant);

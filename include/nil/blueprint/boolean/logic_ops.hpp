@@ -39,13 +39,13 @@ namespace nil {
             handle_logic_and(
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &x,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &y,
-                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
                 component_calls &statistics,
                 const common_component_parameters& param) {
 
-            using arithmetization_type = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
+            using arithmetization_type = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
             using component_type = components::logic_and<arithmetization_type>;
 
             typename component_type::input_type instance_input;

@@ -204,7 +204,7 @@ namespace nil {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
         void handle_component_input(
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             typename ComponentType::input_type& instance_input, generation_mode gen_mode) {
 
@@ -235,8 +235,8 @@ namespace nil {
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
         void generate_circuit(
             ComponentType& component_instance,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             const typename ComponentType::input_type& instance_input,
             std::uint32_t start_row) {
@@ -263,7 +263,7 @@ namespace nil {
         struct generate_empty_assignments_if_exist {
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
             static typename ComponentType::result_type implementation(const ComponentType& component_instance,
-                      assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                      assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                           &assignment,
                       const typename ComponentType::input_type& instance_input, std::uint32_t start_row) {
                 return components::generate_assignments(component_instance, assignment, instance_input, start_row);
@@ -274,7 +274,7 @@ namespace nil {
         struct generate_empty_assignments_if_exist<true> {
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
             static typename ComponentType::result_type implementation(const ComponentType& component_instance,
-                                                                      assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                                                                      assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                                                                           &assignment,
                                                                       const typename ComponentType::input_type& instance_input, std::uint32_t start_row) {
                 return components::generate_empty_assignments(component_instance, assignment, instance_input, start_row);
@@ -284,7 +284,7 @@ namespace nil {
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
         typename ComponentType::result_type generate_assignments(
             const ComponentType& component_instance,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             const typename ComponentType::input_type& instance_input,
             std::uint32_t start_row, std::uint32_t target_prover_idx) {
@@ -300,8 +300,8 @@ namespace nil {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType, typename... Args>
         typename ComponentType::result_type get_component_result(
-                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 component_calls &statistics,
                 const common_component_parameters& param,
@@ -388,7 +388,7 @@ namespace nil {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
         void handle_component_result(
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
@@ -418,7 +418,7 @@ namespace nil {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams>
         void handle_result(
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
@@ -446,8 +446,8 @@ namespace nil {
 
         template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType, typename... Args>
         void handle_component(
-                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 component_calls &statistics,
                 const common_component_parameters& param,

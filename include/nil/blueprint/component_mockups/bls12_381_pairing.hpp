@@ -69,10 +69,10 @@ namespace nil {
             template<typename ArithmetizationType, typename BlueprintFieldType>
             class bls12_381_pairing;
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
-            class bls12_381_pairing<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+            template<typename BlueprintFieldType>
+            class bls12_381_pairing<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                            BlueprintFieldType>
-                : public plonk_component<BlueprintFieldType, ArithmetizationParams, 1, 0> {
+                : public plonk_component<BlueprintFieldType> {
 
             static std::size_t gates_amount_internal(std::size_t witness_amount) {
                 return
@@ -81,7 +81,7 @@ namespace nil {
             }
 
             public:
-                using component_type = plonk_component<BlueprintFieldType, ArithmetizationParams, 1, 0>;
+                using component_type = plonk_component<BlueprintFieldType>;
 
                 using var = typename component_type::var;
                 using manifest_type = plonk_component_manifest;
@@ -231,13 +231,13 @@ namespace nil {
             template<typename BlueprintFieldType, typename ArithmetizationParams>
             using plonk_bls12_381_pairing =
                 bls12_381_pairing<
-                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                     BlueprintFieldType>;
 
             template<typename BlueprintFieldType, typename ArithmetizationParams>
             typename plonk_bls12_381_pairing<BlueprintFieldType, ArithmetizationParams>::result_type generate_assignments(
                 const plonk_bls12_381_pairing<BlueprintFieldType, ArithmetizationParams> &component,
-                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
                 const typename plonk_bls12_381_pairing<BlueprintFieldType, ArithmetizationParams>::input_type
                     &instance_input,
@@ -305,8 +305,8 @@ namespace nil {
             template<typename BlueprintFieldType, typename ArithmetizationParams>
             std::vector<std::size_t> generate_gates(
                 const plonk_bls12_381_pairing<BlueprintFieldType, ArithmetizationParams> &component,
-                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
                 const typename plonk_bls12_381_pairing<BlueprintFieldType, ArithmetizationParams>::input_type
                     &instance_input) {
@@ -316,8 +316,8 @@ namespace nil {
             template<typename BlueprintFieldType, typename ArithmetizationParams>
             void generate_copy_constraints(
                 const plonk_bls12_381_pairing<BlueprintFieldType, ArithmetizationParams> &component,
-                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
                 const typename plonk_bls12_381_pairing<BlueprintFieldType, ArithmetizationParams>::input_type &instance_input,
                 const std::size_t start_row_index) {
@@ -326,8 +326,8 @@ namespace nil {
             template<typename BlueprintFieldType, typename ArithmetizationParams>
             typename plonk_bls12_381_pairing<BlueprintFieldType, ArithmetizationParams>::result_type generate_circuit(
                 const plonk_bls12_381_pairing<BlueprintFieldType, ArithmetizationParams> &component,
-                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
                 const typename plonk_bls12_381_pairing<BlueprintFieldType, ArithmetizationParams>::input_type &instance_input,
                 const std::size_t start_row_index) {

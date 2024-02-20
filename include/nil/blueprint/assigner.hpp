@@ -138,7 +138,7 @@ namespace nil {
             }
 
             using ArithmetizationType =
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             using branch_desc = std::pair<bool/*is true branch*/, std::uint32_t/*size of call_stack on start branch*/>;
 
@@ -218,7 +218,7 @@ namespace nil {
 
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     using eq_component_type = components::equality_flag<
-                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
                     const common_component_parameters param = {assignments[currProverIdx].allocated_rows(), targetProverIdx, gen_mode};
                     auto v = handle_comparison_component_eq_neq<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                         inst->getPredicate(), lhs[i], rhs[i], bitness,
@@ -243,7 +243,7 @@ namespace nil {
                 std::vector<var> res;
 
                 using eq_component_type = components::equality_flag<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
 
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     const common_component_parameters param = {assignments[currProverIdx].allocated_rows(), targetProverIdx, gen_mode};
@@ -594,7 +594,7 @@ namespace nil {
                         std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
 
                         using eq_component_type = components::equality_flag<
-                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
 
                         var comparison_result = handle_comparison_component_eq_neq<BlueprintFieldType, ArithmetizationParams, eq_component_type>(
                             llvm::CmpInst::ICMP_EQ, logical_statement, zero_var, bitness,

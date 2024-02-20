@@ -91,11 +91,11 @@ namespace nil {
             template<typename ArithmetizationType, typename BlueprintFieldType>
             class comparison;
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
+            template<typename BlueprintFieldType>
             class comparison<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                     BlueprintFieldType>:
-                public plonk_component<BlueprintFieldType, ArithmetizationParams, 1, 0> {
+                public plonk_component<BlueprintFieldTypes> {
 
                 static std::size_t comparisons_per_gate_instance_internal(std::size_t witness_amount) {
                     return 1 + (witness_amount - 3) / 2;
@@ -137,7 +137,7 @@ namespace nil {
                 }
 
             public:
-                using component_type = plonk_component<BlueprintFieldType, ArithmetizationParams, 1, 0>;
+                using component_type = plonk_component<BlueprintFieldTypes>;
 
                 using var = typename component_type::var;
                 using manifest_type = nil::blueprint::plonk_component_manifest;

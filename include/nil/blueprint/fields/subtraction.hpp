@@ -44,13 +44,13 @@ namespace nil {
 
             template<typename BlueprintFieldType, typename ArithmetizationParams>
             typename components::subtraction<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                 BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_native_field_subtraction_component(
                     llvm::Value *operand0, llvm::Value *operand1,
                     std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
-                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
                     component_calls &statistics,
                     const common_component_parameters& param) {
@@ -58,7 +58,7 @@ namespace nil {
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
                 using component_type = components::subtraction<
-                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                     BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
 
                 var x = variables[operand0];
@@ -71,13 +71,13 @@ namespace nil {
 
             template<typename BlueprintFieldType, typename ArithmetizationParams, typename OperatingFieldType>
             typename components::subtraction<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                 OperatingFieldType, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_non_native_field_subtraction_component(
                     llvm::Value *operand0, llvm::Value *operand1,
                     std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
-                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
                     component_calls &statistics,
                     const common_component_parameters& param) {
@@ -86,7 +86,7 @@ namespace nil {
                 using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
 
                 using component_type = components::subtraction<
-                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                     OperatingFieldType, basic_non_native_policy<BlueprintFieldType>>;
 
                 std::vector<var> operand0_vars = vectors[operand0];
@@ -113,15 +113,15 @@ namespace nil {
         void handle_field_subtraction_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             const common_component_parameters& param) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
             using native_component_type = components::subtraction<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                 BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
 
             llvm::Value *operand0 = inst->getOperand(0);
@@ -175,7 +175,7 @@ namespace nil {
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
                     using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
                     using no_native_component_type = components::subtraction<
-                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                         operating_field_type, basic_non_native_policy<BlueprintFieldType>>;
 
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {

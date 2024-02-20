@@ -76,7 +76,7 @@ namespace nil {
             std::vector<var> extract_intrinsic_input_vector(llvm::Value *input_value, std::size_t input_length,
             typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
                 program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment, generation_mode gen_mode
                 ) {
                 std::vector<var> res = {};
