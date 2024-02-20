@@ -182,15 +182,15 @@ namespace nil {
                 curve = lit("curve")[_val = signature_node(json_elem::CURVE)] >>
                         -("<" > curve_kind > ">")[push_back(at_c<1>(_val), _1)];
 
-                array = lit("array")[_val = signature_node(json_elem::ARRAY)] > "<" >
-                        type[push_back(at_c<1>(_val), _1)] > ">";
+                array = lit("array")[_val = signature_node(json_elem::ARRAY)] >>
+                        -("<" > type[push_back(at_c<1>(_val), _1)] > ">");
 
-                vector = lit("vector")[_val = signature_node(json_elem::VECTOR)] > "<" >
-                         type[push_back(at_c<1>(_val), _1)] > ">";
+                vector = lit("vector")[_val = signature_node(json_elem::VECTOR)] >>
+                        -("<" > type[push_back(at_c<1>(_val), _1)] > ">");
 
                 struct_ =
                     lit("struct")[_val = signature_node(json_elem::STRUCT)] >>
-                    -("<" > *(type[push_back(at_c<1>(_val), _1)] > ",") > -type[push_back(at_c<1>(_val), _1)] > ">");
+                    -("<" > type[push_back(at_c<1>(_val), _1)] >> *("," > type[push_back(at_c<1>(_val), _1)]) > ">");
 
                 type = array | vector | field | struct_ | curve | int_ | string_;
                 root = type;
@@ -207,7 +207,7 @@ namespace nil {
                 type.name("type");
                 root.name("root");
 
-                on_error<fail>(root, std::cout << val("Error when parsing signature: expecting ") << _4
+                on_error<fail>(root, error << val("Expected ") << _4
                                                << val(" before: \"") << construct<std::string>(_3, _2) << val("\"")
                                                << std::endl);
             }
@@ -223,6 +223,7 @@ namespace nil {
             qi::rule<Iterator, signature_node(), ascii::space_type> struct_;
             qi::rule<Iterator, signature_node(), ascii::space_type> type;
             qi::rule<Iterator, signature_node(), ascii::space_type> root;
+            std::ostringstream error;
         };
 
         /// @brief Parser of signature string.
@@ -232,7 +233,14 @@ namespace nil {
             bool parse(const std::string& str) {
                 std::string::const_iterator it = str.begin();
                 bool matched = phrase_parse(it, str.end(), grammar, ascii::space, tree);
-                return matched && it == str.end();
+                if (matched && it == str.end()) {
+                    return true;
+                }
+                error = "Parsing of \"" + str + "\" signature failed";
+                if (grammar.error.str() == "") {
+                    error += ": " + grammar.error.str();
+                }
+                return false;
             }
 
             /// @brief Signature AST.
@@ -240,8 +248,13 @@ namespace nil {
                 return tree;
             }
 
+            const std::string &get_error() {
+                return error;
+            }
+
         private:
             signature_grammar<std::string::const_iterator> grammar;
+            std::string error;
             signature_node tree;
         };
     }    // namespace blueprint
