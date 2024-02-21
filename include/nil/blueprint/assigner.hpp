@@ -616,7 +616,7 @@ namespace nil {
                         const var &y = frame.scalars[inst->getOperand(1)];
 
 
-                        if (validity_check && std::uint8_t(gen_mode & generation_mode::ASSIGNMENTS)) {
+                        if (validity_check && gen_mode.has_assignments()) {
                             bool exit_check_res = var_value(assignments[currProverIdx], x) == var_value(assignments[currProverIdx], y);
                             ASSERT_MSG(exit_check_res,
                                       "assigner_exit_check_eq_pallas input is false, verification will fail!\n");
