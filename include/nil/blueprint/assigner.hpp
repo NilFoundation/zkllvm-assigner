@@ -1306,7 +1306,7 @@ namespace nil {
                                 curr_branch.push_back(branch_desc(false, stack_size));
                                 curr_branch.push_back(branch_desc(true, stack_size));
                                 if (!cond_val) {
-                                    gen_mode = (gen_mode.has_assignments() && gen_mode.has_false_assignments()) ?
+                                    gen_mode = (gen_mode.has_assignments() || gen_mode.has_false_assignments()) ?
                                         (gen_mode & generation_mode::circuit()) | generation_mode::false_assignments() :
                                         gen_mode & generation_mode::circuit();
                                 }
@@ -1325,7 +1325,7 @@ namespace nil {
                                 curr_branch.pop_back();
 
                                 if (cond_val) {
-                                    gen_mode = (gen_mode.has_assignments() && gen_mode.has_false_assignments()) ?
+                                    gen_mode = (gen_mode.has_assignments() || gen_mode.has_false_assignments()) ?
                                                   (gen_mode & generation_mode::circuit()) | generation_mode::false_assignments() :
                                                   gen_mode & generation_mode::circuit();
                                 }
