@@ -51,6 +51,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -65,11 +66,12 @@ namespace nil {
             typename component_type::input_type instance_input({component_input});
 
             const auto& result = get_component_result<BlueprintFieldType, component_type>
-                (bp, assignment, statistics, param, instance_input, res_length, omega).output;
+                (bp, assignment, internal_storage, statistics, param, instance_input, res_length, omega).output;
 
             if (param.gen_mode.has_assignments()) {
                 ptr_type result_ptr = static_cast<ptr_type>(
-                    typename BlueprintFieldType::integral_type(var_value(assignment, variables[result_value]).data));
+                    typename BlueprintFieldType::integral_type(detail::var_value<BlueprintFieldType, var>
+                        (variables[result_value], assignment, internal_storage, true).data));
                 for (std::size_t i = 0; i < result.size(); i++) {
                     for (std::size_t j = 0; j < 3; j++) {
                         ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
@@ -89,6 +91,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -98,7 +101,7 @@ namespace nil {
             llvm::Value *input = inst->getOperand(3);
 
             detail::handle_native_fri_cosets_component<BlueprintFieldType>(
-                result_value, result_length_value, omega_value, input, frame.vectors, frame.scalars, memory, bp, assignment, statistics, param);
+                result_value, result_length_value, omega_value, input, frame.vectors, frame.scalars, memory, bp, assignment, internal_storage, statistics, param);
 
         }
 

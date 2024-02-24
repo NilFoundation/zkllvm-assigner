@@ -53,6 +53,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
+                column_type<BlueprintFieldType> &internal_storage,
                 component_calls &statistics,
                 const common_component_parameters& param) {
 
@@ -85,10 +86,10 @@ namespace nil {
 
 
                 std::vector<var> selectors = extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    selectors_value, gates_amount, variables, memory, assignment, param.gen_mode);
+                    selectors_value, gates_amount, variables, memory, assignment, internal_storage, param.gen_mode);
 
                 std::vector<var> constraints = extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    constraints_value, constraints_amount, variables, memory, assignment, param.gen_mode);
+                    constraints_value, constraints_amount, variables, memory, assignment, internal_storage, param.gen_mode);
 
                 using component_type = components::basic_constraints_verifier<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>;
@@ -96,8 +97,7 @@ namespace nil {
                 typename component_type::input_type instance_input = {theta, constraints, selectors};
 
                 return get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, statistics, param, instance_input, gates_sizes);
-
+                    (bp, assignment, internal_storage, statistics, param, instance_input, gates_sizes);
             }
 
         }    // namespace detail
@@ -110,6 +110,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -125,7 +126,7 @@ namespace nil {
 
             const auto& res = detail::handle_native_gate_arg_verifier_component<BlueprintFieldType>(
                     selectors_value, gates_sizes_value, gates_amount_value, constraints_value, constraints_amount_value, theta_value,
-                    frame.scalars, memory, bp, assignment, statistics, param);
+                    frame.scalars, memory, bp, assignment, internal_storage, statistics, param);
             handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
         }
     }    // namespace blueprint

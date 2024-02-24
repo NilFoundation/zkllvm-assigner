@@ -49,6 +49,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -61,7 +62,7 @@ namespace nil {
             llvm::Value *operand1 = inst->getOperand(1);
 
             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType>(
-                                              operand0, operand1, frame.scalars, bp, assignment, statistics, param);
+                                              operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
             handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
         }
 

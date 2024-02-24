@@ -45,6 +45,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -59,7 +60,7 @@ namespace nil {
 
 
             std::vector<var> input_array = detail::extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    input_array_value, array_size, frame.scalars, memory, assignment, param.gen_mode);
+                    input_array_value, array_size, frame.scalars, memory, assignment, internal_storage, param.gen_mode);
 
             var input_bool = frame.scalars[input_bool_value];
 
@@ -72,11 +73,12 @@ namespace nil {
             };
 
             std::vector<var> res = get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, statistics, param, instance_input, array_size / 2).output;
+                    (bp, assignment, internal_storage, statistics, param, instance_input, array_size / 2).output;
 
             if (param.gen_mode.has_assignments()) {
                 ptr_type result_ptr = static_cast<ptr_type>(typename BlueprintFieldType::integral_type(
-                    var_value(assignment, frame.scalars[result_value]).data));
+                    detail::var_value<BlueprintFieldType, var>
+                    (frame.scalars[result_value], assignment, internal_storage, true).data));
                 for (std::size_t i = 0; i < array_size; i++) {
                     ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
                     memory.store(result_ptr++, res[i]);

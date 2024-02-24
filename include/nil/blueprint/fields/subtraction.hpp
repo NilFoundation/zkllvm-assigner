@@ -52,6 +52,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
+                    column_type<BlueprintFieldType> &internal_storage,
                     component_calls &statistics,
                     const common_component_parameters& param) {
 
@@ -66,7 +67,7 @@ namespace nil {
                 typename component_type::input_type instance_input({x, y});
 
                 return get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, statistics, param, instance_input);
+                    (bp, assignment, internal_storage, statistics, param, instance_input);
             }
 
             template<typename BlueprintFieldType, typename OperatingFieldType>
@@ -79,6 +80,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
+                    column_type<BlueprintFieldType> &internal_storage,
                     component_calls &statistics,
                     const common_component_parameters& param) {
 
@@ -104,7 +106,7 @@ namespace nil {
                 typename component_type::input_type instance_input({x, y});
 
                 return get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, statistics, param, instance_input);
+                    (bp, assignment, internal_storage, statistics, param, instance_input);
             }
 
         }    // namespace detail
@@ -116,6 +118,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -140,7 +143,7 @@ namespace nil {
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, statistics, param);
+                                                  operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
                             handle_component_result<BlueprintFieldType, native_component_type>(assignment, inst, frame, res, param.gen_mode);
                         } else {
                             UNREACHABLE("not implemented yet");
@@ -158,7 +161,7 @@ namespace nil {
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, statistics, param);
+                                                  operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
                             handle_component_result<BlueprintFieldType, native_component_type>(assignment, inst, frame, res, param.gen_mode);
                         } else {
                             UNREACHABLE("non_native_policy is not implemented yet");
@@ -179,12 +182,12 @@ namespace nil {
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, statistics, param);
+                                                  operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
                             handle_component_result<BlueprintFieldType, native_component_type>(assignment, inst, frame, res, param.gen_mode);
                         } else {
                             const auto& component_result = detail::handle_non_native_field_subtraction_component<
                                                        BlueprintFieldType, operating_field_type>(
-                                                       operand0, operand1, frame.vectors, bp, assignment, statistics, param);
+                                                       operand0, operand1, frame.vectors, bp, assignment, internal_storage, statistics, param);
 
                             handle_component_result<BlueprintFieldType, no_native_component_type>
                                     (assignment, inst, frame, component_result, param.gen_mode);

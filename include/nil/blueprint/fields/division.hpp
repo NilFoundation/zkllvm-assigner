@@ -52,6 +52,7 @@ namespace nil {
                     circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
+                    column_type<BlueprintFieldType> &internal_storage,
                     component_calls &statistics,
                     const common_component_parameters& param) {
 
@@ -66,7 +67,7 @@ namespace nil {
                 typename component_type::input_type instance_input({x, y});
 
                 return get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, statistics, param, instance_input);
+                    (bp, assignment, internal_storage, statistics, param, instance_input);
             }
 
         }    // namespace detail
@@ -78,6 +79,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -102,7 +104,7 @@ namespace nil {
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         const auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType>(
-                                operand0, operand1, frame.scalars, bp, assignment, statistics, param);
+                                operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
                         handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
                     } else {
                         UNREACHABLE("Non-native bls12-381 is undefined yet");
@@ -116,7 +118,7 @@ namespace nil {
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         const auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType>(
-                                operand0, operand1, frame.scalars, bp, assignment, statistics, param);
+                                operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
                         handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
                     } else {
                         UNREACHABLE("Non-native pallas is undefined yet");
@@ -130,7 +132,7 @@ namespace nil {
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         const auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType>(
-                                operand0, operand1, frame.scalars, bp, assignment, statistics, param);
+                                operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
                         handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
                     } else {
                         UNREACHABLE("Non-native ed25519 division is not implemented yet");

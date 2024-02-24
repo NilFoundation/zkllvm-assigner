@@ -41,6 +41,8 @@
 
 #include <nil/blueprint/logger.hpp>
 
+#include <nil/blueprint/utilities.hpp>
+
 namespace nil {
     namespace blueprint {
 
@@ -48,17 +50,17 @@ namespace nil {
         class InputReader {
         public:
             InputReader(stack_frame<var> &frame, program_memory<var> &memory, Assignment &assignmnt,
-                        LayoutResolver &layout_resolver, bool has_values) :
+                        LayoutResolver &layout_resolver, column_type<BlueprintFieldType> &internal_storage, bool has_values) :
                 frame(frame),
-                layout_resolver(layout_resolver), memory(memory), assignmnt(assignmnt), has_values(has_values) {
+                layout_resolver(layout_resolver), internal_storage(internal_storage), memory(memory), assignmnt(assignmnt), has_values(has_values) {
                 ASSERT(public_input_only == false);
                 reset();
             }
 
             InputReader(stack_frame<var> &frame, program_memory<var> &memory, Assignment &assignmnt,
-                        LayoutResolver &layout_resolver) :
+                        LayoutResolver &layout_resolver, column_type<BlueprintFieldType> &internal_storage) :
                 frame(frame),
-                layout_resolver(layout_resolver), memory(memory), assignmnt(assignmnt), has_values(true) {
+                layout_resolver(layout_resolver), internal_storage(internal_storage), memory(memory), assignmnt(assignmnt), has_values(true) {
                 ASSERT(public_input_only == true);
                 reset();
             }
@@ -67,7 +69,6 @@ namespace nil {
                 parsed_public_input.clear();
                 public_input_idx = 0;
                 private_input_idx = 0;
-                constant_idx = 0;
                 error.str("");
                 pub_iter = 0;
                 priv_iter = 0;
@@ -97,8 +98,7 @@ namespace nil {
                 if constexpr (public_input_only) {
                     return var();
                 } else {
-                    assignmnt.constant(1, constant_idx) = ptr; // TODO: column index is hardcoded but shouldn't be in the future
-                    return var(1, constant_idx++, false, var::column_type::constant);
+                    return detail::put_internal_value<InputType, BlueprintFieldType, var>(ptr, internal_storage);
                 }
             }
 
@@ -167,7 +167,7 @@ namespace nil {
                 return !frame.vectors[curve_arg].empty();
             }
 
-            std::vector<var> put_field_into_assignmnt (std::vector<typename BlueprintFieldType::value_type> input, bool is_private) {
+            std::vector<var> put_field_into_assignmnt (column_type<BlueprintFieldType> input, bool is_private) {
 
                 std::vector<var> res;
 
@@ -190,7 +190,7 @@ namespace nil {
 
             std::vector<var> process_non_native_field (const boost::json::value &value, llvm::GaloisFieldKind arg_field_type, bool is_private) {
                 std::vector<var> res;
-                std::vector<typename BlueprintFieldType::value_type> chunked_non_native_field_element;
+                column_type<BlueprintFieldType> chunked_non_native_field_element;
                 typename BlueprintFieldType::extended_integral_type non_native_number;
 
                 const std::size_t buflen = 256;
@@ -677,7 +677,7 @@ namespace nil {
                 }
             }
 
-            const std::vector<typename BlueprintFieldType::value_type> get_public_input() {
+            const column_type<BlueprintFieldType> get_public_input() {
                 ASSERT(public_input_only);
                 return parsed_public_input;
             }
@@ -818,9 +818,6 @@ namespace nil {
 
                 return true;
             }
-            size_t get_idx() const {
-                return constant_idx;
-            }
 
             std::string get_error() const {
                 return error.str();
@@ -831,10 +828,10 @@ namespace nil {
             program_memory<var> &memory;
             Assignment &assignmnt;
             LayoutResolver &layout_resolver;
-            std::vector<typename BlueprintFieldType::value_type> parsed_public_input;
+            column_type<BlueprintFieldType> parsed_public_input;
+            column_type<BlueprintFieldType> &internal_storage;
             size_t public_input_idx;
             size_t private_input_idx;
-            size_t constant_idx;
             std::ostringstream error;
             size_t pub_iter;
             size_t priv_iter;

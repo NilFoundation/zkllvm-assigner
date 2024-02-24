@@ -26,6 +26,8 @@
 #ifndef CRYPTO3_ASSIGNER_NON_NATIVE_MARSHALLING_HPP
 #define CRYPTO3_ASSIGNER_NON_NATIVE_MARSHALLING_HPP
 
+#include <nil/blueprint/utilities.hpp>
+
 namespace nil {
     namespace blueprint {
 
@@ -138,7 +140,7 @@ namespace nil {
         }
 
         template<typename BlueprintFieldType, typename NonNativeFieldType>
-        std::vector<typename BlueprintFieldType::value_type> value_into_vector (typename NonNativeFieldType::value_type input) {
+        column_type<BlueprintFieldType> value_into_vector (typename NonNativeFieldType::value_type input) {
             using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, NonNativeFieldType>;
 
             if constexpr (non_native_policy::ratio == 0) {
@@ -146,20 +148,20 @@ namespace nil {
             }
             else {
                 if constexpr (non_native_policy::ratio == 1) {
-                    std::vector<typename BlueprintFieldType::value_type> res;
+                    column_type<BlueprintFieldType> res;
                     res.push_back(typename BlueprintFieldType::value_type(typename BlueprintFieldType::integral_type(input.data)));
                     return res;
                 }
                 else {
                     auto res_arr = non_native_policy::chop_non_native(input);
-                    return std::vector<typename BlueprintFieldType::value_type>(std::begin(res_arr), std::end(res_arr));
+                    return column_type<BlueprintFieldType>(std::begin(res_arr), std::end(res_arr));
                 }
             }
 
         }
 
         template<typename BlueprintFieldType, typename NonNativeFieldType>
-        typename NonNativeFieldType::value_type vector_into_value (std::vector<typename BlueprintFieldType::value_type> input) {
+        typename NonNativeFieldType::value_type vector_into_value (column_type<BlueprintFieldType> input) {
             using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, NonNativeFieldType>;
 
             if (input.size() != non_native_policy::ratio) {
@@ -187,7 +189,7 @@ namespace nil {
         }
 
         template<typename BlueprintFieldType, typename NonNativeFieldType>
-        std::vector<typename BlueprintFieldType::value_type> check_modulus_and_chop(typename BlueprintFieldType::extended_integral_type glued_non_native) {
+        column_type<BlueprintFieldType> check_modulus_and_chop(typename BlueprintFieldType::extended_integral_type glued_non_native) {
             if(glued_non_native >= NonNativeFieldType::modulus) {
                 std::cerr << std::hex;
                 std::cerr << "0x" << glued_non_native << " >=\n";
@@ -198,7 +200,7 @@ namespace nil {
         }
 
         template<typename BlueprintFieldType>
-        std::vector<typename BlueprintFieldType::value_type> extended_integral_into_vector (llvm::GaloisFieldKind arg_field_type, typename BlueprintFieldType::extended_integral_type glued_non_native) {
+        column_type<BlueprintFieldType> extended_integral_into_vector (llvm::GaloisFieldKind arg_field_type, typename BlueprintFieldType::extended_integral_type glued_non_native) {
             switch (arg_field_type) {
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
                     using non_native_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
@@ -230,7 +232,7 @@ namespace nil {
             }
         }
         template<typename FieldType, typename BlueprintFieldType>
-        std::vector<typename BlueprintFieldType::value_type> field_dependent_marshal_val(const llvm::Value *val) {
+        column_type<BlueprintFieldType> field_dependent_marshal_val(const llvm::Value *val) {
             ASSERT(llvm::isa<llvm::ConstantField>(val) || llvm::isa<llvm::ConstantInt>(val));
             llvm::APInt int_val;
             if (llvm::isa<llvm::ConstantField>(val)) {
@@ -258,7 +260,7 @@ namespace nil {
         }
 
         template <typename BlueprintFieldType>
-        std::vector<typename BlueprintFieldType::value_type> marshal_field_val(const llvm::Value *val) {
+        column_type<BlueprintFieldType> marshal_field_val(const llvm::Value *val) {
 
             ASSERT(llvm::isa<llvm::ConstantField>(val) || llvm::isa<llvm::ConstantInt>(val));
             if (llvm::isa<llvm::ConstantInt>(val)) {
@@ -293,7 +295,7 @@ namespace nil {
         }
 
         template <typename BlueprintFieldType>
-        typename BlueprintFieldType::integral_type unmarshal_field_val(const llvm::GaloisFieldKind field_type, std::vector<typename BlueprintFieldType::value_type> input) {
+        typename BlueprintFieldType::integral_type unmarshal_field_val(const llvm::GaloisFieldKind field_type, column_type<BlueprintFieldType> input) {
             switch (field_type) {
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
                     using operating_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
