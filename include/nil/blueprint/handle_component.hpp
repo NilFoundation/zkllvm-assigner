@@ -27,6 +27,7 @@
 #define CRYPTO3_ASSIGNER_HANDLE_COMPONENT_HPP
 
 #include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
+#include <nil/blueprint/utilities.hpp>
 
 #include <nil/blueprint/component.hpp>
 #include <nil/blueprint/basic_non_native_policy.hpp>
@@ -197,7 +198,6 @@ namespace nil {
         };
 
         struct common_component_parameters {
-            std::uint32_t start_row;
             std::uint32_t target_prover_idx;
             generation_mode gen_mode;
         };
@@ -206,7 +206,8 @@ namespace nil {
         void handle_component_input(
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
-            typename ComponentType::input_type& instance_input, generation_mode gen_mode) {
+            column_type<BlueprintFieldType> &internal_storage,
+            typename ComponentType::input_type& instance_input, const common_component_parameters& param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -214,14 +215,22 @@ namespace nil {
             const auto& used_rows = assignment.get_used_rows();
 
             for (auto& v : input) {
-                bool found = (used_rows.find(v.get().rotation) != used_rows.end());
-                if (!found && (v.get().type == var::column_type::witness || v.get().type == var::column_type::constant)) {
+                if (v.get().type == var::column_type::constant && v.get().index == detail::internal_storage_index) {
+                    const auto& start_row = assignment.allocated_rows();
+                    assignment.witness(0, start_row) = internal_storage[v.get().rotation];
+                    var new_v = var(0, start_row, false, var::column_type::witness);
+                    v.get().index = new_v.index;
+                    v.get().rotation = new_v.rotation;
+                    v.get().relative = new_v.relative;
+                    v.get().type = new_v.type;
+                } else if ((used_rows.find(v.get().rotation) == used_rows.end()) &&
+                           (v.get().type == var::column_type::witness || v.get().type == var::column_type::constant)) {
                     var new_v;
-                    if (gen_mode.has_assignments()) {
+                    if (param.gen_mode.has_assignments()) {
                         new_v = save_shared_var(assignment, v);
                     } else {
                         const auto& shared_idx = assignment.shared_column_size(0);
-                        assignment.shared(0, shared_idx) = BlueprintFieldType::value_type::zero();;
+                        assignment.shared(0, shared_idx) = BlueprintFieldType::value_type::zero();
                         new_v = var(1, shared_idx, false, var::column_type::public_input);
                     }
                     v.get().index = new_v.index;
@@ -303,6 +312,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+                column_type<BlueprintFieldType> &internal_storage,
                 component_calls &statistics,
                 const common_component_parameters& param,
                 typename ComponentType::input_type& instance_input,
@@ -325,33 +335,36 @@ namespace nil {
                     component_instance.gates_amount,
                     component_instance.witness_amount()
                 );
-                return typename ComponentType::result_type(component_instance, param.start_row);
+                return typename ComponentType::result_type(component_instance, assignment.allocated_rows());
             }
 
-            handle_component_input<BlueprintFieldType, ComponentType>(assignment, instance_input, param.gen_mode);
+            handle_component_input<BlueprintFieldType, ComponentType>(assignment, internal_storage, instance_input, param);
 
+            const auto& start_row = assignment.allocated_rows();
             // copy constraints before execute component
             const auto num_copy_constraints = bp.copy_constraints().size();
 
             // generate circuit in any case for fill selectors
-            generate_circuit(component_instance, bp, assignment, instance_input, param.start_row);
+            generate_circuit(component_instance, bp, assignment, instance_input, start_row);
 
             if (param.gen_mode.has_assignments()) {
-                return generate_assignments(component_instance, assignment, instance_input, param.start_row,
+                return generate_assignments(component_instance, assignment, instance_input, start_row,
                                             param.target_prover_idx);
             } else {
+                const auto rows_amount = ComponentType::get_rows_amount(p.witness.size(), 0, args...);
+                // fake allocate rows
+                for (std::uint32_t i = 0; i < rows_amount; i++) {
+                    assignment.witness(0, start_row + i) = BlueprintFieldType::value_type::zero();
+                }
+
                 if (param.gen_mode.has_false_assignments()) {
-                    const auto rows_amount = ComponentType::get_rows_amount(p.witness.size(), 0, args...);
                     // disable selector
                     for (std::uint32_t i = 0; i < rows_amount; i++) {
                         for (std::uint32_t j = 0; j < assignment.selectors_amount(); j++) {
-                            assignment.selector(j, param.start_row + i) = BlueprintFieldType::value_type::zero();
+                            if (assignment.selector(j).size() > (start_row + i)) {
+                                assignment.selector(j, start_row + i) = BlueprintFieldType::value_type::zero();
+                            }
                         }
-                    }
-
-                    // fake allocate rows
-                    for (std::uint32_t i = 0; i < rows_amount; i++) {
-                        assignment.witness(0, param.start_row + i) = BlueprintFieldType::value_type::zero();
                     }
 
                     using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -360,7 +373,7 @@ namespace nil {
                     const auto &copy_constraints = bp.copy_constraints();
                     for (std::uint32_t i = num_copy_constraints; i < copy_constraints.size(); i++) {
                         if (copy_constraints[i].first.type == var::column_type::witness &&
-                            copy_constraints[i].first.rotation >= param.start_row) {
+                            copy_constraints[i].first.rotation >= start_row) {
                             if (copy_constraints[i].second.rotation >=
                                 assignment.witness(copy_constraints[i].second.index).size()) {
                                 assignment.witness(copy_constraints[i].second.index,
@@ -370,7 +383,7 @@ namespace nil {
                             assignment.witness(copy_constraints[i].first.index, copy_constraints[i].first.rotation) =
                                 var_value(assignment, copy_constraints[i].second);
                         } else if (copy_constraints[i].second.type == var::column_type::witness &&
-                                   copy_constraints[i].second.rotation >= param.start_row) {
+                                   copy_constraints[i].second.rotation >= start_row) {
                             if (copy_constraints[i].first.rotation >=
                                 assignment.witness(copy_constraints[i].first.index).size()) {
                                 assignment.witness(copy_constraints[i].first.index,
@@ -384,7 +397,7 @@ namespace nil {
                         }
                     }
                 }
-                return typename ComponentType::result_type(component_instance, param.start_row);
+                return typename ComponentType::result_type(component_instance, start_row);
             }
         }
 
@@ -451,6 +464,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+                column_type<BlueprintFieldType> &internal_storage,
                 component_calls &statistics,
                 const common_component_parameters& param,
                 typename ComponentType::input_type& instance_input,
@@ -459,7 +473,7 @@ namespace nil {
                 Args... args) {
 
             const auto component_result = get_component_result<BlueprintFieldType, ComponentType>
-                    (bp, assignment, statistics, param, instance_input, args...);
+                    (bp, assignment, internal_storage, statistics, param, instance_input, args...);
 
             handle_component_result<BlueprintFieldType, ComponentType>(assignment, inst, frame, component_result, param.gen_mode);
         }

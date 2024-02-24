@@ -33,6 +33,10 @@
 
 namespace nil {
     namespace blueprint {
+
+        template<typename T>
+        using column_type = typename crypto3::zk::snark::plonk_column<T>;
+
         namespace detail {
 
             struct FlexibleParameters {
@@ -105,6 +109,30 @@ namespace nil {
                 const auto& constant_idx = assignment.constant(1).size();
                 assignment.constant(1, constant_idx) = input;
                 return var(1, constant_idx, false, var::column_type::constant);
+            }
+
+            static constexpr const std::size_t internal_storage_index = std::numeric_limits<std::size_t>::max();
+
+            template<typename InputType, typename BlueprintFieldType, typename var>
+            var put_internal_value(InputType input,
+                           column_type<BlueprintFieldType> &storage) {
+                const auto idx = storage.size();
+                storage.push_back(input);
+                return var(internal_storage_index, idx, false, var::column_type::constant);
+            }
+
+            template<typename BlueprintFieldType, typename var>
+            typename BlueprintFieldType::value_type var_value(const var &input_var,
+                           const assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &assignment,
+                           column_type<BlueprintFieldType> &storage, bool has_assignments) {
+                if (input_var.type == var::column_type::constant && input_var.index == detail::internal_storage_index) {
+                    ASSERT(input_var.rotation < storage.size());
+                    return storage[input_var.rotation];
+                }
+                if (input_var.type == var::column_type::constant || has_assignments) {
+                    return var_value(assignment, input_var);
+                }
+                return 0;
             }
         }    // namespace detail
     }    // namespace blueprint

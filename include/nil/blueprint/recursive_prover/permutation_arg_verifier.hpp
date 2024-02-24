@@ -58,6 +58,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
+                column_type<BlueprintFieldType> &internal_storage,
                 component_calls &statistics,
                 const common_component_parameters& param) {
 
@@ -73,14 +74,13 @@ namespace nil {
                 std::size_t input_length = extract_constant_size_t_value<BlueprintFieldType>(input_length_value);
 
                 std::vector<var> Ssigma = extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    Ssigma_value, input_length, variables, memory, assignment, param.gen_mode);
+                    Ssigma_value, input_length, variables, memory, assignment, internal_storage, param.gen_mode);
 
                 std::vector<var> f = extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    f_value, input_length, variables, memory, assignment, param.gen_mode);
+                    f_value, input_length, variables, memory, assignment, internal_storage, param.gen_mode);
 
                 std::vector<var> Se = extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    Se_value, input_length, variables, memory, assignment, param.gen_mode);
-
+                    Se_value, input_length, variables, memory, assignment, internal_storage, param.gen_mode);
 
                 using component_type = components::permutation_verifier<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>;
@@ -98,7 +98,7 @@ namespace nil {
                     };
 
                 return get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, statistics, param, instance_input, input_length);
+                    (bp, assignment, internal_storage, statistics, param, instance_input, input_length);
 
             }
 
@@ -112,6 +112,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -135,7 +136,7 @@ namespace nil {
             typename component_type::result_type res = detail::handle_native_permutation_arg_verifier_component<BlueprintFieldType>(
                 f_value, Se_value, Ssigma_value, input_length_value, L0_value,
                     V_value, V_zeta_value, q_last_value, q_pad_value, thetas_value,
-                        frame.vectors, frame.scalars, memory, bp, assignment, statistics, param);
+                        frame.vectors, frame.scalars, memory, bp, assignment, internal_storage, statistics, param);
 
             handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
 

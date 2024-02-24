@@ -56,6 +56,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 

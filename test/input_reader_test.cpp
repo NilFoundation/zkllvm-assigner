@@ -20,11 +20,12 @@ using var = nil::crypto3::zk::snark::plonk_variable<typename BlueprintFieldType:
 
 llvm::DataLayout dl("");
 LayoutResolver layout_resolver(dl);
+column_type<BlueprintFieldType> internal_storage;
 program_memory<var> memory(100);
 stack_frame<var> frame;
 std::nullptr_t empty_assignmnt;
 boost::json::array empty_private_input;
-InputReader<BlueprintFieldType, var, std::nullptr_t> input_reader(frame, memory, empty_assignmnt, layout_resolver);
+InputReader<BlueprintFieldType, var, std::nullptr_t> input_reader(frame, memory, empty_assignmnt, layout_resolver, internal_storage);
 logger test_logger;
 
 boost::json::array read_json_string(std::string json_string) {
@@ -60,8 +61,8 @@ llvm::Function *get_func_by_name(llvm::Module *module, const char *name) {
     return &*entry_point_it;
 }
 
-bool check_vector_equality(const std::vector<typename BlueprintFieldType::value_type> &actual,
-                           const std::vector<typename BlueprintFieldType::value_type> &expected) {
+bool check_vector_equality(const column_type<BlueprintFieldType> &actual,
+                           const column_type<BlueprintFieldType> &expected) {
     if (actual.size() != expected.size()) {
         return false;
     }
@@ -85,7 +86,7 @@ struct LLVMDataFixture {
 
     void test_correct_input(llvm::Function *func,
                             const char *input_string,
-                            const std::vector<typename BlueprintFieldType::value_type> expected_result) {
+                            const column_type<BlueprintFieldType> expected_result) {
         auto input_array = read_json_string(input_string);
         BOOST_TEST_REQUIRE(input_reader.fill_public_input(*func, input_array, empty_private_input, test_logger));
         BOOST_TEST(check_vector_equality(input_reader.get_public_input(), expected_result));
@@ -110,7 +111,7 @@ BOOST_FIXTURE_TEST_SUITE(input_reader_suite, LLVMDataFixture)
 
 BOOST_AUTO_TEST_CASE(input_reader_actual_format) {
 
-    std::vector<typename BlueprintFieldType::value_type> expected = {1, 2, 3, 4, 5, 6, 7, 8};
+    column_type<BlueprintFieldType> expected = {1, 2, 3, 4, 5, 6, 7, 8};
     const char *input_string = R"([ {"array<field<pallas_base>>": [1,2, 3 ]},
                                                {"array<field<pallas_base>>": [ 4, 5, 6, 7, 8]}])";
 
@@ -119,7 +120,7 @@ BOOST_AUTO_TEST_CASE(input_reader_actual_format) {
 
 BOOST_AUTO_TEST_CASE(input_reader_legacy_format) {
 
-    std::vector<typename BlueprintFieldType::value_type> expected = {1, 2, 3, 4, 5, 6, 7, 8};
+    column_type<BlueprintFieldType> expected = {1, 2, 3, 4, 5, 6, 7, 8};
     const char *input_string = R"([ {"array": [{"field":1}, {"field": 2}, {"field" :3} ]},
                                                {"array": [ {"field":4}, {"field":5}, {"field":6}, {"field":7}, {"field":8}]}])";
     test_correct_input(arrays_func, input_string, expected);
@@ -127,7 +128,7 @@ BOOST_AUTO_TEST_CASE(input_reader_legacy_format) {
 
 BOOST_AUTO_TEST_CASE(input_reader_mixed_format) {
 
-    std::vector<typename BlueprintFieldType::value_type> expected = {0x12345678901234567890_cppui255, 2, 3, 4, 5, 6, 7, 8};
+    column_type<BlueprintFieldType> expected = {0x12345678901234567890_cppui255, 2, 3, 4, 5, 6, 7, 8};
     const char *input_string = R"([ {"array": [{"field":"0x12345678901234567890"}, {"field": 2}, {"field<pallas_base>" :3} ]},
                                                {"array<field<pallas_base>>": [ 4, 5, 6, 7, 8]}])";
     test_correct_input(arrays_func, input_string, expected);
@@ -159,7 +160,7 @@ BOOST_AUTO_TEST_CASE(input_reader_wrong_num_elements) {
 
 BOOST_AUTO_TEST_CASE(input_reader_fields_curves) {
 
-    std::vector<typename BlueprintFieldType::value_type> expected = {1, 2, 0, 0, 0, 4, 5, 6, 0, 0, 0, 7, 0, 0, 0};
+    column_type<BlueprintFieldType> expected = {1, 2, 0, 0, 0, 4, 5, 6, 0, 0, 0, 7, 0, 0, 0};
     const char *input_string = R"([ {"field<pallas_base>": 1},
                                     {"field<ed25519_base>" : 2},
                                     {"curve<pallas>": [4, 5]},

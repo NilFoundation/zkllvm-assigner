@@ -47,6 +47,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             common_component_parameters param) {
 
@@ -75,7 +76,7 @@ namespace nil {
 
             typename sha2_512_component_type::result_type sha2_512_component_result =
                 get_component_result<BlueprintFieldType, sha2_512_component_type>
-                    (bp, assignment, statistics, param, sha2_512_instance_input);
+                    (bp, assignment, internal_storage, statistics, param, sha2_512_instance_input);
 
             handle_component_result<BlueprintFieldType, sha2_512_component_type>
                 (assignment, inst, frame, sha2_512_component_result, param.gen_mode);
@@ -84,13 +85,11 @@ namespace nil {
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType,
                 basic_non_native_policy<BlueprintFieldType>>;
 
-            param.start_row = assignment.allocated_rows();
-
             typename reduction_component_type::input_type reduction_instance_input = {sha2_512_component_result.output_state};
 
             typename reduction_component_type::result_type reduction_component_result =
                     get_component_result<BlueprintFieldType, reduction_component_type>
-                            (bp, assignment, statistics, param, reduction_instance_input);
+                            (bp, assignment, internal_storage, statistics, param, reduction_instance_input);
 
             handle_component_result<BlueprintFieldType, reduction_component_type>
                     (assignment, inst, frame, reduction_component_result, param.gen_mode);

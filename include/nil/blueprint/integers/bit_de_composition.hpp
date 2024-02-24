@@ -50,6 +50,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -64,11 +65,12 @@ namespace nil {
             typename component_type::input_type instance_input({component_input});
 
             auto result = get_component_result<BlueprintFieldType, component_type>
-                (bp, assignment, statistics, param, instance_input, BitsAmount, Mode).output;
+                (bp, assignment, internal_storage, statistics, param, instance_input, BitsAmount, Mode).output;
 
             if (param.gen_mode.has_assignments()) {
                 ptr_type result_ptr = static_cast<ptr_type>(
-                    typename BlueprintFieldType::integral_type(var_value(assignment, variables[result_value]).data));
+                    typename BlueprintFieldType::integral_type(detail::var_value<BlueprintFieldType, var>
+                    (variables[result_value], assignment, internal_storage, true).data));
                 for (var v : result) {
                     ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
                     memory.store(result_ptr++, v);
@@ -89,6 +91,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -104,11 +107,11 @@ namespace nil {
             std::size_t bitness_from_intrinsic = extract_constant_size_t_value<BlueprintFieldType>(bitness_value);
 
             std::vector<var> component_input = extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    input_value, bitness_from_intrinsic, variables, memory, assignment, param.gen_mode);
+                    input_value, bitness_from_intrinsic, variables, memory, assignment, internal_storage, param.gen_mode);
             typename component_type::input_type instance_input({component_input});
 
             return get_component_result<BlueprintFieldType, component_type>
-                (bp, assignment, statistics, param, instance_input, bitness_from_intrinsic, true, Mode);
+                (bp, assignment, internal_storage, statistics, param, instance_input, bitness_from_intrinsic, true, Mode);
             }
         }    // namespace detail
 
@@ -120,6 +123,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -137,7 +141,7 @@ namespace nil {
 
             detail::handle_native_field_decomposition_component<BlueprintFieldType>(
                                 bitness_from_intrinsic, result_value, input, is_msb, frame.vectors,
-                                frame.scalars, memory, bp, assignment, statistics, param);
+                                frame.scalars, memory, bp, assignment, internal_storage, statistics, param);
         }
 
         template<typename BlueprintFieldType>
@@ -148,6 +152,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -161,7 +166,7 @@ namespace nil {
 
             const auto res = detail::handle_native_field_bit_composition_component<BlueprintFieldType>(
                                 result_value, bitness_value, operand_sig_bit, frame.vectors,
-                                frame.scalars, memory,  bp, assignment, statistics, param);
+                                frame.scalars, memory,  bp, assignment, internal_storage, statistics, param);
 
             handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
         }

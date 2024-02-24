@@ -47,20 +47,23 @@ namespace nil {
         };
 
         template<typename VarType>
+        struct memory_state {
+            ptr_type stack_top;
+            size_t heap_top;
+            std::stack<ptr_type> frames;
+            std::vector<cell<VarType>> heap;
+            std::vector<cell<VarType>> stack;
+        };
+
+        template<typename VarType>
         struct program_memory : public std::vector<cell<VarType>> {
         public:
             program_memory(size_t stack_size) : stack_size(stack_size), heap_top(stack_size) {
                 this->push_back({VarType(), 0, 0});
                 this->resize(heap_top);
                 this->push_back({VarType(), stack_size + 1, 0});
+                heap_top++;
                 push_frame();
-            }
-
-            void stack_push(size_t offset, int8_t size, int8_t following) {
-                cell<VarType> &new_cell = this->operator[](stack_top++);
-                new_cell.offset = offset;
-                new_cell.size = size;
-                new_cell.following = following;
             }
 
             void push_frame() {
@@ -91,6 +94,7 @@ namespace nil {
                 ptr_type res = this->size();
                 for (size_t i = 0; i < num_bytes; ++i) {
                     this->push_back(cell<VarType>{VarType(), offset++, 1});
+                    heap_top++;
                 }
                 return res;
             }
@@ -124,6 +128,14 @@ namespace nil {
             }
 
         private:
+
+            void stack_push(size_t offset, int8_t size, int8_t following) {
+                cell<VarType> &new_cell = this->operator[](stack_top++);
+                new_cell.offset = offset;
+                new_cell.size = size;
+                new_cell.following = following;
+            }
+
             ptr_type stack_top = 1;
             size_t stack_size;
             size_t heap_top;

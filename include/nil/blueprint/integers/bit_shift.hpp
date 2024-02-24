@@ -47,6 +47,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param,
             typename nil::blueprint::components::bit_shift_mode left_or_right) {
@@ -68,7 +69,7 @@ namespace nil {
             using nil::blueprint::components::bit_shift_mode;
 
             return get_component_result<BlueprintFieldType, component_type>
-                (bp, assignment, statistics, param, instance_input, Bitness, Shift, left_or_right);
+                (bp, assignment, internal_storage, statistics, param, instance_input, Bitness, Shift, left_or_right);
             }
         }    // namespace detail
 
@@ -79,6 +80,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param,
             typename nil::blueprint::components::bit_shift_mode left_or_right) {
@@ -94,7 +96,7 @@ namespace nil {
             std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
 
             const auto res = detail::handle_native_field_bit_shift_constant_component<BlueprintFieldType>(
-                                bitness, operand0, operand1, frame.scalars, bp, assignment, statistics, param, left_or_right);
+                                bitness, operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param, left_or_right);
             handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
         }
 

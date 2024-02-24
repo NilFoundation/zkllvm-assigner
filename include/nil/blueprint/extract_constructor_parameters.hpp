@@ -32,7 +32,7 @@ namespace nil {
 
             template <typename BlueprintFieldType>
             typename BlueprintFieldType::value_type extract_constant_field_value(llvm::Value *input_value){
-                std::vector<typename BlueprintFieldType::value_type> marshalled_value = marshal_field_val<BlueprintFieldType>(input_value);
+                column_type<BlueprintFieldType> marshalled_value = marshal_field_val<BlueprintFieldType>(input_value);
                 ASSERT(marshalled_value.size() == 1);
                 return marshalled_value[0];
             }
@@ -74,29 +74,24 @@ namespace nil {
 
             template<typename BlueprintFieldType, typename var>
             std::vector<var> extract_intrinsic_input_vector(llvm::Value *input_value, std::size_t input_length,
-            typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
-                program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
+            typename std::map<const llvm::Value *, var> &variables,
+                program_memory<var> &memory,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
-                    &assignment, generation_mode gen_mode
-                ) {
+                    &assignment,
+                column_type<BlueprintFieldType> &internal_storage, generation_mode gen_mode) {
                 std::vector<var> res = {};
+                ptr_type input_ptr = static_cast<ptr_type>(
+                    typename BlueprintFieldType::integral_type(detail::var_value<BlueprintFieldType, var>(variables[input_value], assignment, internal_storage, gen_mode.has_assignments()).data));
                 if (gen_mode.has_assignments()) {
-                    ptr_type input_ptr = static_cast<ptr_type>(
-                        typename BlueprintFieldType::integral_type(var_value(assignment, variables[input_value]).data));
                     for (std::size_t i = 0; i < input_length; i++) {
                         ASSERT(memory[input_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                        const auto origin_var = memory.load(input_ptr++);
-                        const auto wrapper = detail::put_constant<typename BlueprintFieldType::value_type,
-                                                                  BlueprintFieldType, var>
-                            (var_value(assignment, origin_var), assignment);
-                        res.push_back(wrapper);
+                        const auto v = memory.load(input_ptr++);
+                        const auto value = detail::var_value<BlueprintFieldType, var>(v, assignment, internal_storage, true);
+                        res.push_back(detail::put_internal_value<typename BlueprintFieldType::value_type, BlueprintFieldType, var>(value, internal_storage));
                     }
                 } else {
-                    const auto undef_val = typename BlueprintFieldType::value_type();
                     for (std::size_t i = 0; i < input_length; i++) {
-                        const auto undef_var = detail::put_constant<typename BlueprintFieldType::value_type,
-                                                                    BlueprintFieldType, var>(undef_val, assignment);
-                        res.push_back(undef_var);
+                        res.push_back(detail::put_internal_value<typename BlueprintFieldType::value_type, BlueprintFieldType, var>(0, internal_storage));
                     }
                 }
                 return res;

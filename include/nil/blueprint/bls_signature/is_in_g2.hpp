@@ -47,9 +47,10 @@ namespace nil {
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
-                &assignment,
-                component_calls &statistics,
-                const common_component_parameters& param) {
+            &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
+            component_calls &statistics,
+            const common_component_parameters& param) {
 
                     using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
@@ -72,7 +73,7 @@ namespace nil {
                     instance_input.Y = Y;
 
                     handle_component<BlueprintFieldType, component_type>
-                        (bp, assignment, statistics, param, instance_input, inst, frame);
+                        (bp, assignment, internal_storage, statistics, param, instance_input, inst, frame);
         }
 
     }    // namespace blueprint

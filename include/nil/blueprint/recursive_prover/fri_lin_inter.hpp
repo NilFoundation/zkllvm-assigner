@@ -45,6 +45,7 @@ namespace nil {
             circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            column_type<BlueprintFieldType> &internal_storage,
             component_calls &statistics,
             const common_component_parameters& param) {
 
@@ -60,7 +61,7 @@ namespace nil {
             typename component_type::input_type instance_input({s, y0, y1, alpha});
 
             handle_component<BlueprintFieldType, component_type>
-                    (bp, assignment, statistics, param, instance_input, inst, frame);
+                    (bp, assignment, internal_storage, statistics, param, instance_input, inst, frame);
 
         }
 
