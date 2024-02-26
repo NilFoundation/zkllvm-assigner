@@ -39,7 +39,7 @@ namespace nil {
     namespace blueprint {
         namespace detail {
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_native_fri_cosets_component(
             llvm::Value *result_value,
             llvm::Value *result_length_value,
@@ -48,8 +48,8 @@ namespace nil {
             typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
             typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             const common_component_parameters& param) {
@@ -61,10 +61,10 @@ namespace nil {
             std::size_t res_length = extract_constant_size_t_value<BlueprintFieldType>(result_length_value);
 
             using component_type = components::fri_cosets<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
             typename component_type::input_type instance_input({component_input});
 
-            const auto& result = get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+            const auto& result = get_component_result<BlueprintFieldType, component_type>
                 (bp, assignment, statistics, param, instance_input, res_length, omega).output;
 
             if (param.gen_mode.has_assignments()) {
@@ -81,13 +81,13 @@ namespace nil {
 
         }    // namespace detail
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_fri_cosets_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             const common_component_parameters& param) {
@@ -97,7 +97,7 @@ namespace nil {
             llvm::Value *omega_value = inst->getOperand(2);
             llvm::Value *input = inst->getOperand(3);
 
-            detail::handle_native_fri_cosets_component<BlueprintFieldType, ArithmetizationParams>(
+            detail::handle_native_fri_cosets_component<BlueprintFieldType>(
                 result_value, result_length_value, omega_value, input, frame.vectors, frame.scalars, memory, bp, assignment, statistics, param);
 
         }

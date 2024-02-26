@@ -50,13 +50,13 @@ namespace nil {
             template<typename ArithmetizationType, typename BlueprintFieldType>
             class fp12_multiplication;
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
-            class fp12_multiplication<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+            template<typename BlueprintFieldType>
+            class fp12_multiplication<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                            BlueprintFieldType>
-                : public plonk_component<BlueprintFieldType, ArithmetizationParams, 0, 0> {
+                : public plonk_component<BlueprintFieldType> {
 
             public:
-                using component_type = plonk_component<BlueprintFieldType, ArithmetizationParams, 0, 0>;
+                using component_type = plonk_component<BlueprintFieldType>;
 
                 using var = typename component_type::var;
                 using manifest_type = plonk_component_manifest;
@@ -143,18 +143,18 @@ namespace nil {
                     component_type(witnesses, constants, public_inputs, get_manifest()) {};
             };
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
+            template<typename BlueprintFieldType>
             using plonk_fp12_multiplication =
                 fp12_multiplication<
-                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                     BlueprintFieldType>;
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
-            typename plonk_fp12_multiplication<BlueprintFieldType, ArithmetizationParams>::result_type generate_assignments(
-                const plonk_fp12_multiplication<BlueprintFieldType, ArithmetizationParams> &component,
-                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            template<typename BlueprintFieldType>
+            typename plonk_fp12_multiplication<BlueprintFieldType>::result_type generate_assignments(
+                const plonk_fp12_multiplication<BlueprintFieldType> &component,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
-                const typename plonk_fp12_multiplication<BlueprintFieldType, ArithmetizationParams>::input_type
+                const typename plonk_fp12_multiplication<BlueprintFieldType>::input_type
                     &instance_input,
                 const std::uint32_t start_row_index) {
 
@@ -183,42 +183,42 @@ namespace nil {
                     assignment.witness(component.W((24 + i) % WA),start_row_index + (24 + i)/WA) = C.data[i/6].data[(i % 6)/2].data[i % 2];
                 }
 
-                return typename plonk_fp12_multiplication<BlueprintFieldType, ArithmetizationParams>::result_type(
+                return typename plonk_fp12_multiplication<BlueprintFieldType>::result_type(
                     component, start_row_index);
 	    }
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
+            template<typename BlueprintFieldType>
             std::size_t generate_gates(
-                const plonk_fp12_multiplication<BlueprintFieldType, ArithmetizationParams> &component,
-                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                const plonk_fp12_multiplication<BlueprintFieldType> &component,
+                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
-                const typename plonk_fp12_multiplication<BlueprintFieldType, ArithmetizationParams>::input_type
+                const typename plonk_fp12_multiplication<BlueprintFieldType>::input_type
                     &instance_input) {
 
             }
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
+            template<typename BlueprintFieldType>
             void generate_copy_constraints(
-                const plonk_fp12_multiplication<BlueprintFieldType, ArithmetizationParams> &component,
-                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                const plonk_fp12_multiplication<BlueprintFieldType> &component,
+                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
-                const typename plonk_fp12_multiplication<BlueprintFieldType, ArithmetizationParams>::input_type &instance_input,
+                const typename plonk_fp12_multiplication<BlueprintFieldType>::input_type &instance_input,
                 const std::size_t start_row_index) {
 
             }
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
-            typename plonk_fp12_multiplication<BlueprintFieldType, ArithmetizationParams>::result_type generate_circuit(
-                const plonk_fp12_multiplication<BlueprintFieldType, ArithmetizationParams> &component,
-                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            template<typename BlueprintFieldType>
+            typename plonk_fp12_multiplication<BlueprintFieldType>::result_type generate_circuit(
+                const plonk_fp12_multiplication<BlueprintFieldType> &component,
+                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
-                const typename plonk_fp12_multiplication<BlueprintFieldType, ArithmetizationParams>::input_type &instance_input,
+                const typename plonk_fp12_multiplication<BlueprintFieldType>::input_type &instance_input,
                 const std::size_t start_row_index) {
 
-                return typename plonk_fp12_multiplication<BlueprintFieldType, ArithmetizationParams>::result_type(
+                return typename plonk_fp12_multiplication<BlueprintFieldType>::result_type(
                     component, start_row_index);
             }
 

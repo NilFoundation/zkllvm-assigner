@@ -42,22 +42,22 @@ namespace nil {
     namespace blueprint {
         namespace detail {
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams, typename CurveType>
+            template<typename BlueprintFieldType, typename CurveType>
             typename components::unified_addition<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                 CurveType>::result_type
                 handle_native_curve_unified_addition_component(
                     llvm::Value *operand0, llvm::Value *operand1,
                     typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
-                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
                     component_calls &statistics,
                     const common_component_parameters& param) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
-                using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
+                using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
                 using component_type = components::unified_addition<ArithmetizationType, CurveType>;
 
                 struct var_ec_point {
@@ -70,28 +70,28 @@ namespace nil {
 
                 typename component_type::input_type addition_input = {{P.X, P.Y}, {Q.X, Q.Y}};
 
-                return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                return get_component_result<BlueprintFieldType, component_type>
                     (bp, assignment, statistics, param, addition_input);
             }
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams, typename CurveType, typename Ed25519Type>
+            template<typename BlueprintFieldType, typename CurveType, typename Ed25519Type>
             typename components::complete_addition<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                 CurveType,
                 Ed25519Type,
                 basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_non_native_curve_addition_component(
                     llvm::Value *operand0, llvm::Value *operand1,
                     typename std::map<const llvm::Value *, std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>>> &vectors,
-                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
                     component_calls &statistics,
                     const common_component_parameters& param) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
-                using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
+                using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
                 using component_type = components::complete_addition<ArithmetizationType, CurveType,
                             Ed25519Type, basic_non_native_policy<BlueprintFieldType>>;
 
@@ -128,17 +128,17 @@ namespace nil {
 
                 typename component_type::input_type addition_input = {{P.X, P.Y}, {Q.X, Q.Y}};
 
-                return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                return get_component_result<BlueprintFieldType, component_type>
                     (bp, assignment, statistics, param, addition_input);
             }
         }    // namespace detail
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_curve_addition_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             const common_component_parameters& param) {
@@ -167,13 +167,13 @@ namespace nil {
                     else {
 
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                            using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
+                            using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
                             using component_type = components::unified_addition<ArithmetizationType, operating_curve_type>;
                             typename component_type::result_type res =
-                                detail::handle_native_curve_unified_addition_component<BlueprintFieldType, ArithmetizationParams, operating_curve_type>(
+                                detail::handle_native_curve_unified_addition_component<BlueprintFieldType, operating_curve_type>(
                                     operand0, operand1, frame.vectors, bp, assignment, statistics, param);
                             std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = {res.X, res.Y};
-                            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, param.gen_mode);
+                            handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
                         } else {
                             UNREACHABLE("non-native pallas is undefined");
                         }
@@ -207,13 +207,13 @@ namespace nil {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             UNREACHABLE("native curve25519 addition is not implemented");
                         } else {
-                            using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>;
+                            using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
                             using component_type = components::complete_addition<ArithmetizationType, pallas_curve_type,
                                 operating_curve_type, basic_non_native_policy<BlueprintFieldType>>;
                             typename component_type::result_type res =
-                                detail::handle_non_native_curve_addition_component<BlueprintFieldType, ArithmetizationParams, pallas_curve_type, operating_curve_type>(
+                                detail::handle_non_native_curve_addition_component<BlueprintFieldType, pallas_curve_type, operating_curve_type>(
                                     operand0, operand1, frame.vectors, bp, assignment, statistics, param);
-                            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, param.gen_mode);
+                            handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
                         }
                     }
 

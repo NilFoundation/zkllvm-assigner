@@ -40,19 +40,19 @@
 
 namespace nil {
     namespace blueprint {
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_sha2_512_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             common_component_parameters param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             using sha2_512_component_type = components::sha512<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>;
 
             constexpr const std::int32_t ec_point_size = 2*4;
             constexpr const std::int32_t input_size = 2*ec_point_size + 4;
@@ -74,14 +74,14 @@ namespace nil {
                 input_vars[18], input_vars[19]}}};
 
             typename sha2_512_component_type::result_type sha2_512_component_result =
-                get_component_result<BlueprintFieldType, ArithmetizationParams, sha2_512_component_type>
+                get_component_result<BlueprintFieldType, sha2_512_component_type>
                     (bp, assignment, statistics, param, sha2_512_instance_input);
 
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, sha2_512_component_type>
+            handle_component_result<BlueprintFieldType, sha2_512_component_type>
                 (assignment, inst, frame, sha2_512_component_result, param.gen_mode);
 
             using reduction_component_type = components::reduction<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType,
                 basic_non_native_policy<BlueprintFieldType>>;
 
             param.start_row = assignment.allocated_rows();
@@ -89,10 +89,10 @@ namespace nil {
             typename reduction_component_type::input_type reduction_instance_input = {sha2_512_component_result.output_state};
 
             typename reduction_component_type::result_type reduction_component_result =
-                    get_component_result<BlueprintFieldType, ArithmetizationParams, reduction_component_type>
+                    get_component_result<BlueprintFieldType, reduction_component_type>
                             (bp, assignment, statistics, param, reduction_instance_input);
 
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, reduction_component_type>
+            handle_component_result<BlueprintFieldType, reduction_component_type>
                     (assignment, inst, frame, reduction_component_result, param.gen_mode);
         }
     }    // namespace blueprint

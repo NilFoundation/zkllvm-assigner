@@ -37,13 +37,13 @@
 namespace nil {
     namespace blueprint {
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_lookup_arg_verifier_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             const common_component_parameters& param) {
@@ -72,7 +72,7 @@ namespace nil {
 
             for (std::size_t i = 0; i < 9; i++) {
                 size = detail::extract_constant_size_t_value<BlueprintFieldType>(inst->getOperand(8 + i * 2 + 1));
-                input_vectors.push_back(detail::extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
+                input_vectors.push_back(detail::extract_intrinsic_input_vector<BlueprintFieldType, var>(
                     inst->getOperand(8 + i * 2), size, frame.scalars, memory, assignment, param.gen_mode));
             }
 
@@ -89,7 +89,7 @@ namespace nil {
 
 
                 using component_type = components::lookup_verifier<
-                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
+                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>;
 
                 typename component_type::input_type instance_input = {
                     theta,
@@ -110,7 +110,7 @@ namespace nil {
                     input_vectors[8]
                 };
 
-                handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
+                handle_component<BlueprintFieldType, component_type>
                     (bp, assignment, statistics, param, instance_input, inst, frame,
                      lookup_gate_size,
                      lookup_gate_constraints_sizes,

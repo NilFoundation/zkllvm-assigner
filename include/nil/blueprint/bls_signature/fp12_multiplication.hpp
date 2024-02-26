@@ -41,12 +41,12 @@
 namespace nil {
     namespace blueprint {
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_fp12_mul(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 component_calls &statistics,
                 const common_component_parameters& param) {
@@ -54,7 +54,7 @@ namespace nil {
                     using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
                     using component_type = components::fp12_multiplication<
-                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                         BlueprintFieldType>;
 
                     std::vector<var> x = frame.vectors[inst->getOperand(0)];
@@ -78,7 +78,7 @@ namespace nil {
                     instance_input.a = x_arr;
                     instance_input.b = y_arr;
 
-                    handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
+                    handle_component<BlueprintFieldType, component_type>
                         (bp, assignment, statistics, param, instance_input, inst, frame);
         }
 

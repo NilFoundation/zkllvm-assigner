@@ -36,15 +36,15 @@
 namespace nil {
     namespace blueprint {
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
+        template<typename BlueprintFieldType, typename ComponentType>
         typename ComponentType::result_type
         handle_comparison_component_eq_neq(
                 llvm::CmpInst::Predicate p,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &x,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &y,
                 std::size_t Bitness,
-                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 component_calls &statistics,
                 const common_component_parameters& param) {
@@ -53,12 +53,12 @@ namespace nil {
 
             switch (p) {
                 case llvm::CmpInst::ICMP_EQ: {
-                    return get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
+                    return get_component_result<BlueprintFieldType, ComponentType>
                             (bp, assignment, statistics, param, instance_input, false);
                     break;
                 }
                 case llvm::CmpInst::ICMP_NE:{
-                    return get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
+                    return get_component_result<BlueprintFieldType, ComponentType>
                             (bp, assignment, statistics, param, instance_input, true);
                     break;
                 }
@@ -68,15 +68,15 @@ namespace nil {
             }
         }
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams, typename ComponentType>
+        template<typename BlueprintFieldType, typename ComponentType>
         typename ComponentType::result_type
             handle_comparison_component_others(
                 llvm::CmpInst::Predicate p,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &x,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &y,
                 std::size_t Bitness,
-                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 component_calls &statistics,
                 const common_component_parameters& param) {
@@ -108,18 +108,18 @@ namespace nil {
                     break;
             }
 
-            return get_component_result<BlueprintFieldType, ArithmetizationParams, ComponentType>
+            return get_component_result<BlueprintFieldType, ComponentType>
                 (bp, assignment, statistics, param, instance_input, Mode);
 
         }
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
             void handle_comparison_component(
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
                 llvm::CmpInst::Predicate p,
-                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 component_calls &statistics,
                 const common_component_parameters& param
@@ -137,13 +137,13 @@ namespace nil {
                 case llvm::CmpInst::ICMP_EQ:
                 case llvm::CmpInst::ICMP_NE: {
                     using eq_component_type = components::equality_flag<
-                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
 
                     const auto& component_result = handle_comparison_component_eq_neq<
-                        BlueprintFieldType, ArithmetizationParams, eq_component_type>(
+                        BlueprintFieldType, eq_component_type>(
                             p, x, y, bitness, bp, assignment, statistics, param);
 
-                    handle_component_result<BlueprintFieldType, ArithmetizationParams, eq_component_type>
+                    handle_component_result<BlueprintFieldType, eq_component_type>
                         (assignment, inst, frame, component_result, param.gen_mode);
                     break;
                 }
@@ -157,13 +157,13 @@ namespace nil {
                 case llvm::CmpInst::ICMP_SLT:
                 case llvm::CmpInst::ICMP_ULT: {
                     using comp_component_type = components::comparison<
-                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
 
                     const auto& component_result = handle_comparison_component_others<
-                        BlueprintFieldType, ArithmetizationParams, comp_component_type>(
+                        BlueprintFieldType, comp_component_type>(
                             p, x, y, bitness, bp, assignment, statistics, param);
 
-                    handle_component_result<BlueprintFieldType, ArithmetizationParams, comp_component_type>
+                    handle_component_result<BlueprintFieldType, comp_component_type>
                         (assignment, inst, frame, component_result, param.gen_mode);
                     break;
                 }

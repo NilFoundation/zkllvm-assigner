@@ -40,19 +40,19 @@
 
 namespace nil {
     namespace blueprint {
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_sha2_256_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             const common_component_parameters& param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
             using component_type = components::sha256<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>;
 
             constexpr const std::int32_t block_size = 2;
             constexpr const std::int32_t input_blocks_amount = 2;
@@ -66,7 +66,7 @@ namespace nil {
 
             typename component_type::input_type instance_input = {input_block_vars};
 
-            handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
+            handle_component<BlueprintFieldType, component_type>
                     (bp, assignment, statistics, param, instance_input, inst, frame);
         }
     }    // namespace blueprint

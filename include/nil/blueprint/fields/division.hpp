@@ -42,15 +42,15 @@ namespace nil {
     namespace blueprint {
         namespace detail {
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
+            template<typename BlueprintFieldType>
             typename components::division<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                 BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>::result_type
                 handle_native_field_division_component(
                     llvm::Value *operand0, llvm::Value *operand1,
                     typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
-                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                    assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
                     component_calls &statistics,
                     const common_component_parameters& param) {
@@ -58,32 +58,32 @@ namespace nil {
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
                 using component_type = components::division<
-                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                     BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
 
                 var x = variables[operand0];
                 var y = variables[operand1];
                 typename component_type::input_type instance_input({x, y});
 
-                return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                return get_component_result<BlueprintFieldType, component_type>
                     (bp, assignment, statistics, param, instance_input);
             }
 
         }    // namespace detail
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_field_division_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             const common_component_parameters& param) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
             using component_type = components::division<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                 BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
 
             llvm::Value *operand0 = inst->getOperand(0);
@@ -101,9 +101,9 @@ namespace nil {
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         const auto res =
-                            detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
+                            detail::handle_native_field_division_component<BlueprintFieldType>(
                                 operand0, operand1, frame.scalars, bp, assignment, statistics, param);
-                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, param.gen_mode);
+                        handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
                     } else {
                         UNREACHABLE("Non-native bls12-381 is undefined yet");
                     }
@@ -115,9 +115,9 @@ namespace nil {
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         const auto res =
-                            detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
+                            detail::handle_native_field_division_component<BlueprintFieldType>(
                                 operand0, operand1, frame.scalars, bp, assignment, statistics, param);
-                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, param.gen_mode);
+                        handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
                     } else {
                         UNREACHABLE("Non-native pallas is undefined yet");
                     }
@@ -129,9 +129,9 @@ namespace nil {
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                         const auto res =
-                            detail::handle_native_field_division_component<BlueprintFieldType, ArithmetizationParams>(
+                            detail::handle_native_field_division_component<BlueprintFieldType>(
                                 operand0, operand1, frame.scalars, bp, assignment, statistics, param);
-                        handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, param.gen_mode);
+                        handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
                     } else {
                         UNREACHABLE("Non-native ed25519 division is not implemented yet");
                     }
