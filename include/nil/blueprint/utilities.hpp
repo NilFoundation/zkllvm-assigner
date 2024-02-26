@@ -44,17 +44,16 @@ namespace nil {
                 }
             };
 
-            template<typename ArithmetizationParams>
             struct CompilerRestrictions {
-                inline static compiler_manifest common_restriction_manifest = compiler_manifest(ArithmetizationParams::witness_columns,
+                inline static compiler_manifest common_restriction_manifest = compiler_manifest(15, // TODO hardcoded
                                                                                                 std::numeric_limits<std::int32_t>::max() - 1,
                                                                                                 std::numeric_limits<std::int32_t>::max(), true);
             };
 
-            template<typename ComponentType, typename ArithmetizationParams>
+            template<typename ComponentType>
             struct ManifestReader {
                 inline static typename ComponentType::manifest_type manifest =
-                        CompilerRestrictions<ArithmetizationParams>::common_restriction_manifest.intersect(ComponentType::get_manifest());
+                        CompilerRestrictions::common_restriction_manifest.intersect(ComponentType::get_manifest());
 
                 template<typename... Args>
                 static std::vector <std::pair<std::uint32_t, std::uint32_t>>
@@ -91,18 +90,18 @@ namespace nil {
                 }
             };
 
-            template<typename InputType, typename BlueprintFieldType, typename ArithmetizationParams, typename var>
+            template<typename InputType, typename BlueprintFieldType, typename var>
             var put_shared(InputType input,
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &assignment) {
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &assignment) {
                 const auto& shared_idx = assignment.shared_column_size(0);
                 assignment.shared(0, shared_idx) = input;
                 return var(1, shared_idx, false, var::column_type::public_input);
             }
 
             // TODO: column index is hardcoded but shouldn't be in the future
-            template<typename InputType, typename BlueprintFieldType, typename ArithmetizationParams, typename var>
+            template<typename InputType, typename BlueprintFieldType, typename var>
             var put_constant(InputType input,
-                           assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &assignment) {
+                           assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &assignment) {
                 const auto& constant_idx = assignment.constant(1).size();
                 assignment.constant(1, constant_idx) = input;
                 return var(1, constant_idx, false, var::column_type::constant);

@@ -41,12 +41,12 @@
 namespace nil {
     namespace blueprint {
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_h2c(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 component_calls &statistics,
                 const common_component_parameters& param) {
@@ -54,7 +54,7 @@ namespace nil {
                     using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
                     using component_type = components::h2c<
-                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                         BlueprintFieldType>;
 
                     var input = frame.scalars[inst->getOperand(0)];
@@ -62,7 +62,7 @@ namespace nil {
                     typename component_type::input_type instance_input;
                     instance_input.input = input;
 
-                    handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
+                    handle_component<BlueprintFieldType, component_type>
                         (bp, assignment, statistics, param, instance_input, inst, frame);
         }
 

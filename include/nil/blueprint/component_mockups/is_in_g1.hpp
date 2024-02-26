@@ -45,13 +45,12 @@ namespace nil {
             template<typename ArithmetizationType, typename FieldType>
             class is_in_g1;
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams, typename FieldType>
-            class is_in_g1<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
-                           FieldType>
-                : public plonk_component<BlueprintFieldType, ArithmetizationParams, 0, 0> {
+            template<typename BlueprintFieldType, typename FieldType>
+            class is_in_g1<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, FieldType>
+                : public plonk_component<BlueprintFieldType> {
 
             public:
-                using component_type = plonk_component<BlueprintFieldType, ArithmetizationParams, 0, 0>;
+                using component_type = plonk_component<BlueprintFieldType>;
 
 
                 constexpr static const std::size_t gates_amount = 0;
@@ -103,9 +102,8 @@ namespace nil {
                 struct result_type {
                     var output;
 
-                    result_type(const is_in_g1<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType,
-                                                                                           ArithmetizationParams>,
-                                               FieldType> &component,
+                    result_type(const is_in_g1<crypto3::zk::snark::plonk_constraint_system<
+                        BlueprintFieldType>, FieldType> &component,
                                 std::uint32_t start_row_index) {
                         output = var(component.W(0), start_row_index, false);
                     }
@@ -135,42 +133,42 @@ namespace nil {
                     component_type(witnesses, constants, public_inputs, get_manifest()) {};
             };
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams, typename FieldType>
+            template<typename BlueprintFieldType, typename FieldType>
             using plonk_is_in_g1 =
-                is_in_g1<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                is_in_g1<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                          FieldType>;
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams, typename FieldType>
-            typename plonk_is_in_g1<BlueprintFieldType, ArithmetizationParams, FieldType>::result_type
+            template<typename BlueprintFieldType, typename FieldType>
+            typename plonk_is_in_g1<BlueprintFieldType, FieldType>::result_type
                 generate_assignments(
-                    const plonk_is_in_g1<BlueprintFieldType, ArithmetizationParams, FieldType> &component,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    const plonk_is_in_g1<BlueprintFieldType, FieldType> &component,
+                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
-                    const typename plonk_is_in_g1<BlueprintFieldType, ArithmetizationParams, FieldType>::input_type
+                    const typename plonk_is_in_g1<BlueprintFieldType, FieldType>::input_type
                         instance_input,
                     const std::uint32_t start_row_index) {
 
-                using component_type = plonk_is_in_g1<BlueprintFieldType, ArithmetizationParams, FieldType>;
+                using component_type = plonk_is_in_g1<BlueprintFieldType, FieldType>;
 
                 assignment.witness(component.W(0), start_row_index) = 1;
 
-                return typename plonk_is_in_g1<BlueprintFieldType, ArithmetizationParams, FieldType>::result_type(
+                return typename plonk_is_in_g1<BlueprintFieldType, FieldType>::result_type(
                     component, start_row_index);
             }
 
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams, typename FieldType>
-            typename plonk_is_in_g1<BlueprintFieldType, ArithmetizationParams, FieldType>::result_type
+            template<typename BlueprintFieldType, typename FieldType>
+            typename plonk_is_in_g1<BlueprintFieldType, FieldType>::result_type
                 generate_circuit(
-                    const plonk_is_in_g1<BlueprintFieldType, ArithmetizationParams, FieldType> &component,
-                    circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                    const plonk_is_in_g1<BlueprintFieldType, FieldType> &component,
+                    circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
-                    const typename plonk_is_in_g1<BlueprintFieldType, ArithmetizationParams, FieldType>::input_type
+                    const typename plonk_is_in_g1<BlueprintFieldType, FieldType>::input_type
                         &instance_input,
                     const std::size_t start_row_index) {
 
-                return typename plonk_is_in_g1<BlueprintFieldType, ArithmetizationParams, FieldType>::result_type(
+                return typename plonk_is_in_g1<BlueprintFieldType, FieldType>::result_type(
                     component, start_row_index);
             }
         }    // namespace components

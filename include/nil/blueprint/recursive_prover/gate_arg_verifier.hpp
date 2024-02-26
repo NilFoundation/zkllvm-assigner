@@ -38,9 +38,9 @@ namespace nil {
     namespace blueprint {
         namespace detail {
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
+            template<typename BlueprintFieldType>
             typename components::basic_constraints_verifier<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>::result_type
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>::result_type
             handle_native_gate_arg_verifier_component(
                 llvm::Value *selectors_value,
                 llvm::Value *gates_sizes_value,
@@ -50,8 +50,8 @@ namespace nil {
                 llvm::Value *theta_value,
                 typename std::map<const llvm::Value *, crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &variables,
                 program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
                 component_calls &statistics,
                 const common_component_parameters& param) {
@@ -84,31 +84,31 @@ namespace nil {
                 }
 
 
-                std::vector<var> selectors = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
+                std::vector<var> selectors = extract_intrinsic_input_vector<BlueprintFieldType, var>(
                     selectors_value, gates_amount, variables, memory, assignment, param.gen_mode);
 
-                std::vector<var> constraints = extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
+                std::vector<var> constraints = extract_intrinsic_input_vector<BlueprintFieldType, var>(
                     constraints_value, constraints_amount, variables, memory, assignment, param.gen_mode);
 
                 using component_type = components::basic_constraints_verifier<
-                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
+                    crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>;
 
                 typename component_type::input_type instance_input = {theta, constraints, selectors};
 
-                return get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+                return get_component_result<BlueprintFieldType, component_type>
                     (bp, assignment, statistics, param, instance_input, gates_sizes);
 
             }
 
         }    // namespace detail
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_gate_arg_verifier_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             const common_component_parameters& param) {
@@ -121,12 +121,12 @@ namespace nil {
             llvm::Value *theta_value = inst->getOperand(5);
 
             using component_type = components::basic_constraints_verifier<
-            crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>;
+            crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>;
 
-            const auto& res = detail::handle_native_gate_arg_verifier_component<BlueprintFieldType, ArithmetizationParams>(
+            const auto& res = detail::handle_native_gate_arg_verifier_component<BlueprintFieldType>(
                     selectors_value, gates_sizes_value, gates_amount_value, constraints_value, constraints_amount_value, theta_value,
                     frame.scalars, memory, bp, assignment, statistics, param);
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, param.gen_mode);
+            handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
         }
     }    // namespace blueprint
 }    // namespace nil

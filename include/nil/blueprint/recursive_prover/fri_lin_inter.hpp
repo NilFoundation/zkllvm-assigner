@@ -37,13 +37,13 @@
 namespace nil {
     namespace blueprint {
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_fri_lin_inter_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             const common_component_parameters& param) {
@@ -56,10 +56,10 @@ namespace nil {
             var alpha = frame.scalars[inst->getOperand(3)];
 
             using component_type = components::fri_lin_inter<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
             typename component_type::input_type instance_input({s, y0, y1, alpha});
 
-            handle_component<BlueprintFieldType, ArithmetizationParams, component_type>
+            handle_component<BlueprintFieldType, component_type>
                     (bp, assignment, statistics, param, instance_input, inst, frame);
 
         }

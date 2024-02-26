@@ -37,13 +37,13 @@
 namespace nil {
     namespace blueprint {
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_fri_array_swap_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
             program_memory<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &memory,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             const common_component_parameters& param) {
@@ -58,20 +58,20 @@ namespace nil {
             std::size_t array_size = detail::extract_constant_size_t_value<BlueprintFieldType>(array_size_value);
 
 
-            std::vector<var> input_array = detail::extract_intrinsic_input_vector<BlueprintFieldType, ArithmetizationParams, var>(
+            std::vector<var> input_array = detail::extract_intrinsic_input_vector<BlueprintFieldType, var>(
                     input_array_value, array_size, frame.scalars, memory, assignment, param.gen_mode);
 
             var input_bool = frame.scalars[input_bool_value];
 
             using component_type = components::fri_array_swap<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>, BlueprintFieldType>;
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
 
             typename component_type::input_type instance_input = {
                 input_bool,
                 input_array
             };
 
-            std::vector<var> res = get_component_result<BlueprintFieldType, ArithmetizationParams, component_type>
+            std::vector<var> res = get_component_result<BlueprintFieldType, component_type>
                     (bp, assignment, statistics, param, instance_input, array_size / 2).output;
 
             if (param.gen_mode.has_assignments()) {

@@ -42,28 +42,27 @@
 namespace nil {
     namespace blueprint {
 
-        template<typename BlueprintFieldType, typename ArithmetizationParams>
+        template<typename BlueprintFieldType>
         void handle_integer_multiplication_component(
             const llvm::Instruction *inst,
             stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>>
+            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             component_calls &statistics,
             const common_component_parameters& param) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
             using component_type = components::multiplication<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                 BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
 
             llvm::Value *operand0 = inst->getOperand(0);
             llvm::Value *operand1 = inst->getOperand(1);
 
-            const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType,
-                                                                                    ArithmetizationParams>(
+            const auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType>(
                                     operand0, operand1, frame.scalars, bp, assignment, statistics, param);
-            handle_component_result<BlueprintFieldType, ArithmetizationParams, component_type>(assignment, inst, frame, res, param.gen_mode);
+            handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
         }
 
     }    // namespace blueprint

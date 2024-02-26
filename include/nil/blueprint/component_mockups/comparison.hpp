@@ -91,11 +91,11 @@ namespace nil {
             template<typename ArithmetizationType, typename BlueprintFieldType>
             class comparison;
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
+            template<typename BlueprintFieldType>
             class comparison<
-                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType, ArithmetizationParams>,
+                crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
                     BlueprintFieldType>:
-                public plonk_component<BlueprintFieldType, ArithmetizationParams, 1, 0> {
+                public plonk_component<BlueprintFieldType> {
 
                 static std::size_t comparisons_per_gate_instance_internal(std::size_t witness_amount) {
                     return 1 + (witness_amount - 3) / 2;
@@ -137,7 +137,7 @@ namespace nil {
                 }
 
             public:
-                using component_type = plonk_component<BlueprintFieldType, ArithmetizationParams, 1, 0>;
+                using component_type = plonk_component<BlueprintFieldType>;
 
                 using var = typename component_type::var;
                 using manifest_type = nil::blueprint::plonk_component_manifest;
@@ -263,45 +263,42 @@ namespace nil {
 
             };
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
+            template<typename BlueprintFieldType>
             using plonk_comparison =
-                comparison<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType,
-                    ArithmetizationParams>, BlueprintFieldType>;
+                comparison<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,
+                    BlueprintFieldType>;
 
-            template<typename BlueprintFieldType, typename ArithmetizationParams>
-                typename plonk_comparison<BlueprintFieldType, ArithmetizationParams>::result_type
+            template<typename BlueprintFieldType>
+                typename plonk_comparison<BlueprintFieldType>::result_type
                 generate_circuit(
-                    const plonk_comparison<BlueprintFieldType, ArithmetizationParams>
+                    const plonk_comparison<BlueprintFieldType>
                         &component,
-                    circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType,
-                                                                        ArithmetizationParams>>
+                    circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &bp,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType,
-                                                                           ArithmetizationParams>>
+                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
-                    const typename plonk_comparison<BlueprintFieldType, ArithmetizationParams>::input_type
+                    const typename plonk_comparison<BlueprintFieldType>::input_type
                         &instance_input,
                     const std::uint32_t start_row_index) {
 
-                    return typename plonk_comparison<BlueprintFieldType, ArithmetizationParams>::result_type(
+                    return typename plonk_comparison<BlueprintFieldType>::result_type(
                                 component, start_row_index);
                 }
 
-                template<typename BlueprintFieldType, typename ArithmetizationParams>
-                typename plonk_comparison<BlueprintFieldType, ArithmetizationParams>::result_type
+                template<typename BlueprintFieldType>
+                typename plonk_comparison<BlueprintFieldType>::result_type
                 generate_assignments(
-                    const plonk_comparison<BlueprintFieldType, ArithmetizationParams>
+                    const plonk_comparison<BlueprintFieldType>
                         &component,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType,
-                                                                           ArithmetizationParams>>
+                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
-                    const typename plonk_comparison<BlueprintFieldType, ArithmetizationParams>::input_type
+                    const typename plonk_comparison<BlueprintFieldType>::input_type
                         &instance_input,
                     const std::uint32_t start_row_index) {
 
                     std::size_t row = start_row_index;
 
-                    using component_type = plonk_comparison<BlueprintFieldType, ArithmetizationParams>;
+                    using component_type = plonk_comparison<BlueprintFieldType>;
                     using value_type = typename BlueprintFieldType::value_type;
                     using integral_type = typename BlueprintFieldType::integral_type;
 
@@ -335,20 +332,19 @@ namespace nil {
                     return typename component_type::result_type(component, start_row_index);
                 }
 
-                template<typename BlueprintFieldType, typename ArithmetizationParams>
-                typename plonk_comparison<BlueprintFieldType, ArithmetizationParams>::result_type
+                template<typename BlueprintFieldType>
+                typename plonk_comparison<BlueprintFieldType>::result_type
                 generate_empty_assignments(
-                    const plonk_comparison<BlueprintFieldType, ArithmetizationParams>
+                    const plonk_comparison<BlueprintFieldType>
                         &component,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType,
-                                                                           ArithmetizationParams>>
+                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
-                    const typename plonk_comparison<BlueprintFieldType, ArithmetizationParams>::input_type
+                    const typename plonk_comparison<BlueprintFieldType>::input_type
                         &instance_input,
                     const std::uint32_t start_row_index) {
                     std::size_t row = start_row_index;
 
-                    using component_type = plonk_comparison<BlueprintFieldType, ArithmetizationParams>;
+                    using component_type = plonk_comparison<BlueprintFieldType>;
                     using value_type = typename BlueprintFieldType::value_type;
                     using integral_type = typename BlueprintFieldType::integral_type;
 
