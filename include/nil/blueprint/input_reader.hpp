@@ -30,7 +30,6 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
 
-#include <nil/blueprint/layout_resolver.hpp>
 #include <nil/blueprint/memory.hpp>
 #include <nil/blueprint/signature_parser.hpp>
 #include <nil/blueprint/stack.hpp>
@@ -44,6 +43,8 @@
 
 #include <nil/blueprint/utilities.hpp>
 
+using namespace nil::blueprint::mem;
+
 namespace nil {
     namespace blueprint {
 
@@ -51,7 +52,7 @@ namespace nil {
         class InputReader {
         public:
             InputReader(stack_frame<var> &frame, program_memory<var> &memory, Assignment &assignmnt,
-                        LayoutResolver &layout_resolver, column_type<BlueprintFieldType> &internal_storage, bool has_values) :
+                        TypeLayoutResolver &layout_resolver, column_type<BlueprintFieldType> &internal_storage, bool has_values) :
                 frame(frame),
                 layout_resolver(layout_resolver), internal_storage(internal_storage), memory(memory), assignmnt(assignmnt), has_values(has_values) {
                 ASSERT(public_input_only == false);
@@ -59,7 +60,7 @@ namespace nil {
             }
 
             InputReader(stack_frame<var> &frame, program_memory<var> &memory, Assignment &assignmnt,
-                        LayoutResolver &layout_resolver, column_type<BlueprintFieldType> &internal_storage) :
+                        TypeLayoutResolver &layout_resolver, column_type<BlueprintFieldType> &internal_storage) :
                 frame(frame),
                 layout_resolver(layout_resolver), internal_storage(internal_storage), memory(memory), assignmnt(assignmnt), has_values(true) {
                 ASSERT(public_input_only == true);
@@ -398,8 +399,7 @@ namespace nil {
                 }
 
                 if (!has_values) {
-                    type_layout string_layout(1, {1,0});
-                    ptr_type ptr = memory.add_cells(string_layout);
+                    ptr_type ptr = memory.stack_alloca(1);
                     auto pointer_var = pointer_into_assignment(ptr);
                     frame.scalars[arg] = pointer_var;
                     return true;
@@ -414,27 +414,26 @@ namespace nil {
                 }
                 const auto &json_str = value.as_string();
                 size_t string_size = json_str.size() + 1;  // add memory for '\0'
-                type_layout string_layout(string_size, {1,0});
-                ptr_type ptr = memory.add_cells(string_layout);
+                ptr_type ptr = memory.stack_alloca(string_size);
                 auto pointer_var = pointer_into_assignment(ptr);
                 frame.scalars[arg] = pointer_var;
 
                 for (char c : json_str) {
                     auto variable = put_into_assignment(c, is_private);
-                    memory.store(ptr++, variable);
+                    memory.store(ptr++, 1, variable);
                 }
                 // Put '\0' at the end
                 typename BlueprintFieldType::value_type zero_val = 0;
                 auto final_zero = put_into_assignment(zero_val, is_private);
-                memory.store(ptr++, final_zero);
+                memory.store(ptr++, 1, final_zero);
 
                 return true;
             }
 
             bool try_struct(llvm::Value *arg, llvm::StructType *struct_type, const boost::json::value &value,
                             const signature_node &node, bool is_private) {
-                ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(struct_type));
-                if (process_struct(struct_type, value, node, ptr, is_private) == ptr_type(0)) {
+                ptr_type ptr = memory.stack_alloca(layout_resolver.get_type_size(struct_type));
+                if (process_struct(struct_type, value, node, ptr, is_private) == NULL_PTR) {
                     return false;
                 }
                 auto variable = pointer_into_assignment(ptr);
@@ -444,8 +443,8 @@ namespace nil {
 
             bool try_array(llvm::Value *arg, llvm::ArrayType *array_type, const boost::json::value &value,
                            const signature_node &node, bool is_private) {
-                ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(array_type));
-                if (process_array(array_type, value, node, ptr, is_private) == ptr_type(0)) {
+                ptr_type ptr = memory.stack_alloca(layout_resolver.get_type_size(array_type));
+                if (process_array(array_type, value, node, ptr, is_private) == NULL_PTR) {
                     return false;
                 }
                 auto variable = pointer_into_assignment(ptr);
@@ -468,13 +467,13 @@ namespace nil {
 
                 if (!value.is_array()) {
                     error << "Array argument must be represented as JSON array, got \"" << value << "\"";
-                    return ptr_type(0);
+                    return NULL_PTR;
                 }
                 auto &arr = value.as_array();
                 if (array_type->getNumElements() != arr.size()) {
                     error << "Expected an array with " << array_type->getNumElements() << " arguments, got \"" << arr
                           << "\"";
-                    return ptr_type(0);
+                    return NULL_PTR;
                 }
                 for (size_t i = 0; i < array_type->getNumElements(); ++i) {
                     if (node.children.size() == 1) {
@@ -482,20 +481,20 @@ namespace nil {
                     } else {
                         if (!arr[i].is_object() || arr[i].as_object().size() != 1) {
                             error << "Expected object with a signature as an array elem, got \"" << arr[i] << "\"";
-                            return ptr_type(0);
+                            return NULL_PTR;
                         }
                         std::string signature(arr[i].as_object().begin()->key());
                         signature_parser sp;
                         if (!sp.parse(signature)) {
                             error << sp.get_error();
-                            return ptr_type(0);
+                            return NULL_PTR;
                         }
                         ptr = dispatch_type(array_type->getElementType(), arr[i].as_object().at(signature), sp.get_tree(),
                                             ptr, is_private);
                     }
 
-                    if (ptr == ptr_type(0)) {
-                        return ptr_type(0);
+                    if (ptr == NULL_PTR) {
+                        return NULL_PTR;
                     }
                 }
 
@@ -533,17 +532,17 @@ namespace nil {
                 }
 
                 if (!check_struct(node, struct_type)) {
-                    return ptr_type(0);
+                    return NULL_PTR;
                 }
                 if (!value.is_array()) {
                     error << "Struct argument must be represented as JSON array, got \"" << value << "\"";
-                    return ptr_type(0);
+                    return NULL_PTR;
                 }
                 auto &arr = value.as_array();
                 if (arr.size() != struct_type->getNumElements()) {
                     error << "Expected a struct with " << struct_type->getNumElements() << " elements, got \"" << arr
                           << "\"";
-                    return ptr_type(0);
+                    return NULL_PTR;
                 }
                 for (unsigned i = 0; i < struct_type->getNumElements(); ++i) {
                     auto elem_ty = struct_type->getElementType(i);
@@ -552,18 +551,18 @@ namespace nil {
                     } else {
                         if (!arr[i].is_object() || arr[i].as_object().size() != 1) {
                             error << "Expected object with a signature as a struct elem, got \"" << arr[i] << "\"";
-                            return ptr_type(0);
+                            return NULL_PTR;
                         }
                         std::string signature(arr[i].as_object().begin()->key());
                         signature_parser sp;
                         if (!sp.parse(signature)) {
                             error << sp.get_error();
-                            return ptr_type(0);
+                            return NULL_PTR;
                         }
                         ptr = dispatch_type(elem_ty, arr[i].as_object().at(signature), sp.get_tree(), ptr, is_private);
                     }
-                    if (ptr == ptr_type(0)) {
-                        return ptr_type(0);
+                    if (ptr == NULL_PTR) {
+                        return NULL_PTR;
                     }
                 }
                 return ptr;
@@ -647,10 +646,12 @@ namespace nil {
                 case llvm::Type::FixedVectorTyID:{
                     auto flat_components = process_leaf_type(type, value, node, is_private);
                     if (flat_components.empty()) {
-                        return ptr_type(0);
+                        return NULL_PTR;
                     }
-                    for (auto num : flat_components) {
-                        memory.store(ptr++, num);
+                    TypeLayoutResolver::type_layout layout = layout_resolver.get_type_layout<BlueprintFieldType>(type);
+                    for (auto i = 0; i < flat_components.size(); ++i) {
+                        memory.store(ptr, layout[i], flat_components[i]);
+                        ptr += layout[i];
                     }
                     return ptr;
                 }
@@ -702,7 +703,7 @@ namespace nil {
                         }
                         ASSERT(llvm::isa<llvm::PointerType>(arg_type));
                         auto pointee = current_arg->getAttribute(llvm::Attribute::StructRet).getValueAsType();
-                        ptr_type ptr = memory.add_cells(layout_resolver.get_type_layout<BlueprintFieldType>(pointee));
+                        ptr_type ptr = memory.stack_alloca(layout_resolver.get_type_size(pointee));
                         frame.scalars[current_arg] = pointer_into_assignment(ptr);
                         continue;
                     }
@@ -828,7 +829,7 @@ namespace nil {
             stack_frame<var> &frame;
             program_memory<var> &memory;
             Assignment &assignmnt;
-            LayoutResolver &layout_resolver;
+            TypeLayoutResolver &layout_resolver;
             column_type<BlueprintFieldType> parsed_public_input;
             column_type<BlueprintFieldType> &internal_storage;
             size_t public_input_idx;
