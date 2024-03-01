@@ -71,9 +71,10 @@ namespace nil {
                 ptr_type result_ptr = static_cast<ptr_type>(
                     typename BlueprintFieldType::integral_type(detail::var_value<BlueprintFieldType, var>
                     (variables[result_value], assignment, internal_storage, true).data));
+                size_type elem_size = (BlueprintFieldType::number_bits + 7) / 8;
                 for (var v : result) {
-                    ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                    memory.store(result_ptr++, v);
+                    memory.store(result_ptr, (BlueprintFieldType::number_bits + 7) / 8, v);
+                    result_ptr += elem_size;
                 }
             }
         }

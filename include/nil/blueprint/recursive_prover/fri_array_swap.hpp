@@ -80,8 +80,9 @@ namespace nil {
                     detail::var_value<BlueprintFieldType, var>
                     (frame.scalars[result_value], assignment, internal_storage, true).data));
                 for (std::size_t i = 0; i < array_size; i++) {
-                    ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                    memory.store(result_ptr++, res[i]);
+                    size_type elem_size = (BlueprintFieldType::number_bits + 7) / 8;
+                    memory.store(result_ptr, elem_size, res[i]);
+                    result_ptr += elem_size;
                 }
             }
         }
