@@ -351,7 +351,7 @@ namespace nil {
                     buf[numlen] = '\0';
                     typename BlueprintFieldType::extended_integral_type number = typename BlueprintFieldType::extended_integral_type(buf);
                     typename BlueprintFieldType::extended_integral_type one = 1;
-                    if (bitness <= 128) {
+                    if (bitness > 128) {
                         error << "integers larger than 128 bits are not supported, try to use field types";
                         return {};
                     }
@@ -800,13 +800,14 @@ namespace nil {
                 }
 
                 // Check if there are remaining elements of input
-                if (has_values && (function.arg_size() - ret_gap!= public_input.size() + private_input.size())) {
+                size_t private_input_size = public_input_only ? priv_iter : private_input.size();
+                if (has_values && (function.arg_size() - ret_gap != public_input.size() + private_input_size)) {
                     log.debug(boost::format("public_input size: %1%") % public_input.size());
-                    log.debug(boost::format("private_input size: %1%") % private_input.size());
+                    log.debug(boost::format("private_input size: %1%") % private_input_size);
                     log.debug(boost::format("ret_gap: %1%") % ret_gap);
                     log.debug(boost::format("function.arg_size(): %1%") % function.arg_size());
 
-                    error << "too many values in the input files, public + private input sizes must be equal to function.arg_size - ret_gap";
+                    error << "too many values in the input files, public + private input sizes must be equal to passed argument size";
                     return false;
                 }
 
