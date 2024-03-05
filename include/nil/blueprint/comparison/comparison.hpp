@@ -75,7 +75,7 @@ namespace nil {
                 llvm::CmpInst::Predicate p,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &x,
                 const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &y,
-                std::size_t Bitness,
+                std::size_t bitness,
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
@@ -111,7 +111,7 @@ namespace nil {
             }
 
             return get_component_result<BlueprintFieldType, ComponentType>
-                (bp, assignment, internal_storage, statistics, param, instance_input, Mode);
+                (bp, assignment, internal_storage, statistics, param, instance_input, bitness, Mode);
 
         }
 
@@ -159,8 +159,23 @@ namespace nil {
                 case llvm::CmpInst::ICMP_ULE:
                 case llvm::CmpInst::ICMP_SLT:
                 case llvm::CmpInst::ICMP_ULT: {
-                    using comp_component_type = components::comparison<
-                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
+                    using comp_component_type = components::comparison_flag<
+                        crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>;
+
+                    if (inst->getOperand(0)->getType()->isFieldTy()){
+                        bitness = (llvm::dyn_cast<llvm::GaloisFieldType>(inst->getOperand(0)->getType()))->getBitWidth();
+
+                        if (bitness >= BlueprintFieldType::modulus_bits) {
+                            bitness = BlueprintFieldType::modulus_bits - 1;
+                        }
+
+                        if (param.gen_mode.has_assignments()) {
+                            typename BlueprintFieldType::integral_type one = 1;
+                            typename BlueprintFieldType::integral_type ceiling = one << bitness;
+                            ASSERT(typename BlueprintFieldType::integral_type(var_value(assignment, x).data) < ceiling);
+                            ASSERT(typename BlueprintFieldType::integral_type(var_value(assignment, y).data) < ceiling);
+                        }
+                    }
 
                     const auto& component_result = handle_comparison_component_others<
                         BlueprintFieldType, comp_component_type>(
