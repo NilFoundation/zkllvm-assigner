@@ -47,6 +47,7 @@
 #include <nil/blueprint/components/algebra/fields/plonk/non_native/reduction.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/non_native/bit_decomposition.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/non_native/bit_composition.hpp>
+#include <nil/blueprint/components/algebra/fields/plonk/non_native/comparison_flag.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/bit_shift_constant.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/non_native/division_remainder.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/non_native/equality_flag.hpp>
