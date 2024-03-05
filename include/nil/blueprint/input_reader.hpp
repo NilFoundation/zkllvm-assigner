@@ -677,6 +677,11 @@ namespace nil {
                 }
             }
 
+            const std::vector<typename BlueprintFieldType::value_type> get_public_input() {
+                ASSERT(public_input_only);
+                return parsed_public_input;
+            }
+
             bool fill_public_input(
                 const llvm::Function &function,
                 const boost::json::array &public_input,
@@ -807,7 +812,7 @@ namespace nil {
                     log.debug(boost::format("ret_gap: %1%") % ret_gap);
                     log.debug(boost::format("function.arg_size(): %1%") % function.arg_size());
 
-                    error << "too many values in the input files, public + private input sizes must be equal to passed argument size";
+                    error << "Too many values in the input files, public + private input sizes must be equal to passed argument size";
                     return false;
                 }
 
