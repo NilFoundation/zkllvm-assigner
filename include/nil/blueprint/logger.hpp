@@ -26,6 +26,8 @@
 #ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_LOGGER_HPP_
 #define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_LOGGER_HPP_
 
+#include <nil/blueprint/macros.hpp>
+
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
@@ -65,9 +67,7 @@ namespace nil {
                     current_block = inst->getParent();
                     BOOST_LOG_TRIVIAL(debug) << "\t" << current_block->getNameOrAsOperand();
                 }
-                std::string str;
-                llvm::raw_string_ostream ss(str);
-                inst->print(ss);
+                LLVM_PRINT(inst, str);
                 BOOST_LOG_TRIVIAL(debug) << "\t\t" << str;
             }
         };

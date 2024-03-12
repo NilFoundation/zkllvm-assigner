@@ -54,6 +54,7 @@
 
 #include <nil/blueprint/logger.hpp>
 #include <nil/blueprint/layout_resolver.hpp>
+#include <nil/blueprint/macros.hpp>
 #include <nil/blueprint/input_reader.hpp>
 #include <nil/blueprint/memory.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
@@ -349,7 +350,8 @@ namespace nil {
                             memory.store(ptr++, globals[constant]);
                             continue;
                         }
-                        UNREACHABLE("Unsupported pointer initialization!");
+                        LLVM_PRINT(constant, str);
+                        UNREACHABLE("Unsupported pointer initialization: " + str);
                     }
                     if (!type->isAggregateType() && !type->isVectorTy()) {
                         column_type<BlueprintFieldType> marshalled_field_val = marshal_field_val<BlueprintFieldType>(constant);
@@ -827,7 +829,8 @@ namespace nil {
                     memory.store(ptr, zero_var);
                     globals[global] = put_constant_into_assignment(ptr);
                 } else {
-                    UNREACHABLE("Unhandled global variable");
+                    LLVM_PRINT(global, str);
+                    UNREACHABLE("Unhandled global variable: " + str);
                 }
             }
 
@@ -914,8 +917,10 @@ namespace nil {
                         }
                         break;
                     }
-                    default:
-                        UNREACHABLE(std::string("Unhandled constant expression: ") + expr->getOpcodeName());
+                    default: {
+                        LLVM_PRINT(expr, str);
+                        UNREACHABLE("Unhandled constant expression: " + str);
+                    }
                     }
                 } else if (auto addr = llvm::dyn_cast<llvm::BlockAddress>(c)) {
                     frame.scalars[c] = labels[addr->getBasicBlock()];
@@ -1191,7 +1196,8 @@ namespace nil {
                         else if (cmp_type->isCurveTy())
                             handle_curve_cmp(cmp_inst, frame);
                         else {
-                            UNREACHABLE("Unsupported icmp operand type");
+                            LLVM_PRINT(cmp_type, str);
+                            UNREACHABLE("Unsupported icmp operand type: " + str);
                         }
                         return inst->getNextNonDebugInstruction();
                     }
