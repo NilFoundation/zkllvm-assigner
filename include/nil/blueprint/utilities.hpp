@@ -30,6 +30,7 @@
 #include <limits>
 
 #include <nil/blueprint/manifest.hpp>
+#include <nil/blueprint/blueprint/plonk/assignment_proxy.hpp>
 
 namespace nil {
     namespace blueprint {

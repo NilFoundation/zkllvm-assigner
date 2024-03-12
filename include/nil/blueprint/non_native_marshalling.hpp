@@ -26,7 +26,22 @@
 #ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_NON_NATIVE_MARSHALLING_HPP_
 #define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_NON_NATIVE_MARSHALLING_HPP_
 
+#include <nil/blueprint/basic_non_native_policy.hpp>
 #include <nil/blueprint/utilities.hpp>
+
+#include <nil/crypto3/algebra/curves/pallas.hpp>
+#include <nil/crypto3/algebra/curves/ed25519.hpp>
+#include <nil/crypto3/algebra/curves/bls12.hpp>
+// TODO: this include should be replaced with more precise and appropriate one, but I couldn't find it.
+#include <nil/crypto3/marshalling/zk/types/plonk/constraint_system.hpp>
+#include <nil/marshalling/field_type.hpp>
+#include <nil/marshalling/endianness.hpp>
+
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/ZK/ZKEnums.h"
+
+#include <iostream>
 
 namespace nil {
     namespace blueprint {
