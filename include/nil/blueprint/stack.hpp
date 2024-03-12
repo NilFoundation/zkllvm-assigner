@@ -26,24 +26,18 @@
 #ifndef CRYPTO3_ASSIGNER_STACK_HPP
 #define CRYPTO3_ASSIGNER_STACK_HPP
 
-#include <list>
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Value.h"
+
 #include <map>
-#include <variant>
-#include <stack>
-
-#include <llvm/IRReader/IRReader.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/Support/SourceMgr.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IR/InstrTypes.h>
-#include <llvm/IR/Instructions.h>
-#include "llvm/IR/Constants.h"
-
-#include <nil/blueprint/memory.hpp>
+#include <vector>
 
 namespace nil {
     namespace blueprint {
-
+        /**
+         * @brief Execution frame. Each function call uses its own `stack_frame`, which holds
+         * local variables.
+         */
         template<typename VarType>
         struct stack_frame {
             /// @brief Type representing scalar registers.
