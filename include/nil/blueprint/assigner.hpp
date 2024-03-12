@@ -55,6 +55,7 @@
 #include <nil/blueprint/logger.hpp>
 #include <nil/blueprint/layout_resolver.hpp>
 #include <nil/blueprint/input_reader.hpp>
+#include <nil/blueprint/memory.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/integers/addition.hpp>

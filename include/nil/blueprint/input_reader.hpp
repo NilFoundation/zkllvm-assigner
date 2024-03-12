@@ -31,6 +31,7 @@
 #include "llvm/IR/Type.h"
 
 #include <nil/blueprint/layout_resolver.hpp>
+#include <nil/blueprint/memory.hpp>
 #include <nil/blueprint/signature_parser.hpp>
 #include <nil/blueprint/stack.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
