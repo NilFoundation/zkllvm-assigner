@@ -28,12 +28,17 @@
 
 #include <iostream>
 #include <cstring>
+#include <string>
 
 #define UNREACHABLE(msg) ::nil::blueprint::unreachable((msg), __FILE__, __LINE__)
 
 #define ASSERT(expr) ::nil::blueprint::assert_check((expr), #expr, __FILE__, __LINE__)
 
 #define ASSERT_MSG(expr, msg) ::nil::blueprint::assert_check((expr), #expr, __FILE__, __LINE__, (msg))
+
+#define TODO(msg) ::nil::blueprint::todo((msg), __FILE__, __LINE__)
+
+#define TODO_WITH_LINK(msg, link) ::nil::blueprint::todo_with_link((msg), (link), __FILE__, __LINE__)
 
 namespace nil {
     namespace blueprint {
@@ -61,6 +66,23 @@ namespace nil {
                 std::cerr << std::endl;
                 abort_process();
             }
+        }
+
+        [[noreturn]] void todo(const char *msg, const char *filename, unsigned line) {
+            std::cerr << "NOT YET IMPLEMENTED at " << filename << ":" << line << std::endl;
+            std::cerr << '\t' << msg << std::endl;
+            abort_process();
+        }
+
+        [[noreturn]] void todo_with_link(const char *msg, const char *link, const char *filename, unsigned line) {
+            std::string new_msg(msg);
+            new_msg += "\n\tTracking issue: ";
+            new_msg += link;
+            todo(new_msg.c_str(), filename, line);
+        }
+
+        [[noreturn]] void todo_with_link(const std::string &msg, const std::string &link, const char *filename, unsigned line) {
+            todo_with_link(msg.c_str(), link.c_str(), filename, line);
         }
     }
 }
