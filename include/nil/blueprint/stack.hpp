@@ -46,8 +46,18 @@ namespace nil {
 
         template<typename VarType>
         struct stack_frame {
-            std::map<const llvm::Value *, VarType> scalars;
-            std::map<const llvm::Value *, std::vector<VarType>> vectors;
+            /// @brief Type representing scalar registers.
+            using scalar_regs = std::map<const llvm::Value *, VarType>;
+
+            /// @brief Type representing vector registers.
+            using vector_regs = std::map<const llvm::Value *, std::vector<VarType>>;
+
+            /// @brief Registers holding scalar values (integers, pointers, native fields).
+            scalar_regs scalars;
+
+            /// @brief Registers holding vector values (non-native fields, curves, vectors, etc.).
+            vector_regs vectors;
+
             const llvm::CallInst *caller;
         };
 
