@@ -27,7 +27,7 @@
 #ifndef CRYPTO3_BLUEPRINT_PLONK_H2C_HPP
 #define CRYPTO3_BLUEPRINT_PLONK_H2C_HPP
 
-#include <nil/crypto3/detail/literals.hpp>
+#include <nil/crypto3/multiprecision/cpp_int/literals.hpp>
 #include <nil/crypto3/algebra/matrix/matrix.hpp>
 #include <nil/crypto3/algebra/fields/pallas/base_field.hpp>
 #include <nil/crypto3/algebra/fields/vesta/base_field.hpp>
