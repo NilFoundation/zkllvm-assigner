@@ -1451,7 +1451,7 @@ namespace nil {
 
                         ptr_type res_ptr = memory.add_cells(vec);
                         log.debug(boost::format("Alloca: %1%") % res_ptr);
-                        frame.scalars[inst] = put_constant_into_assignment(res_ptr);
+                        frame.scalars[inst] = put_value_into_internal_storage(res_ptr);
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::GetElementPtr: {
