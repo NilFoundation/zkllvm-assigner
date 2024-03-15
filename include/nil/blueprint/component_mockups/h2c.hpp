@@ -110,11 +110,8 @@ namespace nil {
                         output[1] = var(component.W(1), start_row_index, false);
                     }
 
-                    std::vector<var> all_vars() const {
-                        std::vector<var> result;
-                        result.push_back(output[0]);
-                        result.push_back(output[1]);
-                        return result;
+                    std::vector<std::reference_wrapper<var>> all_vars() {
+                        return {output[0], output[1]};
                     }
                 };
 

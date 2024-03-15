@@ -95,7 +95,7 @@ namespace nil {
 
             std::size_t bitness = inst->getOperand(0)->getType()->getPrimitiveSizeInBits();
 
-            const auto res = detail::handle_native_field_bit_shift_constant_component<BlueprintFieldType>(
+            auto res = detail::handle_native_field_bit_shift_constant_component<BlueprintFieldType>(
                                 bitness, operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param, left_or_right);
             handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
         }

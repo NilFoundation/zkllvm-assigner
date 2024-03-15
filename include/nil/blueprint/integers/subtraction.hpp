@@ -61,7 +61,7 @@ namespace nil {
             llvm::Value *operand0 = inst->getOperand(0);
             llvm::Value *operand1 = inst->getOperand(1);
 
-            const auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType>(
+            auto res = detail::handle_native_field_subtraction_component<BlueprintFieldType>(
                                               operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
             handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
         }

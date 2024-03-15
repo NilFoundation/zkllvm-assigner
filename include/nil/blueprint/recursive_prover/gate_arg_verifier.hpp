@@ -124,7 +124,7 @@ namespace nil {
             using component_type = components::basic_constraints_verifier<
             crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>;
 
-            const auto& res = detail::handle_native_gate_arg_verifier_component<BlueprintFieldType>(
+            auto res = detail::handle_native_gate_arg_verifier_component<BlueprintFieldType>(
                     selectors_value, gates_sizes_value, gates_amount_value, constraints_value, constraints_amount_value, theta_value,
                     frame.scalars, memory, bp, assignment, internal_storage, statistics, param);
             handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);

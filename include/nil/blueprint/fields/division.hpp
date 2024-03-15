@@ -102,7 +102,7 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::bls12<381>::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        const auto res =
+                        auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType>(
                                 operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
                         handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
@@ -116,7 +116,7 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::pallas::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        const auto res =
+                        auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType>(
                                 operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
                         handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
@@ -130,7 +130,7 @@ namespace nil {
                     using operating_field_type = typename crypto3::algebra::curves::ed25519::base_field_type;
 
                     if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                        const auto res =
+                        auto res =
                             detail::handle_native_field_division_component<BlueprintFieldType>(
                                 operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
                         handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
