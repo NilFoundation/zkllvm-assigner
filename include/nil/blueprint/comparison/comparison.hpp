@@ -142,7 +142,7 @@ namespace nil {
                     using eq_component_type = components::equality_flag<
                         crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
 
-                    const auto& component_result = handle_comparison_component_eq_neq<
+                    auto component_result = handle_comparison_component_eq_neq<
                         BlueprintFieldType, eq_component_type>(
                             p, x, y, bitness, bp, assignment, internal_storage, statistics, param);
 
@@ -177,7 +177,7 @@ namespace nil {
                         }
                     }
 
-                    const auto& component_result = handle_comparison_component_others<
+                    auto component_result = handle_comparison_component_others<
                         BlueprintFieldType, comp_component_type>(
                             p, x, y, bitness, bp, assignment, internal_storage, statistics, param);
 

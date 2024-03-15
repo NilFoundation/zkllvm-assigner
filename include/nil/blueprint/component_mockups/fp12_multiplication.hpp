@@ -106,7 +106,7 @@ namespace nil {
                 };
 
                 struct result_type {
-		    std::array<var,12> output;
+                    std::array<var,12> output;
 
                     result_type(const fp12_multiplication &component, std::uint32_t start_row_index) {
                         const std::size_t WA = component.witness_amount();
@@ -116,10 +116,10 @@ namespace nil {
                         }
                     }
 
-                    std::vector<var> all_vars() const {
-                        std::vector<var> res = {};
-
-                        for(auto & e : output) { res.push_back(e); }
+                    std::vector<std::reference_wrapper<var>> all_vars() {
+                        std::vector<std::reference_wrapper<var>> res;
+                        res.reserve(output.size());
+                        std::copy(output.begin(), output.end(), std::back_inserter(res));
                         return res;
                     }
                 };

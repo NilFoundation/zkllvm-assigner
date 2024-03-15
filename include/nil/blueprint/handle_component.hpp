@@ -408,27 +408,28 @@ namespace nil {
                 &assignment,
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-                const typename ComponentType::result_type& component_result, generation_mode gen_mode) {
+                typename ComponentType::result_type& component_result, generation_mode gen_mode) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
-            std::vector<var> output = component_result.all_vars();
+            std::vector<std::reference_wrapper<var>> output = component_result.all_vars();
 
             //touch result variables
             if (!gen_mode.has_assignments()) {
-                const auto result_vars = component_result.all_vars();
-                for (const auto &v : result_vars) {
-                    if (v.type == var::column_type::witness) {
-                        assignment.witness(v.index, v.rotation) = BlueprintFieldType::value_type::zero();
-                    } else if (v.type == var::column_type::constant) {
-                        assignment.constant(v.index, v.rotation) = BlueprintFieldType::value_type::zero();
+                for (const auto &v : output) {
+                    if (v.get().type == var::column_type::witness) {
+                        assignment.witness(v.get().index, v.get().rotation) = BlueprintFieldType::value_type::zero();
+                    } else if (v.get().type == var::column_type::constant) {
+                        assignment.constant(v.get().index, v.get().rotation) = BlueprintFieldType::value_type::zero();
                     }
                 }
             }
             if (output.size() == 1) {
-                frame.scalars[inst] = output[0];
+                frame.scalars[inst] = output[0].get();
             } else {
-                frame.vectors[inst] = output;
+                for (const auto &v : output) {
+                    frame.vectors[inst].push_back(v.get());
+                }
             }
         }
 
@@ -473,7 +474,7 @@ namespace nil {
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
                 Args... args) {
 
-            const auto component_result = get_component_result<BlueprintFieldType, ComponentType>
+            auto component_result = get_component_result<BlueprintFieldType, ComponentType>
                     (bp, assignment, internal_storage, statistics, param, instance_input, args...);
 
             handle_component_result<BlueprintFieldType, ComponentType>(assignment, inst, frame, component_result, param.gen_mode);

@@ -142,7 +142,7 @@ namespace nil {
 
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                            const auto res =
+                            auto res =
                                 detail::handle_native_field_addition_component<BlueprintFieldType>(
                                     operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
                             handle_component_result<BlueprintFieldType, native_component_type>
@@ -162,7 +162,7 @@ namespace nil {
 
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                            const auto res =
+                            auto res =
                                 detail::handle_native_field_addition_component<BlueprintFieldType>(
                                     operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
                             handle_component_result<BlueprintFieldType, native_component_type>
@@ -185,13 +185,13 @@ namespace nil {
 
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
-                            const auto res =
+                            auto res =
                                 detail::handle_native_field_addition_component<BlueprintFieldType>(
                                     operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
                             handle_component_result<BlueprintFieldType, native_component_type>
                                     (assignment, inst, frame, res, param.gen_mode);
                         } else {
-                            const auto& component_result = detail::handle_non_native_field_addition_component<
+                            auto component_result = detail::handle_non_native_field_addition_component<
                                                        BlueprintFieldType, operating_field_type>(
                                                        operand0, operand1, frame.vectors, bp, assignment, internal_storage, statistics, param);
                             handle_component_result<BlueprintFieldType, no_native_component_type>

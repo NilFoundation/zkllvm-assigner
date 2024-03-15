@@ -164,7 +164,7 @@ namespace nil {
             llvm::Value *bitness_value = inst->getOperand(1);
             llvm::Value *operand_sig_bit = inst->getOperand(2);
 
-            const auto res = detail::handle_native_field_bit_composition_component<BlueprintFieldType>(
+            auto res = detail::handle_native_field_bit_composition_component<BlueprintFieldType>(
                                 result_value, bitness_value, operand_sig_bit, frame.vectors,
                                 frame.scalars, memory,  bp, assignment, internal_storage, statistics, param);
 
