@@ -23,8 +23,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_HASHES_SHA2_256_HPP
-#define CRYPTO3_ASSIGNER_HASHES_SHA2_256_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_HASHES_SHA2_256_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_HASHES_SHA2_256_HPP_
 
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeFinder.h"
@@ -73,4 +73,4 @@ namespace nil {
     }    // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_ASSIGNER_HASHES_SHA2_256_HPP
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_HASHES_SHA2_256_HPP_

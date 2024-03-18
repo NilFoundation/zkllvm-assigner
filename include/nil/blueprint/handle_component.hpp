@@ -23,8 +23,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_HANDLE_COMPONENT_HPP
-#define CRYPTO3_ASSIGNER_HANDLE_COMPONENT_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_HANDLE_COMPONENT_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_HANDLE_COMPONENT_HPP_
 
 #include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
 #include <nil/blueprint/utilities.hpp>
@@ -482,4 +482,4 @@ namespace nil {
     }    // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_ASSIGNER_HANDLE_COMPONENT_HPP
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_HANDLE_COMPONENT_HPP_

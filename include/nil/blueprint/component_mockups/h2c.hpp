@@ -24,8 +24,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_BLUEPRINT_PLONK_H2C_HPP
-#define CRYPTO3_BLUEPRINT_PLONK_H2C_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_MOCKUPS_H2C_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_MOCKUPS_H2C_HPP_
 
 #include <nil/crypto3/detail/literals.hpp>
 #include <nil/crypto3/algebra/matrix/matrix.hpp>
@@ -180,4 +180,4 @@ namespace nil {
     }        // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_BLUEPRINT_PLONK_H2C_HPP
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_MOCKUPS_H2C_HPP_

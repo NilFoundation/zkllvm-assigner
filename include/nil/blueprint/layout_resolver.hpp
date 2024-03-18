@@ -24,8 +24,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_GEP_RESOLVER_HPP
-#define CRYPTO3_ASSIGNER_GEP_RESOLVER_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_LAYOUT_RESOLVER_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_LAYOUT_RESOLVER_HPP_
 
 #include <vector>
 #include <unordered_map>
@@ -222,4 +222,4 @@ namespace nil {
     }
 }    // namespace nil
 
-#endif  // CRYPTO3_ASSIGNER_GEP_RESOLVER_HPP
+#endif  // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_LAYOUT_RESOLVER_HPP_

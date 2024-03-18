@@ -23,8 +23,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_RECURSIVE_PROVER_FRI_LIN_INTER_HPP
-#define CRYPTO3_ASSIGNER_RECURSIVE_PROVER_FRI_LIN_INTER_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_RECURSIVE_PROVER_FRI_LIN_INTER_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_RECURSIVE_PROVER_FRI_LIN_INTER_HPP_
 
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeFinder.h"
@@ -68,4 +68,4 @@ namespace nil {
     }    // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_ASSIGNER_RECURSIVE_PROVER_FRI_LIN_INTER_HPP
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_RECURSIVE_PROVER_FRI_LIN_INTER_HPP_

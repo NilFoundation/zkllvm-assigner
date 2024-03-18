@@ -23,8 +23,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_BLUEPRINT_COMPONENT_INSTRUCTION_PARSER_HPP
-#define CRYPTO3_BLUEPRINT_COMPONENT_INSTRUCTION_PARSER_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_ASSIGNER_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_ASSIGNER_HPP_
 
 #include <variant>
 #include <stack>
@@ -1833,4 +1833,4 @@ namespace nil {
     }     // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_BLUEPRINT_COMPONENT_INSTRUCTION_PARSER_HPP
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_ASSIGNER_HPP_

@@ -22,8 +22,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef NIL_BLUEPRINT_SIGNATURE_PARSER_HPP
-#define NIL_BLUEPRINT_SIGNATURE_PARSER_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_SIGNATURE_PARSER_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_SIGNATURE_PARSER_HPP_
 
 #include <nil/blueprint/asserts.hpp>
 
@@ -260,4 +260,4 @@ namespace nil {
     }    // namespace blueprint
 }    // namespace nil
 
-#endif    // NIL_BLUEPRINT_SIGNATURE_PARSER_HPP
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_SIGNATURE_PARSER_HPP_

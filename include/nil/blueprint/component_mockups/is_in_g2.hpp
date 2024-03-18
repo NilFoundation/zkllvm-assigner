@@ -24,8 +24,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_BLUEPRINT_PLONK_IS_IN_G2_HPP
-#define CRYPTO3_BLUEPRINT_PLONK_IS_IN_G2_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_MOCKUPS_IS_IN_G2_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_MOCKUPS_IS_IN_G2_HPP_
 
 #include <nil/crypto3/detail/literals.hpp>
 #include <nil/crypto3/algebra/matrix/matrix.hpp>

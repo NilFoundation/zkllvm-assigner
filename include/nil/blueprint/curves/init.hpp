@@ -24,8 +24,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_NIL_BLUEPRINT_CURVE_INIT_HPP
-#define CRYPTO3_ASSIGNER_NIL_BLUEPRINT_CURVE_INIT_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_CURVES_INIT_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_CURVES_INIT_HPP_
 
 #include <nil/blueprint/stack.hpp>
 
@@ -54,4 +54,4 @@ namespace nil {
     } // namespace blueprint
 } // namespace nil
 
-#endif // CRYPTO3_ASSIGNER_NIL_BLUEPRINT_CURVE_INIT_HPP
+#endif // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_CURVES_INIT_HPP_
