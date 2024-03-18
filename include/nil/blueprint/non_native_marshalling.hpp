@@ -23,8 +23,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_NON_NATIVE_MARSHALLING_HPP
-#define CRYPTO3_ASSIGNER_NON_NATIVE_MARSHALLING_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_NON_NATIVE_MARSHALLING_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_NON_NATIVE_MARSHALLING_HPP_
 
 #include <nil/blueprint/utilities.hpp>
 
@@ -324,4 +324,4 @@ namespace nil {
     }    // namespace blueprint
 }    // namespace nil
 
-#endif  // CRYPTO3_ASSIGNER_NON_NATIVE_MARSHALLING_HPP
+#endif  // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_NON_NATIVE_MARSHALLING_HPP_

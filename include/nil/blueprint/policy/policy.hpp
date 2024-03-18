@@ -22,8 +22,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_POLICY_HPP
-#define CRYPTO3_ASSIGNER_POLICY_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_POLICY_POLICY_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_POLICY_POLICY_HPP_
 
 #include <algorithm>
 
@@ -40,4 +40,4 @@ namespace nil {
     }    // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_ASSIGNER_POLICY_HPP
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_POLICY_POLICY_HPP_

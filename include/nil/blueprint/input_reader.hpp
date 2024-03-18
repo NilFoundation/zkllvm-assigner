@@ -23,8 +23,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_PUBLIC_INPUT_HPP
-#define CRYPTO3_ASSIGNER_PUBLIC_INPUT_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_INPUT_READER_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_INPUT_READER_HPP_
 
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
@@ -842,4 +842,4 @@ namespace nil {
 }    // namespace nil
 
 
-#endif  // CRYPTO3_ASSIGNER_PUBLIC_INPUT_HPP
+#endif  // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_INPUT_READER_HPP_

@@ -22,8 +22,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_COMPONENT_MANIFEST_UTILITIES_HPP
-#define CRYPTO3_ASSIGNER_COMPONENT_MANIFEST_UTILITIES_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_UTILITIES_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_UTILITIES_HPP_
 
 #include <vector>
 #include <array>
@@ -138,4 +138,4 @@ namespace nil {
     }    // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_ASSIGNER_COMPONENT_MANIFEST_UTILITIES_HPP
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_UTILITIES_HPP_

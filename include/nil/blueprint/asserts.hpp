@@ -23,8 +23,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_NIL_BLUEPRINT_ASSERTS_HPP
-#define CRYPTO3_ASSIGNER_NIL_BLUEPRINT_ASSERTS_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_ASSERTS_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_ASSERTS_HPP_
 
 #include <iostream>
 #include <cstring>
@@ -87,4 +87,4 @@ namespace nil {
     }
 }
 
-#endif  // CRYPTO3_ASSIGNER_NIL_BLUEPRINT_ASSERTS_HPP
+#endif  // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_ASSERTS_HPP_

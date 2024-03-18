@@ -23,8 +23,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_NIL_BLUEPRINT_LOGGER_HPP
-#define CRYPTO3_ASSIGNER_NIL_BLUEPRINT_LOGGER_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_LOGGER_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_LOGGER_HPP_
 
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
@@ -74,4 +74,4 @@ namespace nil {
     }    // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_ASSIGNER_NIL_BLUEPRINT_LOGGER_HPP
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_LOGGER_HPP_

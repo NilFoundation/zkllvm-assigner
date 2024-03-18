@@ -24,8 +24,8 @@
 // @file Declaration of the BLS12-381 pairing component
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_BLUEPRINT_COMPONENTS_PLONK_BLS12_381_PAIRING_HPP
-#define CRYPTO3_BLUEPRINT_COMPONENTS_PLONK_BLS12_381_PAIRING_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_MOCKUPS_BLS12_381_PAIRING_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_MOCKUPS_BLS12_381_PAIRING_HPP_
 
 #include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
 
@@ -339,4 +339,4 @@ namespace nil {
     }        // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_BLUEPRINT_COMPONENTS_PLONK_BLS12_381_PAIRING_HPP
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_MOCKUPS_BLS12_381_PAIRING_HPP_

@@ -23,8 +23,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef CRYPTO3_ASSIGNER_STATISTICS_HPP
-#define CRYPTO3_ASSIGNER_STATISTICS_HPP
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_STATISTICS_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_STATISTICS_HPP_
 
 namespace nil {
     namespace blueprint {
@@ -115,4 +115,4 @@ namespace nil {
     }     // namespace blueprint
 }    // namespace nil
 
-#endif    // CRYPTO3_ASSIGNER_STATISTICS_HPP
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_STATISTICS_HPP_
