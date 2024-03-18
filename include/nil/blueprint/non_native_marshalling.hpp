@@ -26,6 +26,7 @@
 #ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_NON_NATIVE_MARSHALLING_HPP_
 #define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_NON_NATIVE_MARSHALLING_HPP_
 
+#include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/basic_non_native_policy.hpp>
 #include <nil/blueprint/utilities.hpp>
 
