@@ -605,7 +605,7 @@ namespace nil {
                         }
 
                         typename eq_component_type::input_type instance_input = {comparison_result, zero_var};
-                        handle_component_input<BlueprintFieldType, eq_component_type>(assignments[currProverIdx], internal_storage, instance_input, param);
+                        handle_component_input<BlueprintFieldType, eq_component_type>(assignments[currProverIdx], instance_input, param);
                         const auto input_vars = instance_input.all_vars();
                         ASSERT(input_vars.size() == 2);
                         circuits[currProverIdx].add_copy_constraint({input_vars[0].get(), input_vars[1].get()});
@@ -627,7 +627,7 @@ namespace nil {
                         using eq_component_type = components::equality_flag<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
 
                         typename eq_component_type::input_type instance_input = {x, y};
-                        handle_component_input<BlueprintFieldType, eq_component_type>(assignments[currProverIdx], internal_storage, instance_input, param);
+                        handle_component_input<BlueprintFieldType, eq_component_type>(assignments[currProverIdx], instance_input, param);
                         const auto input_vars = instance_input.all_vars();
                         ASSERT(input_vars.size() == 2);
                         circuits[currProverIdx].add_copy_constraint({input_vars[0].get(), input_vars[1].get()});
@@ -715,7 +715,7 @@ namespace nil {
                 size_t num_cells = layout_resolver->get_cells_num<BlueprintFieldType>(dest->getType());
                 if (num_cells == 1) {
                     auto &cell = memory[ptr];
-                    frame.scalars[dest] = put_value_into_internal_storage(get_var_value(cell.v));
+                    frame.scalars[dest] = cell.v;
                 } else {
                     std::vector<var> res;
                     for (size_t i = 0; i < num_cells; ++i) {

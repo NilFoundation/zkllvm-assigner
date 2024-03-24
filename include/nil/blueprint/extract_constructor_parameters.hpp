@@ -82,17 +82,10 @@ namespace nil {
                 std::vector<var> res = {};
                 ptr_type input_ptr = static_cast<ptr_type>(
                     typename BlueprintFieldType::integral_type(detail::var_value<BlueprintFieldType, var>(variables[input_value], assignment, internal_storage, gen_mode.has_assignments()).data));
-                if (gen_mode.has_assignments()) {
-                    for (std::size_t i = 0; i < input_length; i++) {
-                        ASSERT(memory[input_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                        const auto v = memory.load(input_ptr++);
-                        const auto value = detail::var_value<BlueprintFieldType, var>(v, assignment, internal_storage, true);
-                        res.push_back(detail::put_internal_value<typename BlueprintFieldType::value_type, BlueprintFieldType, var>(value, internal_storage));
-                    }
-                } else {
-                    for (std::size_t i = 0; i < input_length; i++) {
-                        res.push_back(detail::put_internal_value<typename BlueprintFieldType::value_type, BlueprintFieldType, var>(0, internal_storage));
-                    }
+                for (std::size_t i = 0; i < input_length; i++) {
+                    ASSERT(memory[input_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
+                    const auto v = memory.load(input_ptr++);
+                    res.push_back(v);
                 }
                 return res;
             }
