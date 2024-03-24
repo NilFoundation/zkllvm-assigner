@@ -74,7 +74,7 @@ namespace nil {
             for (std::size_t i = 0; i < 9; i++) {
                 size = detail::extract_constant_size_t_value<BlueprintFieldType>(inst->getOperand(8 + i * 2 + 1));
                 input_vectors.push_back(detail::extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    inst->getOperand(8 + i * 2), size, frame.scalars, memory, assignment, internal_storage, param.gen_mode));
+                    inst->getOperand(8 + i * 2), size, frame.scalars, memory, bp, assignment, internal_storage, statistics, param));
             }
 
             var theta = frame.scalars[inst->getOperand(26)];

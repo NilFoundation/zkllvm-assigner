@@ -34,8 +34,51 @@
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
 
+#include <nil/blueprint/handle_component.hpp>
+
 namespace nil {
     namespace blueprint {
+
+        template<typename BlueprintFieldType, typename var>
+            var create_select_component(
+                var condition, var true_var, var false_var,
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
+                    &assignment,
+                column_type<BlueprintFieldType> &internal_storage,
+                component_calls &statistics,
+                const common_component_parameters& param,
+                crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> one_var
+            ) {
+                using arithmetization_type = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
+
+                using div_or_zero_comp_type = components::division_or_zero<arithmetization_type, BlueprintFieldType>;
+                using field_mul_comp_type = components::multiplication<arithmetization_type, BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
+                using field_sub_comp_type = components::subtraction<arithmetization_type, BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
+                using field_add_comp_type = components::addition<arithmetization_type, BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
+
+                typename div_or_zero_comp_type::input_type div_or_zero_input({condition, condition});
+                var condition_0_or_1 = get_component_result<BlueprintFieldType, div_or_zero_comp_type>
+                    (bp, assignment, internal_storage, statistics, param, div_or_zero_input).output; // returns 1 if !=0 and 0 if ==0
+
+                typename field_mul_comp_type::input_type field_mul_input({condition_0_or_1, true_var});
+                var contitioned_true_var = get_component_result<BlueprintFieldType, field_mul_comp_type>
+                    (bp, assignment, internal_storage, statistics, param, field_mul_input).output; // true_var if true, 0 if false
+
+                typename field_sub_comp_type::input_type field_sub_input({one_var, condition_0_or_1});
+                var inversed_condition_0_or_1 = get_component_result<BlueprintFieldType, field_sub_comp_type>
+                    (bp, assignment, internal_storage, statistics, param, field_sub_input).output; // true_var if true, 0 if false
+
+                typename field_mul_comp_type::input_type field_mul_input_2({inversed_condition_0_or_1, false_var});
+                var contitioned_false_var = get_component_result<BlueprintFieldType, field_mul_comp_type>
+                    (bp, assignment, internal_storage, statistics, param, field_mul_input_2).output; // false_var if false, 0 otherwise
+
+                typename field_add_comp_type::input_type field_add_input({contitioned_true_var, contitioned_false_var});
+                var result = get_component_result<BlueprintFieldType, field_add_comp_type>
+                    (bp, assignment, internal_storage, statistics, param, field_add_input).output; // true_var if true, false_var if false
+
+                return result;
+        }
 
         template<typename BlueprintFieldType>
             void handle_select_component(
@@ -46,24 +89,21 @@ namespace nil {
                     &assignment,
                 column_type<BlueprintFieldType> &internal_storage,
                 component_calls &statistics,
-                const common_component_parameters& param) {
+                const common_component_parameters& param,
+                crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> one_var) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
                 using arithmetization_type = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
-                using component_type = components::select_instruction<arithmetization_type, BlueprintFieldType>;
+                using field_add_comp_type = components::addition<arithmetization_type, BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>;
 
                 auto condition = frame.scalars[inst->getOperand(0)];
-                auto true_val = frame.scalars[inst->getOperand(1)];
-                auto false_val= frame.scalars[inst->getOperand(2)];
+                auto true_var = frame.scalars[inst->getOperand(1)];
+                auto false_var= frame.scalars[inst->getOperand(2)];
 
-                typename component_type::input_type instance_input = {
-                    condition,
-                    true_val,
-                    false_val
-                };
+                var result = create_select_component<BlueprintFieldType, var>(
+                                    condition, true_var, false_var, bp, assignment, internal_storage, statistics, param, one_var);
 
-                handle_component<BlueprintFieldType, component_type>
-                    (bp, assignment, internal_storage, statistics, param, instance_input, inst, frame);
+                handle_result<BlueprintFieldType>(assignment, inst, frame, {result}, param.gen_mode);
         }
 
     }    // namespace blueprint

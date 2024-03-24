@@ -62,8 +62,9 @@ namespace nil {
                     return 1;
                 }
 
-
             public:
+                constexpr static typename BlueprintFieldType::value_type one_constant = 1;
+
                 using component_type = plonk_component<BlueprintFieldType>;
 
                 using var = typename component_type::var;
@@ -92,7 +93,7 @@ namespace nil {
                 static manifest_type get_manifest() {
                     static manifest_type manifest = manifest_type(
                         std::shared_ptr<manifest_param>(
-                            new manifest_range_param(3, (BlueprintFieldType::modulus_bits + 28 - 1) / 28 )),
+                            new manifest_single_value_param(4)),
                         false
                     );
                     return manifest;
@@ -134,7 +135,7 @@ namespace nil {
                     var res;
 
                     result_type(const select_instruction &component, std::size_t start_row_index) {
-                        res = var(component.W(0), start_row_index, false);
+                        res = var(component.W(3), start_row_index, false);
                     }
 
                     std::vector<std::reference_wrapper<var>> all_vars() {
@@ -172,84 +173,130 @@ namespace nil {
                     BlueprintFieldType>;
 
             template<typename BlueprintFieldType>
-                typename plonk_select_instruction<BlueprintFieldType>::result_type
-                generate_circuit(
-                    const plonk_select_instruction<BlueprintFieldType>
-                        &component,
-                    circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
-                        &bp,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
-                        &assignment,
-                    const typename plonk_select_instruction<BlueprintFieldType>::input_type
-                        &instance_input,
-                    const std::uint32_t start_row_index) {
+            typename plonk_select_instruction<BlueprintFieldType>::result_type
+            generate_circuit(
+                const plonk_select_instruction<BlueprintFieldType>
+                    &component,
+                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
+                    &bp,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
+                    &assignment,
+                const typename plonk_select_instruction<BlueprintFieldType>::input_type
+                    &instance_input,
+                const std::uint32_t start_row_index) {
 
-                    return typename plonk_select_instruction<BlueprintFieldType>::result_type(
-                                component, start_row_index);
-                }
+                std::size_t selector_index = generate_gates(component, bp, assignment, instance_input);
 
-                template<typename BlueprintFieldType>
-                typename plonk_select_instruction<BlueprintFieldType>::result_type
-                generate_assignments(
-                    const plonk_select_instruction<BlueprintFieldType>
-                        &component,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
-                        &assignment,
-                    const typename plonk_select_instruction<BlueprintFieldType>::input_type
-                        &instance_input,
-                    const std::uint32_t start_row_index) {
+                assignment.enable_selector(selector_index, start_row_index);
 
-                    std::size_t row = start_row_index;
+                generate_copy_constraints(component, bp, assignment, instance_input, start_row_index);
 
-                    using component_type = plonk_select_instruction<BlueprintFieldType>;
-                    using value_type = typename BlueprintFieldType::value_type;
-                    using integral_type = typename BlueprintFieldType::integral_type;
+                return typename plonk_select_instruction<BlueprintFieldType>::result_type(
+                            component, start_row_index);
+            }
 
-                    integral_type condition = integral_type(var_value(assignment, instance_input.condition).data);
-                    integral_type true_val = integral_type(var_value(assignment, instance_input.true_val).data);
-                    integral_type false_val = integral_type(var_value(assignment, instance_input.false_val).data);
+            template<typename BlueprintFieldType>
+            std::size_t generate_gates(
+                const plonk_select_instruction<BlueprintFieldType> &component,
+                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &assignment,
+                const typename plonk_select_instruction<BlueprintFieldType>::input_type
+                    &instance_input) {
 
-                    assignment.witness(component.W(1), row) = condition;
-                    assignment.witness(component.W(2), row) = true_val;
-                    assignment.witness(component.W(3), row) = false_val;
+                using var = typename plonk_select_instruction<BlueprintFieldType>::var;
 
-                    integral_type output = (condition != 0) ? true_val : false_val;
+                // just mock implementation for keep connectness
+                auto constraint_1 = var(component.W(0), 0) * var(component.W(1), 0) + (var(component.C(0), 0, true, var::column_type::constant) - var(component.W(0), 0)) * var(component.W(2), 0) - var(component.W(3), 0);
 
-                    assignment.witness(component.W(0), row) = output;
+                return bp.add_gate(constraint_1);
+            }
 
-                    return typename component_type::result_type(component, start_row_index);
-                }
+            template<typename BlueprintFieldType>
+            void generate_copy_constraints(
+                const plonk_select_instruction<BlueprintFieldType> &component,
+                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
+                    &assignment,
+                const typename plonk_select_instruction<BlueprintFieldType>::input_type
+                    &instance_input,
+                const std::size_t start_row_index) {
 
-                template<typename BlueprintFieldType>
-                typename plonk_select_instruction<BlueprintFieldType>::result_type
-                generate_empty_assignments(
-                    const plonk_select_instruction<BlueprintFieldType>
-                        &component,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
-                        &assignment,
-                    const typename plonk_select_instruction<BlueprintFieldType>::input_type
-                        &instance_input,
-                    const std::uint32_t start_row_index) {
+                using var = typename plonk_select_instruction<BlueprintFieldType>::var;
 
-                    std::size_t row = start_row_index;
+                const std::size_t j = start_row_index;
+                var condition = var(component.W(0), static_cast<int>(j), false);
+                var true_val = var(component.W(1), static_cast<int>(j), false);
+                var false_val = var(component.W(2), static_cast<int>(j), false);
 
-                    using component_type = plonk_select_instruction<BlueprintFieldType>;
-                    using value_type = typename BlueprintFieldType::value_type;
-                    using integral_type = typename BlueprintFieldType::integral_type;
+                bp.add_copy_constraint({instance_input.condition, condition});
+                bp.add_copy_constraint({instance_input.true_val, true_val});
+                bp.add_copy_constraint({instance_input.false_val, false_val});
+            }
 
-                    integral_type condition = integral_type(var_value(assignment, instance_input.condition).data);
-                    integral_type true_val = integral_type(var_value(assignment, instance_input.true_val).data);
-                    integral_type false_val = integral_type(var_value(assignment, instance_input.false_val).data);
+            template<typename BlueprintFieldType>
+            typename plonk_select_instruction<BlueprintFieldType>::result_type
+            generate_assignments(
+                const plonk_select_instruction<BlueprintFieldType>
+                    &component,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
+                    &assignment,
+                const typename plonk_select_instruction<BlueprintFieldType>::input_type
+                    &instance_input,
+                const std::uint32_t start_row_index) {
 
-                    assignment.witness(component.W(1), row) = condition;
-                    assignment.witness(component.W(2), row) = true_val;
-                    assignment.witness(component.W(3), row) = false_val;
+                std::size_t row = start_row_index;
 
-                    integral_type output = (condition != 0) ? true_val : false_val;
+                using component_type = plonk_select_instruction<BlueprintFieldType>;
+                using value_type = typename BlueprintFieldType::value_type;
+                using integral_type = typename BlueprintFieldType::integral_type;
 
-                    assignment.witness(component.W(0), row) = output;
+                integral_type condition = integral_type(var_value(assignment, instance_input.condition).data);
+                integral_type true_val = integral_type(var_value(assignment, instance_input.true_val).data);
+                integral_type false_val = integral_type(var_value(assignment, instance_input.false_val).data);
 
-                    return typename component_type::result_type(component, start_row_index);
+                assignment.witness(component.W(0), row) = condition;
+                assignment.witness(component.W(1), row) = true_val;
+                assignment.witness(component.W(2), row) = false_val;
+                assignment.constant(component.C(0), row) = component.one_constant;
+
+                integral_type output = (condition != 0) ? true_val : false_val;
+
+                assignment.witness(component.W(3), row) = output;
+
+                return typename component_type::result_type(component, start_row_index);
+            }
+
+            template<typename BlueprintFieldType>
+            typename plonk_select_instruction<BlueprintFieldType>::result_type
+            generate_empty_assignments(
+                const plonk_select_instruction<BlueprintFieldType>
+                    &component,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
+                    &assignment,
+                const typename plonk_select_instruction<BlueprintFieldType>::input_type
+                    &instance_input,
+                const std::uint32_t start_row_index) {
+
+                std::size_t row = start_row_index;
+
+                using component_type = plonk_select_instruction<BlueprintFieldType>;
+                using value_type = typename BlueprintFieldType::value_type;
+                using integral_type = typename BlueprintFieldType::integral_type;
+
+                integral_type condition = integral_type(var_value(assignment, instance_input.condition).data);
+                integral_type true_val = integral_type(var_value(assignment, instance_input.true_val).data);
+                integral_type false_val = integral_type(var_value(assignment, instance_input.false_val).data);
+
+                assignment.witness(component.W(0), row) = condition;
+                assignment.witness(component.W(1), row) = true_val;
+                assignment.witness(component.W(2), row) = false_val;
+                assignment.constant(component.C(0), row) = component.one_constant;
+
+                integral_type output = (condition != 0) ? true_val : false_val;
+
+                assignment.witness(component.W(3), row) = output;
+
+                return typename component_type::result_type(component, start_row_index);
             }
 
         }   // namespace components
