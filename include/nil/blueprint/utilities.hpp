@@ -136,6 +136,14 @@ namespace nil {
                 }
                 return 0;
             }
+
+            template<typename var>
+            bool is_internal(const var &v) {
+                if (v.type == var::column_type::constant && v.index == detail::internal_storage_index) {
+                    return true;
+                }
+                return false;
+            }
         }    // namespace detail
     }    // namespace blueprint
 }    // namespace nil

@@ -132,7 +132,7 @@ namespace nil {
                     var flag;
 
                     result_type(const bitwise_and &component, std::size_t start_row_index) {
-                        flag = var(component.W(0), start_row_index, false);
+                        flag = var(component.W(2), start_row_index, false);
                     }
 
                     std::vector<std::reference_wrapper<var>> all_vars() {
@@ -170,78 +170,98 @@ namespace nil {
                     BlueprintFieldType>;
 
             template<typename BlueprintFieldType>
-                typename plonk_bitwise_and<BlueprintFieldType>::result_type
-                generate_circuit(
-                    const plonk_bitwise_and<BlueprintFieldType>
-                        &component,
-                    circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
-                        &bp,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
-                        &assignment,
-                    const typename plonk_bitwise_and<BlueprintFieldType>::input_type
-                        &instance_input,
-                    const std::uint32_t start_row_index) {
+            typename plonk_bitwise_and<BlueprintFieldType>::result_type
+            generate_circuit(
+                const plonk_bitwise_and<BlueprintFieldType>
+                    &component,
+                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
+                    &bp,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
+                    &assignment,
+                const typename plonk_bitwise_and<BlueprintFieldType>::input_type
+                    &instance_input,
+                const std::uint32_t start_row_index) {
 
-                    return typename plonk_bitwise_and<BlueprintFieldType>::result_type(
-                                component, start_row_index);
-                }
+                generate_copy_constraints(component, bp, assignment, instance_input, start_row_index);
 
-                template<typename BlueprintFieldType>
-                typename plonk_bitwise_and<BlueprintFieldType>::result_type
-                generate_assignments(
-                    const plonk_bitwise_and<BlueprintFieldType>
-                        &component,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
-                        &assignment,
-                    const typename plonk_bitwise_and<BlueprintFieldType>::input_type
-                        &instance_input,
-                    const std::uint32_t start_row_index) {
+                return typename plonk_bitwise_and<BlueprintFieldType>::result_type(
+                            component, start_row_index);
+            }
 
-                    std::size_t row = start_row_index;
+            template<typename BlueprintFieldType>
+            void generate_copy_constraints(
+                const plonk_bitwise_and<BlueprintFieldType> &component,
+                circuit<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
+                    &assignment,
+                const typename plonk_bitwise_and<BlueprintFieldType>::input_type
+                    &instance_input,
+                const std::size_t start_row_index) {
 
-                    using component_type = plonk_bitwise_and<BlueprintFieldType>;
-                    using value_type = typename BlueprintFieldType::value_type;
-                    using integral_type = typename BlueprintFieldType::integral_type;
+                using var = typename plonk_bitwise_and<BlueprintFieldType>::var;
 
-                    integral_type x = integral_type(var_value(assignment, instance_input.x).data);
-                    integral_type y = integral_type(var_value(assignment, instance_input.y).data);
+                const std::size_t j = start_row_index;
+                var x = var(component.W(0), static_cast<int>(j), false);
+                var y = var(component.W(1), static_cast<int>(j), false);
+                bp.add_copy_constraint({instance_input.x, x});
+                bp.add_copy_constraint({instance_input.y, y});
+            }
 
-                    assignment.witness(component.W(1), row) = x;
-                    assignment.witness(component.W(2), row) = y;
+            template<typename BlueprintFieldType>
+            typename plonk_bitwise_and<BlueprintFieldType>::result_type
+            generate_assignments(
+                const plonk_bitwise_and<BlueprintFieldType>
+                    &component,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
+                    &assignment,
+                const typename plonk_bitwise_and<BlueprintFieldType>::input_type
+                    &instance_input,
+                const std::uint32_t start_row_index) {
 
-                    integral_type output = x & y;
-                    assignment.witness(component.W(0), row) = output;
+                std::size_t row = start_row_index;
 
-                    return typename component_type::result_type(component, start_row_index);
-                }
+                using component_type = plonk_bitwise_and<BlueprintFieldType>;
+                using value_type = typename BlueprintFieldType::value_type;
+                using integral_type = typename BlueprintFieldType::integral_type;
 
-                template<typename BlueprintFieldType>
-                typename plonk_bitwise_and<BlueprintFieldType>::result_type
-                generate_empty_assignments(
-                    const plonk_bitwise_and<BlueprintFieldType>
-                        &component,
-                    assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
-                        &assignment,
-                    const typename plonk_bitwise_and<BlueprintFieldType>::input_type
-                        &instance_input,
-                    const std::uint32_t start_row_index) {
-                    std::size_t row = start_row_index;
+                integral_type x = integral_type(var_value(assignment, instance_input.x).data);
+                integral_type y = integral_type(var_value(assignment, instance_input.y).data);
 
-                    using component_type = plonk_bitwise_and<BlueprintFieldType>;
-                    using value_type = typename BlueprintFieldType::value_type;
-                    using integral_type = typename BlueprintFieldType::integral_type;
+                assignment.witness(component.W(0), row) = x;
+                assignment.witness(component.W(1), row) = y;
 
-                    integral_type x = integral_type(var_value(assignment, instance_input.x).data);
-                    integral_type y = integral_type(var_value(assignment, instance_input.y).data);
+                integral_type output = x & y;
+                assignment.witness(component.W(2), row) = output;
 
-                    assignment.witness(component.W(1), row) = x;
-                    assignment.witness(component.W(2), row) = y;
+                return typename component_type::result_type(component, start_row_index);
+            }
 
-                    integral_type output = x & y;
-                    assignment.witness(component.W(0), row) = output;
+            template<typename BlueprintFieldType>
+            typename plonk_bitwise_and<BlueprintFieldType>::result_type
+            generate_empty_assignments(
+                const plonk_bitwise_and<BlueprintFieldType>
+                    &component,
+                assignment<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
+                    &assignment,
+                const typename plonk_bitwise_and<BlueprintFieldType>::input_type
+                    &instance_input,
+                const std::uint32_t start_row_index) {
+                std::size_t row = start_row_index;
 
-                    return typename component_type::result_type(component, start_row_index);
+                using component_type = plonk_bitwise_and<BlueprintFieldType>;
+                using value_type = typename BlueprintFieldType::value_type;
+                using integral_type = typename BlueprintFieldType::integral_type;
 
+                integral_type x = integral_type(var_value(assignment, instance_input.x).data);
+                integral_type y = integral_type(var_value(assignment, instance_input.y).data);
+
+                assignment.witness(component.W(0), row) = x;
+                assignment.witness(component.W(1), row) = y;
+
+                integral_type output = x & y;
+                assignment.witness(component.W(2), row) = output;
+
+                return typename component_type::result_type(component, start_row_index);
             }
 
         }   // namespace components
