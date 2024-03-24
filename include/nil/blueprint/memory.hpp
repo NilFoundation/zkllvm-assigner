@@ -40,7 +40,7 @@ namespace nil {
 
         template<typename VarType>
         struct cell {
-            VarType v;
+            std::optional<VarType> v;
             size_t offset;
             int8_t size;
             int8_t following;
@@ -59,9 +59,9 @@ namespace nil {
         struct program_memory : public std::vector<cell<VarType>> {
         public:
             program_memory(size_t stack_size) : stack_size(stack_size), heap_top(stack_size) {
-                this->push_back({VarType(), 0, 0});
+                this->push_back({std::nullopt, 0, 0});
                 this->resize(heap_top);
-                this->push_back({VarType(), stack_size + 1, 0});
+                this->push_back({std::nullopt, stack_size + 1, 0});
                 heap_top++;
                 push_frame();
             }
@@ -93,7 +93,7 @@ namespace nil {
                 auto offset = this->back().offset + this->back().size;
                 ptr_type res = this->size();
                 for (size_t i = 0; i < num_bytes; ++i) {
-                    this->push_back(cell<VarType>{VarType(), offset++, 1});
+                    this->push_back(cell<VarType>{std::nullopt, offset++, 1});
                     heap_top++;
                 }
                 return res;
@@ -102,8 +102,11 @@ namespace nil {
             void store(ptr_type ptr, VarType value) {
                 (*this)[ptr].v = value;
             }
+
             VarType load(ptr_type ptr) {
-                return (*this)[ptr].v;
+                auto maybe_v = (*this)[ptr].v;
+                ASSERT(maybe_v.has_value());
+                return maybe_v.value();
             }
 
             size_t ptrtoint(ptr_type ptr) {
@@ -125,6 +128,53 @@ namespace nil {
                     return 0;
                 }
                 return res - this->begin();
+            }
+
+            void get_current_state(memory_state<VarType> &state) const {
+                state.stack_top = stack_top;
+                state.heap_top = heap_top;
+                state.frames = frames;
+                state.stack.resize(stack_top);
+                for (ptr_type i = 1; i < stack_top; i++) {
+                    state.stack[i - 1] = (*this)[i];
+                }
+                state.heap.resize(heap_top - stack_size);
+                for (ptr_type i = stack_size + 1; i < heap_top; i++) {
+                    state.heap[i - stack_size - 1] = (*this)[i];
+                }
+            }
+
+            void restore_state(const memory_state<VarType> &state) {
+                this->resize(state.heap_top);
+                frames = state.frames;
+                for (ptr_type i = 0; i < state.stack.size(); i++) {
+                    if (i < state.stack.size()) {
+                        (*this)[i + 1] = state.stack[i];
+                    } else {
+                        (*this)[i + 1] = cell<VarType>();
+                    }
+                }
+                for (ptr_type i = 0; i < state.heap.size(); i++) {
+                    (*this)[i + stack_size + 1] = state.heap[i];
+                }
+                heap_top = state.heap_top;
+                stack_top = state.stack_top;
+            }
+
+            ptr_type get_stack_top() const {
+                return stack_top;
+            }
+
+            size_t get_heap_top() const {
+                return heap_top;
+            }
+
+            const std::stack<ptr_type>& get_frames() const {
+                return frames;
+            }
+
+            size_t get_stack_size() const {
+                return stack_size;
             }
 
         private:

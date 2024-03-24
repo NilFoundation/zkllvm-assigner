@@ -86,10 +86,10 @@ namespace nil {
 
 
                 std::vector<var> selectors = extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    selectors_value, gates_amount, variables, memory, assignment, internal_storage, param.gen_mode);
+                    selectors_value, gates_amount, variables, memory, bp, assignment, internal_storage, statistics, param);
 
                 std::vector<var> constraints = extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    constraints_value, constraints_amount, variables, memory, assignment, internal_storage, param.gen_mode);
+                    constraints_value, constraints_amount, variables, memory, bp, assignment, internal_storage, statistics, param);
 
                 using component_type = components::basic_constraints_verifier<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>;

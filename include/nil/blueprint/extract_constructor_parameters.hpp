@@ -76,23 +76,18 @@ namespace nil {
             std::vector<var> extract_intrinsic_input_vector(llvm::Value *input_value, std::size_t input_length,
             typename std::map<const llvm::Value *, var> &variables,
                 program_memory<var> &memory,
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
-                column_type<BlueprintFieldType> &internal_storage, generation_mode gen_mode) {
+                column_type<BlueprintFieldType> &internal_storage, component_calls &statistics,
+                const common_component_parameters& param) {
                 std::vector<var> res = {};
                 ptr_type input_ptr = static_cast<ptr_type>(
-                    typename BlueprintFieldType::integral_type(detail::var_value<BlueprintFieldType, var>(variables[input_value], assignment, internal_storage, gen_mode.has_assignments()).data));
-                if (gen_mode.has_assignments()) {
-                    for (std::size_t i = 0; i < input_length; i++) {
-                        ASSERT(memory[input_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                        const auto v = memory.load(input_ptr++);
-                        const auto value = detail::var_value<BlueprintFieldType, var>(v, assignment, internal_storage, true);
-                        res.push_back(detail::put_internal_value<typename BlueprintFieldType::value_type, BlueprintFieldType, var>(value, internal_storage));
-                    }
-                } else {
-                    for (std::size_t i = 0; i < input_length; i++) {
-                        res.push_back(detail::put_internal_value<typename BlueprintFieldType::value_type, BlueprintFieldType, var>(0, internal_storage));
-                    }
+                    typename BlueprintFieldType::integral_type(detail::var_value<BlueprintFieldType, var>(variables[input_value], assignment, internal_storage, param.gen_mode.has_assignments()).data));
+                for (std::size_t i = 0; i < input_length; i++) {
+                    ASSERT(memory[input_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
+                    auto v = memory.load(input_ptr++);
+                    res.push_back(v);
                 }
                 return res;
             }

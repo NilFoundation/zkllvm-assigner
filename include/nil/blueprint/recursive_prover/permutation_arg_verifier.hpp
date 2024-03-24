@@ -74,13 +74,13 @@ namespace nil {
                 std::size_t input_length = extract_constant_size_t_value<BlueprintFieldType>(input_length_value);
 
                 std::vector<var> Ssigma = extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    Ssigma_value, input_length, variables, memory, assignment, internal_storage, param.gen_mode);
+                    Ssigma_value, input_length, variables, memory, bp, assignment, internal_storage, statistics, param);
 
                 std::vector<var> f = extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    f_value, input_length, variables, memory, assignment, internal_storage, param.gen_mode);
+                    f_value, input_length, variables, memory, bp, assignment, internal_storage, statistics, param);
 
                 std::vector<var> Se = extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    Se_value, input_length, variables, memory, assignment, internal_storage, param.gen_mode);
+                    Se_value, input_length, variables, memory, bp, assignment, internal_storage, statistics, param);
 
                 using component_type = components::permutation_verifier<
                     crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>;
