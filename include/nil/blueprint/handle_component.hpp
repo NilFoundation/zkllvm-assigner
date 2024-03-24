@@ -207,7 +207,6 @@ namespace nil {
         void handle_component_input(
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
-            column_type<BlueprintFieldType> &internal_storage,
             typename ComponentType::input_type& instance_input, const common_component_parameters& param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -216,15 +215,9 @@ namespace nil {
             const auto& used_rows = assignment.get_used_rows();
 
             for (auto& v : input) {
-                if (v.get().type == var::column_type::constant && v.get().index == detail::internal_storage_index) {
-                    const auto& start_row = assignment.allocated_rows();
-                    assignment.witness(0, start_row) = internal_storage[v.get().rotation];
-                    var new_v = var(0, start_row, false, var::column_type::witness);
-                    v.get().index = new_v.index;
-                    v.get().rotation = new_v.rotation;
-                    v.get().relative = new_v.relative;
-                    v.get().type = new_v.type;
-                } else if ((used_rows.find(v.get().rotation) == used_rows.end()) &&
+                // component input can't be from intranel_storage'
+                ASSERT(v.get().type != var::column_type::constant || v.get().index != detail::internal_storage_index);
+                if ((used_rows.find(v.get().rotation) == used_rows.end()) &&
                            (v.get().type == var::column_type::witness || v.get().type == var::column_type::constant)) {
                     var new_v;
                     if (param.gen_mode.has_assignments()) {
@@ -339,7 +332,7 @@ namespace nil {
                 return typename ComponentType::result_type(component_instance, assignment.allocated_rows());
             }
 
-            handle_component_input<BlueprintFieldType, ComponentType>(assignment, internal_storage, instance_input, param);
+            handle_component_input<BlueprintFieldType, ComponentType>(assignment, instance_input, param);
 
             const auto& start_row = assignment.allocated_rows();
             // copy constraints before execute component
