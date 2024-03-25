@@ -1830,7 +1830,7 @@ namespace nil {
             std::vector<branch_desc> curr_branch;
             component_calls statistics;
             /***
-             * extention of assignment table for keep internal values which not presented in components
+             * extension of assignment table for keep internal values which not presented in components
              * identified as constant column with special internal_storage_index = std::numeric_limits<std::size_t>::max()
             ***/
             column_type<BlueprintFieldType> internal_storage;
