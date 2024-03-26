@@ -192,6 +192,38 @@ namespace nil {
             uint8_t mode_;
         };
 
+        template<typename var>
+        const int column_to_uint(typename var::column_type type) {
+            switch (type) {
+                case var::witness: return 0;
+                case var::public_input: return 1;
+                case var::constant: return 2;
+                case var::selector: return 3;
+                default: UNREACHABLE("unknown column type");
+            }
+        }
+
+        template<typename var>
+        struct component_io {
+            std::size_t start_row;
+            std::vector<var> inputs;
+            std::vector<var> outputs;
+
+            component_io (std::size_t s, std::vector<var> i, std::vector<var> o) {
+                start_row = s;
+                inputs = i;
+                outputs = o;
+            }
+        };
+
+        std::vector<
+            component_io<
+                crypto3::zk::snark::plonk_variable<
+                    typename crypto3::algebra::curves::pallas::base_field_type::value_type
+                >
+            >
+        > all_components = {};
+
         struct common_component_parameters {
             std::uint32_t target_prover_idx;
             generation_mode gen_mode;
@@ -328,6 +360,14 @@ namespace nil {
                 return typename ComponentType::result_type(component_instance, assignment.allocated_rows());
             }
 
+            using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+            // BOOST_LOG_TRIVIAL(info) << "component " << component_instance.component_name;
+            std::vector<var> inputs = {};
+            for (std::size_t i = 0; i < instance_input.all_vars().size(); i++) {
+                inputs.push_back(instance_input.all_vars()[i].get());
+                // BOOST_LOG_TRIVIAL(info) << "input var " << instance_input.all_vars()[i].get().index << " " << instance_input.all_vars()[i].get().rotation << " " <<  column_to_uint<var>(instance_input.all_vars()[i].get().type);
+            }
+
             handle_component_input<BlueprintFieldType, ComponentType>(assignment, instance_input, param);
 
             const auto& start_row = assignment.allocated_rows();
@@ -336,6 +376,15 @@ namespace nil {
 
             // generate circuit in any case for fill selectors
             generate_circuit(component_instance, bp, assignment, instance_input, start_row);
+
+                auto res = typename ComponentType::result_type(component_instance, start_row);
+            std::vector<var> outputs = {};
+                for (std::size_t i = 0; i < res.all_vars().size(); i++) {
+                outputs.push_back(res.all_vars()[i].get());
+                    // BOOST_LOG_TRIVIAL(info) << "res.all_vars() " << res.all_vars()[i].get().index << " " << res.all_vars()[i].get().rotation << " " << column_to_uint<var>(res.all_vars()[i].get().type);
+                }
+
+            all_components.push_back(component_io<var>(start_row, inputs, outputs));
 
             if (param.gen_mode.has_assignments()) {
                 return generate_assignments(component_instance, assignment, instance_input, start_row,
