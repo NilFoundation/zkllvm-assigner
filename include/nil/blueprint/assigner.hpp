@@ -110,6 +110,7 @@
 #include <nil/crypto3/algebra/curves/bls12.hpp>
 #include <nil/crypto3/algebra/pairing/bls12.hpp>
 #include <nil/crypto3/algebra/algorithms/pair.hpp>
+#include <thread>
 
 namespace nil {
     namespace blueprint {
@@ -1878,6 +1879,11 @@ namespace nil {
                     }
                 }
 
+
+                BOOST_LOG_TRIVIAL(info) << "evaluate start: ";
+
+                auto usual_handle_inst_start = std::chrono::high_resolution_clock::now();
+
                 const llvm::Instruction *next_inst = &circuit_function->begin()->front();
                 while (true) {
                     next_inst = handle_instruction(next_inst);
@@ -1886,12 +1892,45 @@ namespace nil {
                             std::cout << "\nallocated_rows: " <<  assignments[currProverIdx].allocated_rows() << "\n";
                             statistics.print();
                         }
-                        return true;
+                        break;
+                        // return true;
                     }
                     if (next_inst == nullptr) {
                         return false;
                     }
                 }
+
+                using temp_comp_type = components::poseidon<ArithmetizationType, BlueprintFieldType>;
+
+                auto usual_handle_inst_duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - usual_handle_inst_start);
+                BOOST_LOG_TRIVIAL(info) << "usual_handle_inst_duration: " << usual_handle_inst_duration.count() << "ms";
+
+                auto fast_tbl_start = std::chrono::high_resolution_clock::now();
+                std::vector<std::thread> threads = {};
+                for (std::size_t i = 0; i < all_components.size(); i++) {
+
+                    // threads.emplace_back(
+                    // std::thread(
+                    // components::generate_assignments<BlueprintFieldType, BlueprintFieldType>,
+                    components::generate_assignments(
+                        temp_comp_type(
+                            detail::PolicyManager::get_parameters(detail::ManifestReader<temp_comp_type>::get_witness(0)).witness,
+                            std::array<std::uint32_t, 1>{0},
+                            std::array<std::uint32_t, 1>{0}
+                        ),
+                        assignments[currProverIdx],
+                        typename temp_comp_type::input_type{
+                            all_components[i].inputs[0],
+                            all_components[i].inputs[1],
+                            all_components[i].inputs[2]
+                        },
+                        all_components[i].start_row
+                    );
+                    // BOOST_LOG_TRIVIAL(info) << "all_components[" << i << "]: " << all_components[i].start_row << all_components[i].inputs[0].index;
+                }
+                auto fast_tbl_duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - fast_tbl_start);
+                BOOST_LOG_TRIVIAL(info) << "fast_tbl_duration: " << fast_tbl_duration.count() << "ms";
+                return true;
             }
 
             /**
