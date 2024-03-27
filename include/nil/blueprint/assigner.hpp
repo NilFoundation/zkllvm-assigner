@@ -719,7 +719,8 @@ namespace nil {
                 } else {
                     std::vector<var> res;
                     for (size_t i = 0; i < num_cells; ++i) {
-                        res.push_back(put_value_into_internal_storage(get_var_value(memory[ptr + i].v)));
+                        auto &cell = memory[ptr + i];
+                        res.push_back(cell.v);
                     }
                     frame.vectors[dest] = res;
                 }
