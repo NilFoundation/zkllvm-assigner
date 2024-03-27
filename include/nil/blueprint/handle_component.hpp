@@ -66,6 +66,9 @@
 #include <nil/blueprint/component_mockups/fp12_multiplication.hpp>
 #include <nil/blueprint/component_mockups/bls12_381_pairing.hpp>
 #include <nil/blueprint/component_mockups/comparison.hpp>
+#include <nil/blueprint/component_mockups/bitwise_and.hpp>
+#include <nil/blueprint/component_mockups/bitwise_or.hpp>
+#include <nil/blueprint/component_mockups/bitwise_xor.hpp>
 
 #include <nil/blueprint/asserts.hpp>
 #include <nil/blueprint/stack.hpp>
