@@ -38,20 +38,27 @@ namespace nil {
     namespace blueprint {
 
         template<typename BlueprintFieldType>
-        typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>
-            handle_bitwise_and_component(
-                const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &x,
-                const typename crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> &y,
+            void handle_bitwise_and_component(
+                const llvm::Instruction *inst,
+                stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
-                std::uint32_t start_row,
-                std::size_t &public_input_idx) {
+                column_type<BlueprintFieldType> &internal_storage,
+                component_calls &statistics,
+                const common_component_parameters& param) {
 
-                typename BlueprintFieldType::integral_type x_integer(var_value(assignment, x).data);
-                typename BlueprintFieldType::integral_type y_integer(var_value(assignment, y).data);
+                using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+                using arithmetization_type = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
+                using component_type = components::bitwise_and<arithmetization_type, BlueprintFieldType>;
 
-                UNREACHABLE("component is not implemented yet");
+                auto x = frame.scalars[inst->getOperand(0)];
+                auto y = frame.scalars[inst->getOperand(1)];
+
+                typename component_type::input_type instance_input = {x, y};
+
+                handle_component<BlueprintFieldType, component_type>
+                    (bp, assignment, internal_storage, statistics, param, instance_input, inst, frame);
         }
 
     }    // namespace blueprint
