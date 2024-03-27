@@ -9,7 +9,7 @@
 
 include(CMTest)
 
-cm_find_package(Boost REQUIRED COMPONENTS log log_setup random unit_test_framework)
+cm_find_package(Boost REQUIRED COMPONENTS log log_setup random unit_test_framework filesystem thread system)
 
 cm_test_link_libraries(${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME}
 
@@ -57,15 +57,23 @@ macro(define_assigner_test test)
     elseif(target_type STREQUAL "STATIC_LIB")
 
     endif()
+
+    target_compile_definitions(${full_test_name} PRIVATE TEST_IR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/ir/")
 endmacro()
 
 SET(ALL_TESTS_FILES
-    "signature_parser_test"
+    "allocator_test"
+    "assigner_test"
     "input_reader_test"
+    "memory_test"
+    "segment_map_test"
+    "segment_test"
+    "signature_parser_test"
+    "type_layout_test"
+    "var_concat_test"
+    "var_trim_test"
     )
 
 foreach(TEST_FILE ${ALL_TESTS_FILES})
     define_assigner_test(${TEST_FILE})
 endforeach()
-
-target_compile_definitions(zkllvm_assigner_input_reader_test PRIVATE IR_FILE="${CMAKE_CURRENT_SOURCE_DIR}/ir/input_reader_test.ll")

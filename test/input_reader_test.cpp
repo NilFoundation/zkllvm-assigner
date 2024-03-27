@@ -1,5 +1,6 @@
 #include <nil/crypto3/algebra/curves/bls12.hpp>
 #include <map>
+#include <string>
 
 #include <nil/marshalling/status_type.hpp>
 #include <nil/marshalling/field_type.hpp>
@@ -19,9 +20,9 @@ using BlueprintFieldType = typename nil::crypto3::algebra::curves::pallas::base_
 using var = nil::crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
 llvm::DataLayout dl("");
-LayoutResolver layout_resolver(dl);
+TypeLayoutResolver layout_resolver(dl);
 column_type<BlueprintFieldType> internal_storage;
-program_memory<var> memory(100);
+program_memory<var> memory;
 stack_frame<var> frame;
 std::nullptr_t empty_assignmnt;
 boost::json::array empty_private_input;
@@ -76,7 +77,7 @@ bool check_vector_equality(const column_type<BlueprintFieldType> &actual,
 
 struct LLVMDataFixture {
     LLVMDataFixture() {
-        module = llvm::parseIRFile(IR_FILE, diagnostic, context);
+        module = llvm::parseIRFile(std::string(TEST_IR_DIR) + "input_reader_test.ll", diagnostic, context);
         BOOST_TEST_REQUIRE(module.get() != nullptr);
         arrays_func = get_func_by_name(module.get(), "arrays");
         BOOST_TEST_REQUIRE(arrays_func != nullptr);
