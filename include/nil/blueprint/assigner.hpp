@@ -1213,46 +1213,39 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::And: {
-                        const var &lhs = variables[inst->getOperand(0)];
-                        const var &rhs = variables[inst->getOperand(1)];
-
-                        // TODO: replace mock with component
-
-                        typename BlueprintFieldType::integral_type x_integer(
-                            get_var_value(lhs).data);
-                        typename BlueprintFieldType::integral_type y_integer(
-                            get_var_value(rhs).data);
-                        typename BlueprintFieldType::value_type res = (x_integer & y_integer);
-                        variables[inst] = put_value_into_internal_storage(res);
-
+                        handle_bitwise_and_component<BlueprintFieldType>(
+                            inst,
+                            frame,
+                            circuits[currProverIdx],
+                            assignments[currProverIdx],
+                            internal_storage,
+                            statistics,
+                            param
+                        );
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Or: {
-                        const var &lhs = variables[inst->getOperand(0)];
-                        const var &rhs = variables[inst->getOperand(1)];
-
-                        // TODO: replace mock with component
-
-                        typename BlueprintFieldType::integral_type x_integer(
-                            get_var_value(lhs).data);
-                        typename BlueprintFieldType::integral_type y_integer(
-                            get_var_value(rhs).data);
-                        typename BlueprintFieldType::value_type res = (x_integer | y_integer);
-                        variables[inst] = put_value_into_internal_storage(res);
+                        handle_bitwise_or_component<BlueprintFieldType>(
+                            inst,
+                            frame,
+                            circuits[currProverIdx],
+                            assignments[currProverIdx],
+                            internal_storage,
+                            statistics,
+                            param
+                        );
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Xor: {
-                        const var &lhs = variables[inst->getOperand(0)];
-                        const var &rhs = variables[inst->getOperand(1)];
-
-                        // TODO: replace mock with component
-
-                        typename BlueprintFieldType::integral_type x_integer(
-                            get_var_value(lhs).data);
-                        typename BlueprintFieldType::integral_type y_integer(
-                            get_var_value(rhs).data);
-                        typename BlueprintFieldType::value_type res = (x_integer ^ y_integer);
-                        variables[inst] = put_value_into_internal_storage(res);
+                        handle_bitwise_xor_component<BlueprintFieldType>(
+                            inst,
+                            frame,
+                            circuits[currProverIdx],
+                            assignments[currProverIdx],
+                            internal_storage,
+                            statistics,
+                            param
+                        );
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Br: {
