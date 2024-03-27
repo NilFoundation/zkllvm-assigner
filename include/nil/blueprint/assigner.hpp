@@ -1574,6 +1574,10 @@ namespace nil {
                             // Final return
                             finished = true;
 
+                            if (gen_mode.has_assignments()) {
+                                fill_return_value(llvm::cast<llvm::ReturnInst>(inst), frame);
+                            }
+
                             if(print_output_format != no_print && gen_mode.has_assignments()) {
                                 if(print_output_format == hex) {
                                     std::cout << std::hex;
@@ -1687,6 +1691,80 @@ namespace nil {
 
             typename BlueprintFieldType::value_type get_var_value(const var &input_var) {
                 return detail::var_value<BlueprintFieldType, var>(input_var, assignments[currProverIdx], internal_storage, gen_mode.has_assignments());
+            }
+
+            /**
+             * @brief Fill return value of the circuit function.
+             *
+             * @param inst pointer to `ret` instruction of circuit function
+             * @param frame reference to frame of circuit function
+            */
+            void fill_return_value(const llvm::ReturnInst *inst, stack_frame<var> &frame) {
+                auto ret_val = inst->getReturnValue();
+                if (ret_val == nullptr) {
+                    // Function returns void
+                    return_value = {};
+                    return;
+                }
+                auto ret_type = ret_val->getType();
+                switch (ret_type->getTypeID()) {
+                    case llvm::Type::IntegerTyID: {
+                        return_value = {
+                            typename BlueprintFieldType::integral_type(get_var_value(frame.scalars[ret_val]).data)
+                        };
+                        break;
+                    }
+                    case llvm::Type::GaloisFieldTyID: {
+                        auto field_type = llvm::cast<llvm::GaloisFieldType>(ret_type);
+                        if (field_arg_num<BlueprintFieldType>(field_type) == 1) {
+                            // Native field case
+                            return_value = {
+                                typename BlueprintFieldType::integral_type(get_var_value(frame.scalars[ret_val]).data)
+                            };
+                        } else {
+                            llvm::GaloisFieldKind field_kind = field_type->getFieldKind();
+                            std::vector<var> res = frame.vectors[ret_val];
+                            std::vector<typename BlueprintFieldType::value_type> chopped_field;
+                            for (std::size_t i = 0; i < res.size(); i++) {
+                                chopped_field.push_back(get_var_value(res[i]));
+                            }
+                            return_value = {
+                                unmarshal_field_val<BlueprintFieldType>(field_kind, chopped_field)
+                            };
+                        }
+                        break;
+                    }
+                    case llvm::Type::EllipticCurveTyID: {
+                        auto curve_type = llvm::cast<llvm::EllipticCurveType>(ret_type);
+                        std::vector<var> res = frame.vectors[ret_val];
+                        size_t curve_len = curve_arg_num<BlueprintFieldType>(ret_val->getType());
+                        if (curve_len == 2) {
+                            // Native curve
+                            return_value = {
+                                typename BlueprintFieldType::integral_type(get_var_value(res[0]).data),
+                                typename BlueprintFieldType::integral_type(get_var_value(res[1]).data),
+                            };
+                        } else {
+                            // Non-native curve
+                            llvm::GaloisFieldKind field_kind = curve_type->GetBaseFieldKind();
+                            std::vector<var> res = frame.vectors[ret_val];
+                            column_type<BlueprintFieldType> chopped_field_x;
+                            column_type<BlueprintFieldType> chopped_field_y;
+                            for (std::size_t i = 0; i < curve_len / 2; i++) {
+                                chopped_field_x.push_back(get_var_value(res[i]));
+                                chopped_field_y.push_back(get_var_value(res[i + (curve_len / 2)]));
+                            }
+                            return_value = {
+                                unmarshal_field_val<BlueprintFieldType>(field_kind, chopped_field_x),
+                                unmarshal_field_val<BlueprintFieldType>(field_kind, chopped_field_y),
+                            };
+                        }
+                    }
+                    default: {
+                        // Do nothing, just leave return value empty.
+                        return_value = {};
+                    }
+                }
             }
 
         public:
@@ -1804,6 +1882,25 @@ namespace nil {
                 }
             }
 
+            /**
+             * @brief Get return value of circuit function.
+             *
+             * Returns undefined value if evaluation did not finished successfully.
+             *
+             * Non-native field/curve types are represented with single value and truncated to
+             * match the native size.
+             */
+            std::vector<typename BlueprintFieldType::integral_type> get_return_value() {
+                // TODO: this must be removed after completing implementation of `fill_return_value`
+                auto ret_type = circuit_function->getReturnType();
+                if (finished && !ret_type->isVoidTy() && return_value.empty()) {
+                    LLVM_PRINT(ret_type, str);
+                    TODO_WITH_LINK("accessing return value for " + str + " type",
+                                   "https://github.com/NilFoundation/zkllvm-assigner/issues/218");
+                }
+                return return_value;
+            }
+
         private:
             llvm::LLVMContext context;
             const llvm::BasicBlock *predecessor = nullptr;
@@ -1834,6 +1931,7 @@ namespace nil {
              * identified as constant column with special internal_storage_index = std::numeric_limits<std::size_t>::max()
             ***/
             column_type<BlueprintFieldType> internal_storage;
+            std::vector<typename BlueprintFieldType::integral_type> return_value;
         };
 
     }     // namespace blueprint
