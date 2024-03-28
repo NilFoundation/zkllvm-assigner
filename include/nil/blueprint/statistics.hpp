@@ -67,12 +67,10 @@ namespace nil {
 
             void add_record(std::string name, std::size_t rows, std::size_t gates, std::size_t witness) {
 
-                bool component_finished;
+                bool component_finished = true;
 
-                if (unfinished_components.find(name) != unfinished_components.end()) {
+                if (name.find("unfinished") != std::string::npos) {
                     component_finished = false;
-                } else {
-                    component_finished = true;
                 }
 
                 if (components.find(name) == components.end()) {
