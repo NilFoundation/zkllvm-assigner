@@ -22,8 +22,8 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_BITWISE_AND_HPP_
-#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_BITWISE_AND_HPP_
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_SELECT_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_SELECT_HPP_
 
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeFinder.h"
@@ -38,7 +38,7 @@ namespace nil {
     namespace blueprint {
 
         template<typename BlueprintFieldType>
-            void handle_bitwise_and_component(
+            void handle_select_component(
                 const llvm::Instruction *inst,
                 stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
@@ -50,12 +50,17 @@ namespace nil {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
                 using arithmetization_type = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
-                using component_type = components::bitwise_and<arithmetization_type, BlueprintFieldType>;
+                using component_type = components::select_instruction<arithmetization_type, BlueprintFieldType>;
 
-                auto x = frame.scalars[inst->getOperand(0)];
-                auto y = frame.scalars[inst->getOperand(1)];
+                auto condition = frame.scalars[inst->getOperand(0)];
+                auto true_val = frame.scalars[inst->getOperand(1)];
+                auto false_val= frame.scalars[inst->getOperand(2)];
 
-                typename component_type::input_type instance_input = {x, y};
+                typename component_type::input_type instance_input = {
+                    condition,
+                    true_val,
+                    false_val
+                };
 
                 handle_component<BlueprintFieldType, component_type>
                     (bp, assignment, internal_storage, statistics, param, instance_input, inst, frame);
@@ -64,4 +69,4 @@ namespace nil {
     }    // namespace blueprint
 }    // namespace nil
 
-#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_BITWISE_AND_HPP_
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_SELECT_HPP_

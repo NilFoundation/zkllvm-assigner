@@ -101,6 +101,9 @@
 #include <nil/blueprint/bls_signature/is_in_g1.hpp>
 #include <nil/blueprint/bls_signature/is_in_g2.hpp>
 #include <nil/blueprint/bls_signature/h2c.hpp>
+
+#include <nil/blueprint/memory/select.hpp>
+
 #include <nil/blueprint/component_mockups/comparison.hpp>
 
 #include <nil/crypto3/algebra/curves/bls12.hpp>
@@ -605,7 +608,7 @@ namespace nil {
                         }
 
                         typename eq_component_type::input_type instance_input = {comparison_result, zero_var};
-                        handle_component_input<BlueprintFieldType, eq_component_type>(assignments[currProverIdx], internal_storage, instance_input, param);
+                        handle_component_input<BlueprintFieldType, eq_component_type>(assignments[currProverIdx], instance_input, param);
                         const auto input_vars = instance_input.all_vars();
                         ASSERT(input_vars.size() == 2);
                         circuits[currProverIdx].add_copy_constraint({input_vars[0].get(), input_vars[1].get()});
@@ -627,7 +630,7 @@ namespace nil {
                         using eq_component_type = components::equality_flag<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
 
                         typename eq_component_type::input_type instance_input = {x, y};
-                        handle_component_input<BlueprintFieldType, eq_component_type>(assignments[currProverIdx], internal_storage, instance_input, param);
+                        handle_component_input<BlueprintFieldType, eq_component_type>(assignments[currProverIdx], instance_input, param);
                         const auto input_vars = instance_input.all_vars();
                         ASSERT(input_vars.size() == 2);
                         circuits[currProverIdx].add_copy_constraint({input_vars[0].get(), input_vars[1].get()});
@@ -715,11 +718,12 @@ namespace nil {
                 size_t num_cells = layout_resolver->get_cells_num<BlueprintFieldType>(dest->getType());
                 if (num_cells == 1) {
                     auto &cell = memory[ptr];
-                    frame.scalars[dest] = put_value_into_internal_storage(get_var_value(cell.v));
+                    frame.scalars[dest] = cell.v;
                 } else {
                     std::vector<var> res;
                     for (size_t i = 0; i < num_cells; ++i) {
-                        res.push_back(put_value_into_internal_storage(get_var_value(memory[ptr + i].v)));
+                        auto &cell = memory[ptr + i];
+                        res.push_back(cell.v);
                     }
                     frame.vectors[dest] = res;
                 }
@@ -1202,57 +1206,51 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Select: {
-                        var condition = variables[inst->getOperand(0)];
-                        llvm::Value *true_val = inst->getOperand(1);
-                        llvm::Value *false_val = inst->getOperand(2);
-                        if (get_var_value(condition) != 0) {
-                            variables[inst] = put_value_into_internal_storage(get_var_value(variables[true_val]));
-                        } else {
-                            variables[inst] = put_value_into_internal_storage(get_var_value(variables[false_val]));
-                        }
+                        handle_select_component<BlueprintFieldType>(
+                            inst,
+                            frame,
+                            circuits[currProverIdx],
+                            assignments[currProverIdx],
+                            internal_storage,
+                            statistics,
+                            param
+                        );
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::And: {
-                        const var &lhs = variables[inst->getOperand(0)];
-                        const var &rhs = variables[inst->getOperand(1)];
-
-                        // TODO: replace mock with component
-
-                        typename BlueprintFieldType::integral_type x_integer(
-                            get_var_value(lhs).data);
-                        typename BlueprintFieldType::integral_type y_integer(
-                            get_var_value(rhs).data);
-                        typename BlueprintFieldType::value_type res = (x_integer & y_integer);
-                        variables[inst] = put_value_into_internal_storage(res);
-
+                        handle_bitwise_and_component<BlueprintFieldType>(
+                            inst,
+                            frame,
+                            circuits[currProverIdx],
+                            assignments[currProverIdx],
+                            internal_storage,
+                            statistics,
+                            param
+                        );
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Or: {
-                        const var &lhs = variables[inst->getOperand(0)];
-                        const var &rhs = variables[inst->getOperand(1)];
-
-                        // TODO: replace mock with component
-
-                        typename BlueprintFieldType::integral_type x_integer(
-                            get_var_value(lhs).data);
-                        typename BlueprintFieldType::integral_type y_integer(
-                            get_var_value(rhs).data);
-                        typename BlueprintFieldType::value_type res = (x_integer | y_integer);
-                        variables[inst] = put_value_into_internal_storage(res);
+                        handle_bitwise_or_component<BlueprintFieldType>(
+                            inst,
+                            frame,
+                            circuits[currProverIdx],
+                            assignments[currProverIdx],
+                            internal_storage,
+                            statistics,
+                            param
+                        );
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Xor: {
-                        const var &lhs = variables[inst->getOperand(0)];
-                        const var &rhs = variables[inst->getOperand(1)];
-
-                        // TODO: replace mock with component
-
-                        typename BlueprintFieldType::integral_type x_integer(
-                            get_var_value(lhs).data);
-                        typename BlueprintFieldType::integral_type y_integer(
-                            get_var_value(rhs).data);
-                        typename BlueprintFieldType::value_type res = (x_integer ^ y_integer);
-                        variables[inst] = put_value_into_internal_storage(res);
+                        handle_bitwise_xor_component<BlueprintFieldType>(
+                            inst,
+                            frame,
+                            circuits[currProverIdx],
+                            assignments[currProverIdx],
+                            internal_storage,
+                            statistics,
+                            param
+                        );
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Br: {
