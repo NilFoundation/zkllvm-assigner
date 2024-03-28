@@ -56,7 +56,7 @@ namespace nil {
 
                 constexpr static const std::size_t gates_amount = 0;
                 const std::size_t rows_amount = get_rows_amount(this->witness_amount());
-                const std::string component_name = "is_in_g2";
+                const std::string component_name = "is_in_g2_unfinished";
 
                 using var = typename component_type::var;
                 using manifest_type = nil::blueprint::plonk_component_manifest;

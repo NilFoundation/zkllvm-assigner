@@ -164,7 +164,7 @@ namespace nil {
 
                 const std::size_t gates_amount = gates_amount_internal(this->witness_amount());
                 const std::size_t rows_amount = get_rows_amount(this->witness_amount());
-                const std::string component_name = "native_bls12_381_pairing";
+                const std::string component_name = "native_bls12_381_pairing_unfinished";
 
                 struct input_type {
                     std::array<var,2> P;

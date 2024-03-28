@@ -87,7 +87,7 @@ namespace nil {
 
                 constexpr static const std::size_t gates_amount = 1;
                 const std::size_t rows_amount = get_rows_amount(this->witness_amount());
-                const std::string component_name = "non_native fp12 multiplication";
+                const std::string component_name = "non_native fp12 multiplication_unfinished";
 
                 struct input_type {
                     std::array<var,12> a;
