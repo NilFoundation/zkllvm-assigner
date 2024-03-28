@@ -101,6 +101,9 @@
 #include <nil/blueprint/bls_signature/is_in_g1.hpp>
 #include <nil/blueprint/bls_signature/is_in_g2.hpp>
 #include <nil/blueprint/bls_signature/h2c.hpp>
+
+#include <nil/blueprint/memory/select.hpp>
+
 #include <nil/blueprint/component_mockups/comparison.hpp>
 
 #include <nil/crypto3/algebra/curves/bls12.hpp>
@@ -1202,14 +1205,15 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Select: {
-                        var condition = variables[inst->getOperand(0)];
-                        llvm::Value *true_val = inst->getOperand(1);
-                        llvm::Value *false_val = inst->getOperand(2);
-                        if (get_var_value(condition) != 0) {
-                            variables[inst] = put_value_into_internal_storage(get_var_value(variables[true_val]));
-                        } else {
-                            variables[inst] = put_value_into_internal_storage(get_var_value(variables[false_val]));
-                        }
+                        handle_select_component<BlueprintFieldType>(
+                            inst,
+                            frame,
+                            circuits[currProverIdx],
+                            assignments[currProverIdx],
+                            internal_storage,
+                            statistics,
+                            param
+                        );
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::And: {
