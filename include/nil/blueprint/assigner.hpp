@@ -540,23 +540,19 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::memcpy: {
-                        if (gen_mode.has_assignments()) {
                             llvm::Value *src_val = inst->getOperand(1);
                             ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
                             ptr_type src = resolve_number<ptr_type>(frame, src_val);
                             unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
                             memcpy(dst, src, width);
-                        }
                         return true;
                     }
                     case llvm::Intrinsic::memset: {
-                        if (gen_mode.has_assignments()) {
                             ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
                             unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
                             ASSERT(frame.scalars.find(inst->getOperand(1)) != frame.scalars.end());
                             const auto value_var = frame.scalars[inst->getOperand(1)];
                             memset(dst, value_var, width);
-                        }
                         return true;
                     }
                     case llvm::Intrinsic::assigner_zkml_convolution: {
@@ -895,7 +891,6 @@ namespace nil {
                         handle_ptrtoint(expr, expr->getOperand(0), frame);
                         break;
                     case llvm::Instruction::GetElementPtr: {
-                        if (gen_mode.has_assignments()) {
                             std::vector<int> gep_indices;
                             for (unsigned i = 2; i < expr->getNumOperands(); ++i) {
                                 int gep_index = resolve_number<int>(frame, expr->getOperand(i));
@@ -916,9 +911,6 @@ namespace nil {
                                                         gep_indices, frame);
                             ASSERT(gep_res != 0);
                             frame.scalars[c] = put_constant_into_assignment(gep_res);
-                        } else {
-                            frame.scalars[c] = put_constant_into_assignment(0);
-                        }
                         break;
                     }
                     default: {
@@ -1460,7 +1452,6 @@ namespace nil {
                     }
                     case llvm::Instruction::GetElementPtr: {
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(inst);
-                        if (gen_mode.has_assignments()) {
                             std::vector<int> gep_indices;
                             for (unsigned i = 1; i < gep->getNumIndices(); ++i) {
                                 int gep_index = resolve_number<int>(frame, gep->getOperand(i + 1));
@@ -1476,10 +1467,6 @@ namespace nil {
                             oss << gep_res.data;
                             log.debug(boost::format("GEP: %1%") % oss.str());
                             frame.scalars[gep] = put_value_into_internal_storage(gep_res);
-                        } else {
-                            log.debug(boost::format("Skip GEP"));
-                            frame.scalars[gep] = put_value_into_internal_storage(0);
-                        }
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Load: {
@@ -1492,13 +1479,9 @@ namespace nil {
                     case llvm::Instruction::Store: {
                         auto *store_inst = llvm::cast<llvm::StoreInst>(inst);
                         ptr_type ptr = resolve_number<ptr_type>(frame, store_inst->getPointerOperand());
-                        if (gen_mode.has_assignments()) {
                             log.debug(boost::format("Store: %1%") % ptr);
                             const llvm::Value *val = store_inst->getValueOperand();
                             handle_store(ptr, val, frame);
-                        } else {
-                            log.debug(boost::format("Skip store: %1%") % ptr);
-                        }
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::InsertValue: {
@@ -1509,11 +1492,7 @@ namespace nil {
                                     ->resolve_offset_with_index_hint<BlueprintFieldType>(
                                         insert_inst->getAggregateOperand()->getType(), insert_inst->getIndices())
                                     .second;
-                        if (gen_mode.has_assignments()) {
                             memory.store(ptr, frame.scalars[insert_inst->getInsertedValueOperand()]);
-                        } else {
-                            log.debug(boost::format("Skip InsertValue"));
-                        }
                         frame.scalars[inst] = frame.scalars[insert_inst->getAggregateOperand()];
                         return inst->getNextNonDebugInstruction();
                     }

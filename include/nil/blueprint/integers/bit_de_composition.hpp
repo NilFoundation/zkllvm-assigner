@@ -67,7 +67,6 @@ namespace nil {
             auto result = get_component_result<BlueprintFieldType, component_type>
                 (bp, assignment, internal_storage, statistics, param, instance_input, BitsAmount, Mode).output;
 
-            if (param.gen_mode.has_assignments()) {
                 ptr_type result_ptr = static_cast<ptr_type>(
                     typename BlueprintFieldType::integral_type(detail::var_value<BlueprintFieldType, var>
                     (variables[result_value], assignment, internal_storage, true).data));
@@ -75,7 +74,6 @@ namespace nil {
                     ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
                     memory.store(result_ptr++, v);
                 }
-            }
         }
 
         template<typename BlueprintFieldType>
