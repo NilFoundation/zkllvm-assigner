@@ -219,6 +219,8 @@ namespace nil {
             const auto& used_rows = assignment.get_used_rows();
 
             for (auto& v : input) {
+                BOOST_LOG_TRIVIAL(trace) << "input var: " << v.get();
+
                 // component input can't be from intranel_storage'
                 ASSERT(v.get().type != var::column_type::constant || v.get().index != detail::internal_storage_index);
                 if ((used_rows.find(v.get().rotation) == used_rows.end()) &&
@@ -410,6 +412,10 @@ namespace nil {
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
 
             std::vector<std::reference_wrapper<var>> output = component_result.all_vars();
+
+            for (auto& v : output) {
+                BOOST_LOG_TRIVIAL(trace) << "output var: " << v.get();
+            }
 
             //touch result variables
             if (!gen_mode.has_assignments()) {
