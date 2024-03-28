@@ -205,7 +205,7 @@ namespace nil {
 
                 const std::size_t rows_amount = rows_amount_internal(this->witness_amount());
                 const std::size_t empty_rows_amount = get_empty_rows_amount();
-                const std::string component_name = "comparison";
+                const std::string component_name = "comparison_unfinished";
 
 
                 const std::size_t gate_instances = gate_instances_internal(this->witness_amount());
