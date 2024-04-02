@@ -540,19 +540,23 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::memcpy: {
+                        if (!gen_mode.has_false_assignments()) {
                             llvm::Value *src_val = inst->getOperand(1);
                             ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
                             ptr_type src = resolve_number<ptr_type>(frame, src_val);
                             unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
                             memcpy(dst, src, width);
+                        }
                         return true;
                     }
                     case llvm::Intrinsic::memset: {
+                        if (!gen_mode.has_false_assignments()) {
                             ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
                             unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
                             ASSERT(frame.scalars.find(inst->getOperand(1)) != frame.scalars.end());
                             const auto value_var = frame.scalars[inst->getOperand(1)];
                             memset(dst, value_var, width);
+                        }
                         return true;
                     }
                     case llvm::Intrinsic::assigner_zkml_convolution: {
@@ -1506,7 +1510,11 @@ namespace nil {
                                     ->resolve_offset_with_index_hint<BlueprintFieldType>(
                                         insert_inst->getAggregateOperand()->getType(), insert_inst->getIndices())
                                     .second;
+                        if (!gen_mode.has_false_assignments()) {
                             memory.store(ptr, frame.scalars[insert_inst->getInsertedValueOperand()]);
+                        } else {
+                            log.debug(boost::format("Skip InsertValue"));
+                        }
                         frame.scalars[inst] = frame.scalars[insert_inst->getAggregateOperand()];
                         return inst->getNextNonDebugInstruction();
                     }
