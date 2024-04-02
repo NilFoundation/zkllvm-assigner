@@ -175,7 +175,7 @@ namespace nil {
                 bool finished;
             };
 
-            bool check_operands_constantness(const llvm::CallInst *inst, std::vector<std::size_t> constants_positions, stack_frame<var> &frame) {
+            bool check_operands_constantness(const llvm::Instruction *inst, std::vector<std::size_t> constants_positions, stack_frame<var> &frame) {
                 bool is_const;
                 for (std::size_t i = 0; i < inst->getNumOperands() - 1; i++) {
                     is_const = false;
@@ -891,30 +891,26 @@ namespace nil {
                         handle_ptrtoint(expr, expr->getOperand(0), frame);
                         break;
                     case llvm::Instruction::GetElementPtr: {
-                        if (!gen_mode.has_false_assignments()) {
-                            std::vector<int> gep_indices;
-                            for (unsigned i = 2; i < expr->getNumOperands(); ++i) {
-                                int gep_index = resolve_number<int>(frame, expr->getOperand(i));
-                                gep_indices.push_back(gep_index);
-                            }
-
-                            // getSourceElementType for ConstantExpr
-                            llvm::gep_type_iterator type_it = gep_type_begin(expr);
-                            llvm::Type *source_element_type = type_it.getIndexedType();
-                            if (source_element_type == nullptr) {
-                                std::cerr
-                                    << "Can't extract source element type for GetElementPtr constant expression!"
-                                    << std::endl;
-                                ASSERT(false);
-                            }
-
-                            auto gep_res = handle_gep(expr->getOperand(0), expr->getOperand(1), source_element_type,
-                                                        gep_indices, frame);
-                            ASSERT(gep_res != 0);
-                            frame.scalars[c] = put_constant_into_assignment(gep_res);
-                        } else {
-                            frame.scalars[c] = put_constant_into_assignment(0);
+                        std::vector<int> gep_indices;
+                        for (unsigned i = 2; i < expr->getNumOperands(); ++i) {
+                            int gep_index = resolve_number<int>(frame, expr->getOperand(i));
+                            gep_indices.push_back(gep_index);
                         }
+
+                        // getSourceElementType for ConstantExpr
+                        llvm::gep_type_iterator type_it = gep_type_begin(expr);
+                        llvm::Type *source_element_type = type_it.getIndexedType();
+                        if (source_element_type == nullptr) {
+                            std::cerr
+                                << "Can't extract source element type for GetElementPtr constant expression!"
+                                << std::endl;
+                            ASSERT(false);
+                        }
+
+                        auto gep_res = handle_gep(expr->getOperand(0), expr->getOperand(1), source_element_type,
+                                                    gep_indices, frame);
+                        ASSERT(gep_res != 0);
+                        frame.scalars[c] = put_constant_into_assignment(gep_res);
                         break;
                     }
                     default: {
@@ -1457,26 +1453,24 @@ namespace nil {
                     case llvm::Instruction::GetElementPtr: {
                         BOOST_LOG_TRIVIAL(trace) << "gep modes " << gen_mode.has_circuit() << " " << gen_mode.has_assignments() << " " << gen_mode.has_false_assignments() << "\n";
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(inst);
-                        if (!gen_mode.has_false_assignments()) {
-                            std::vector<int> gep_indices;
-                            for (unsigned i = 1; i < gep->getNumIndices(); ++i) {
-                                int gep_index = resolve_number<int>(frame, gep->getOperand(i + 1));
-                                gep_indices.push_back(gep_index);
-                            }
-                            auto gep_res = handle_gep(gep->getPointerOperand(), gep->getOperand(1),
-                                                        gep->getSourceElementType(), gep_indices, frame);
-                            if (gep_res == 0) {
-                                std::cerr << "Incorrect GEP result!" << std::endl;
-                                return nullptr;
-                            }
-                            std::ostringstream oss;
-                            oss << gep_res.data;
-                            log.debug(boost::format("GEP: %1%") % oss.str());
-                            frame.scalars[gep] = put_value_into_internal_storage(gep_res);
-                        } else {
-                            log.debug(boost::format("Skip GEP"));
-                            frame.scalars[gep] = put_value_into_internal_storage(0);
+                        std::vector<int> gep_indices;
+                        std::vector<std::size_t> constants_positions = { 1 };
+                        for (unsigned i = 1; i < gep->getNumIndices(); ++i) {
+                            constants_positions.push_back(i + 1);
+                            int gep_index = resolve_number<int>(frame, gep->getOperand(i + 1));
+                            gep_indices.push_back(gep_index);
                         }
+                        ASSERT(check_operands_constantness(inst, constants_positions, frame));
+                        auto gep_res = handle_gep(gep->getPointerOperand(), gep->getOperand(1),
+                                                    gep->getSourceElementType(), gep_indices, frame);
+                        if (gep_res == 0) {
+                            std::cerr << "Incorrect GEP result!" << std::endl;
+                            return nullptr;
+                        }
+                        std::ostringstream oss;
+                        oss << gep_res.data;
+                        log.debug(boost::format("GEP: %1%") % oss.str());
+                        frame.scalars[gep] = put_value_into_internal_storage(gep_res);
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Load: {
@@ -1489,13 +1483,9 @@ namespace nil {
                     case llvm::Instruction::Store: {
                         auto *store_inst = llvm::cast<llvm::StoreInst>(inst);
                         ptr_type ptr = resolve_number<ptr_type>(frame, store_inst->getPointerOperand());
-                        if (!gen_mode.has_false_assignments()) {
-                            log.debug(boost::format("Store: %1%") % ptr);
-                            const llvm::Value *val = store_inst->getValueOperand();
-                            handle_store(ptr, val, frame);
-                        } else {
-                            log.debug(boost::format("Skip store: %1%") % ptr);
-                        }
+                        log.debug(boost::format("Store: %1%") % ptr);
+                        const llvm::Value *val = store_inst->getValueOperand();
+                        handle_store(ptr, val, frame);
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::InsertValue: {
