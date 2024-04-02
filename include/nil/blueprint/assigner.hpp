@@ -891,6 +891,7 @@ namespace nil {
                         handle_ptrtoint(expr, expr->getOperand(0), frame);
                         break;
                     case llvm::Instruction::GetElementPtr: {
+                        if (!gen_mode.has_false_assignments()) {
                             std::vector<int> gep_indices;
                             for (unsigned i = 2; i < expr->getNumOperands(); ++i) {
                                 int gep_index = resolve_number<int>(frame, expr->getOperand(i));
@@ -911,6 +912,9 @@ namespace nil {
                                                         gep_indices, frame);
                             ASSERT(gep_res != 0);
                             frame.scalars[c] = put_constant_into_assignment(gep_res);
+                        } else {
+                            frame.scalars[c] = put_constant_into_assignment(0);
+                        }
                         break;
                     }
                     default: {
@@ -1451,7 +1455,9 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::GetElementPtr: {
+                        BOOST_LOG_TRIVIAL(trace) << "gep modes " << gen_mode.has_circuit() << " " << gen_mode.has_assignments() << " " << gen_mode.has_false_assignments() << "\n";
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(inst);
+                        if (!gen_mode.has_false_assignments()) {
                             std::vector<int> gep_indices;
                             for (unsigned i = 1; i < gep->getNumIndices(); ++i) {
                                 int gep_index = resolve_number<int>(frame, gep->getOperand(i + 1));
@@ -1467,6 +1473,10 @@ namespace nil {
                             oss << gep_res.data;
                             log.debug(boost::format("GEP: %1%") % oss.str());
                             frame.scalars[gep] = put_value_into_internal_storage(gep_res);
+                        } else {
+                            log.debug(boost::format("Skip GEP"));
+                            frame.scalars[gep] = put_value_into_internal_storage(0);
+                        }
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::Load: {
@@ -1479,9 +1489,13 @@ namespace nil {
                     case llvm::Instruction::Store: {
                         auto *store_inst = llvm::cast<llvm::StoreInst>(inst);
                         ptr_type ptr = resolve_number<ptr_type>(frame, store_inst->getPointerOperand());
+                        if (!gen_mode.has_false_assignments()) {
                             log.debug(boost::format("Store: %1%") % ptr);
                             const llvm::Value *val = store_inst->getValueOperand();
                             handle_store(ptr, val, frame);
+                        } else {
+                            log.debug(boost::format("Skip store: %1%") % ptr);
+                        }
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::InsertValue: {

@@ -219,7 +219,7 @@ namespace nil {
             const auto& used_rows = assignment.get_used_rows();
 
             for (auto& v : input) {
-                BOOST_LOG_TRIVIAL(trace) << "input var: " << v.get();
+                BOOST_LOG_TRIVIAL(trace) << "input var:  " << v.get() << " " << var_value(assignment, v.get()).data;
 
                 ASSERT(v.get().type != var::column_type::uninitialized);
 
@@ -415,9 +415,6 @@ namespace nil {
 
             std::vector<std::reference_wrapper<var>> output = component_result.all_vars();
 
-            for (auto& v : output) {
-                BOOST_LOG_TRIVIAL(trace) << "output var: " << v.get();
-            }
 
             //touch result variables
             if (!gen_mode.has_assignments()) {
@@ -436,6 +433,10 @@ namespace nil {
                     frame.vectors[inst].push_back(v.get());
                 }
             }
+            for (auto& v : output) {
+                BOOST_LOG_TRIVIAL(trace) << "output var: " << v.get() << " " << var_value(assignment, v.get()).data;
+            }
+
         }
 
         template<typename BlueprintFieldType>
