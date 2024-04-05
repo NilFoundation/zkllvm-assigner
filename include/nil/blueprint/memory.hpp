@@ -127,6 +127,33 @@ namespace nil {
                 return res - this->begin();
             }
 
+            void get_current_state(memory_state<VarType> &state) const {
+                state.stack_top = stack_top;
+                state.heap_top = heap_top;
+                state.frames = frames;
+                state.stack.resize(stack_top);
+                for (ptr_type i = 1; i < stack_top; i++) {
+                    state.stack[i - 1] = (*this)[i];
+                }
+                state.heap.resize(heap_top - stack_size);
+                for (ptr_type i = stack_size + 1; i < heap_top; i++) {
+                    state.heap[i - stack_size - 1] = (*this)[i];
+                }
+            }
+
+            void restore_state(const memory_state<VarType> &state) {
+                this->resize(heap_top);
+                stack_top = state.stack_top;
+                heap_top = state.heap_top;
+                frames = state.frames;
+                for (ptr_type i = 1; i < stack_top; i++) {
+                    (*this)[i] = state.stack[i - 1];
+                }
+                for (ptr_type i = stack_size + 1; i < heap_top; i++) {
+                    (*this)[i] = state.heap[i - stack_size - 1];
+                }
+            }
+
         private:
 
             void stack_push(size_t offset, int8_t size, int8_t following) {

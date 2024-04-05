@@ -349,7 +349,7 @@ namespace nil {
             // generate circuit in any case for fill selectors
             generate_circuit(component_instance, bp, assignment, instance_input, start_row);
 
-            if (param.gen_mode.has_assignments()) {
+            if (param.gen_mode.has_assignments() || param.gen_mode.has_false_assignments()) {
                 return generate_assignments(component_instance, assignment, instance_input, start_row,
                                             param.target_prover_idx);
             } else {
@@ -416,16 +416,6 @@ namespace nil {
             std::vector<std::reference_wrapper<var>> output = component_result.all_vars();
 
 
-            //touch result variables
-            if (!gen_mode.has_assignments()) {
-                for (const auto &v : output) {
-                    if (v.get().type == var::column_type::witness) {
-                        assignment.witness(v.get().index, v.get().rotation) = BlueprintFieldType::value_type::zero();
-                    } else if (v.get().type == var::column_type::constant) {
-                        assignment.constant(v.get().index, v.get().rotation) = BlueprintFieldType::value_type::zero();
-                    }
-                }
-            }
             if (output.size() == 1) {
                 frame.scalars[inst] = output[0].get();
             } else {

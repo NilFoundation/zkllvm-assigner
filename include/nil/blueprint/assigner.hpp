@@ -153,12 +153,17 @@ namespace nil {
 
             using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
-            using branch_desc = std::pair<bool/*is true branch*/, std::uint32_t/*size of call_stack on start branch*/>;
 
             std::vector<circuit_proxy<ArithmetizationType>> circuits;
             std::vector<assignment_proxy<ArithmetizationType>> assignments;
 
         private:
+
+            struct BranchDesc {
+                    var cond;
+                    bool is_true_branch;
+                    std::size_t call_stack_size;
+            };
 
             struct AssignerState {
                 AssignerState(const assigner& p) {
@@ -167,12 +172,16 @@ namespace nil {
                     cpp_values = p.cpp_values;
                     gen_mode = p.gen_mode;
                     finished = p.finished;
+                    //call_stack = p.call_stack;
+                    //p.memory.get_current_state(mem_state);
                 }
                 const llvm::BasicBlock *predecessor;
                 std::uint32_t currProverIdx;
                 std::vector<const void *> cpp_values;
                 generation_mode gen_mode;
                 bool finished;
+                //std::stack<stack_frame<var>> call_stack;
+                //memory_state<var> mem_state;
             };
 
             bool check_operands_constantness(const llvm::Instruction *inst, std::vector<std::size_t> constants_positions, stack_frame<var> &frame) {
@@ -677,6 +686,14 @@ namespace nil {
             void handle_store(ptr_type ptr, const llvm::Value *val, stack_frame<var> &frame) {
                 auto store_scalar = [this](ptr_type ptr, var v, size_t type_size) ->ptr_type {
                     auto &cell = memory[ptr];
+                    const common_component_parameters param = {targetProverIdx, gen_mode};
+                    if (curr_branch.size() > 0) {
+                        var curr_var = (cell.v.type == var::column_type::uninitialized) ? v : cell.v;
+                        var true_var = curr_branch.back().is_true_branch ? v : curr_var;
+                        var false_var = curr_branch.back().is_true_branch ? curr_var : v;
+                        v = create_select_component<BlueprintFieldType, var>(
+                                    curr_branch.back().cond, true_var, false_var, circuits[currProverIdx], assignments[currProverIdx], internal_storage, statistics, param);
+                    }
                     size_t cur_offset = cell.offset;
                     size_t cell_size = cell.size;
                     if (cell_size != type_size) {
@@ -939,11 +956,13 @@ namespace nil {
                 cpp_values = assigner_state.cpp_values;
                 gen_mode = assigner_state.gen_mode;
                 finished = assigner_state.finished;
+                //call_stack = assigner_state.call_stack;
+                //memory.restore_state(assigner_state.mem_state);
             }
 
             const llvm::Instruction *handle_branch(const llvm::Instruction* inst) {
                 auto next_inst = inst;
-                const auto stack_size = curr_branch.back().second;
+                const auto stack_size = curr_branch.back().call_stack_size;
                 while (true) {
                     next_inst = handle_instruction(next_inst);
                     if (finished || next_inst == nullptr) {
@@ -1268,8 +1287,8 @@ namespace nil {
 
                                 const AssignerState assigner_state(*this);
 
-                                curr_branch.push_back(branch_desc(false, stack_size));
-                                curr_branch.push_back(branch_desc(true, stack_size));
+                                curr_branch.push_back({cond, false, stack_size});
+                                curr_branch.push_back({cond, true, stack_size});
                                 if (!cond_val) {
                                     gen_mode = (gen_mode.has_assignments() || gen_mode.has_false_assignments()) ?
                                         (gen_mode & generation_mode::circuit()) | generation_mode::false_assignments() :
@@ -1319,8 +1338,8 @@ namespace nil {
                             }
 
                             const AssignerState assigner_state(*this);
-                            curr_branch.push_back(branch_desc(false, stack_size));
-                            curr_branch.push_back(branch_desc(true, stack_size));
+                            curr_branch.push_back({cond, false, stack_size});
+                            curr_branch.push_back({cond, true, stack_size});
 
                             log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % !gen_mode.has_assignments());
                             const llvm::Instruction* true_next_inst = nullptr;
@@ -1348,6 +1367,7 @@ namespace nil {
                             if (false_next_inst) {
                                 restore_state(assigner_state);
                             }
+
                             curr_branch.pop_back();
 
                             ASSERT((stack_size - 1) == call_stack.size() || finished);
@@ -1384,29 +1404,31 @@ namespace nil {
                         auto switch_inst = llvm::cast<llvm::SwitchInst>(inst);
                         llvm::Value *cond = switch_inst->getCondition();
                         ASSERT(cond->getType()->isIntegerTy());
+                        unsigned bit_width = llvm::cast<llvm::IntegerType>(cond->getType())->getBitWidth();
+                        ASSERT(bit_width <= 64);
                         if (gen_mode.has_assignments()) {
-                            unsigned bit_width = llvm::cast<llvm::IntegerType>(cond->getType())->getBitWidth();
-                            ASSERT(bit_width <= 64);
                             auto cond_var = get_var_value(frame.scalars[cond]);
                             auto cond_val = llvm::APInt(
                                 bit_width,
                                 (int64_t) static_cast<typename BlueprintFieldType::integral_type>(cond_var.data));
                             for (auto Case : switch_inst->cases()) {
-                                if (Case.getCaseValue()->getValue().eq(cond_val)) {
-                                    gen_mode = (gen_mode.has_assignments() && gen_mode.has_false_assignments()) ?
-                                            (gen_mode & generation_mode::circuit()) | generation_mode::false_assignments() :
-                                            gen_mode & generation_mode::circuit();
+                                if (!Case.getCaseValue()->getValue().eq(cond_val)) {
+                                    gen_mode = (gen_mode.has_assignments() || gen_mode.has_false_assignments()) ?
+                                        (gen_mode & generation_mode::circuit()) | generation_mode::false_assignments() :
+                                        gen_mode & generation_mode::circuit();
                                 }
                                 const AssignerState assigner_state(*this);
-                                curr_branch.push_back(branch_desc(false, call_stack.size()));
+                                curr_branch.push_back({frame.scalars[cond], Case.getCaseValue()->getValue().eq(cond_val), call_stack.size()});
                                 const auto next_inst = handle_branch(&Case.getCaseSuccessor()->front());
+                                restore_state(assigner_state);
                                 curr_branch.pop_back();
                             }
                         } else {
                             for (auto Case : switch_inst->cases()) {
                                 const AssignerState assigner_state(*this);
-                                curr_branch.push_back(branch_desc(false, call_stack.size()));
+                                curr_branch.push_back({frame.scalars[cond], false, call_stack.size()});
                                 const auto next_inst = handle_branch(&Case.getCaseSuccessor()->front());
+                                restore_state(assigner_state);
                                 curr_branch.pop_back();
                             }
                         }
@@ -1620,9 +1642,9 @@ namespace nil {
                             }
                             return nullptr;
                         }
-                        if (curr_branch.size() == 0 || !curr_branch.back().first ||
+                        if (curr_branch.size() == 0 || !curr_branch.back().is_true_branch ||
                             // call inside branch
-                            curr_branch.back().second < call_stack.size()) {
+                            curr_branch.back().call_stack_size < call_stack.size()) {
                             auto extracted_frame = std::move(call_stack.top());
                             call_stack.pop();
                             memory.pop_frame();
@@ -1671,7 +1693,7 @@ namespace nil {
             }
 
             typename BlueprintFieldType::value_type get_var_value(const var &input_var) {
-                return detail::var_value<BlueprintFieldType, var>(input_var, assignments[currProverIdx], internal_storage, gen_mode.has_assignments());
+                return detail::var_value<BlueprintFieldType, var>(input_var, assignments[currProverIdx], internal_storage, (gen_mode.has_assignments() || gen_mode.has_false_assignments()));
             }
 
             /**
@@ -1905,7 +1927,7 @@ namespace nil {
             print_format print_output_format = no_print;
             bool validity_check;
             generation_mode gen_mode;
-            std::vector<branch_desc> curr_branch;
+            std::vector<BranchDesc> curr_branch;
             component_calls statistics;
             /***
              * extention of assignment table for keep internal values which not presented in components

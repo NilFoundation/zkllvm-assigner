@@ -66,6 +66,31 @@ namespace nil {
                     (bp, assignment, internal_storage, statistics, param, instance_input, inst, frame);
         }
 
+        template<typename BlueprintFieldType, typename var>
+            var create_select_component(
+                var condition, var true_val, var false_val,
+                circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
+                assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
+                    &assignment,
+                column_type<BlueprintFieldType> &internal_storage,
+                component_calls &statistics,
+                const common_component_parameters& param) {
+
+                using arithmetization_type = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
+                using component_type = components::select_instruction<arithmetization_type, BlueprintFieldType>;
+
+                typename component_type::input_type instance_input = {
+                    condition,
+                    true_val,
+                    false_val
+                };
+
+                auto component_result = get_component_result<BlueprintFieldType, component_type>
+                    (bp, assignment, internal_storage, statistics, param, instance_input);
+
+                return component_result.res;
+        }
+
     }    // namespace blueprint
 }    // namespace nil
 
