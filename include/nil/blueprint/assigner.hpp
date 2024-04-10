@@ -162,6 +162,7 @@ namespace nil {
             struct BranchDesc {
                     var cond;
                     bool is_true_branch;
+                    bool is_active_branch;
                     std::size_t call_stack_size;
             };
 
@@ -1284,18 +1285,14 @@ namespace nil {
                             const auto stack_size = call_stack.size();
                             if (gen_mode.has_assignments()) {
                                 bool cond_val = (get_var_value(cond) != 0);
+                                bool is_active_branch = (curr_branch.size() > 0) ? curr_branch.back().is_active_branch : true;
 
                                 const AssignerState assigner_state(*this);
 
-                                curr_branch.push_back({cond, false, stack_size});
-                                curr_branch.push_back({cond, true, stack_size});
-                                if (!cond_val) {
-                                    gen_mode = (gen_mode.has_assignments() || gen_mode.has_false_assignments()) ?
-                                        (gen_mode & generation_mode::circuit()) | generation_mode::false_assignments() :
-                                        gen_mode & generation_mode::circuit();
-                                }
+                                curr_branch.push_back({cond, false, (!cond_val && is_active_branch), stack_size});
+                                curr_branch.push_back({cond, true, (cond_val && is_active_branch), stack_size});
 
-                                log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % !gen_mode.has_assignments());
+                                log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % curr_branch.back().is_active_branch);
                                 const llvm::Instruction* true_next_inst = nullptr;
                                 if (!cond_val && true_name == "panic") {
                                     log.debug(boost::format("skip handle true branch as false positive panic: %1%") % curr_branch.size());
@@ -1310,13 +1307,7 @@ namespace nil {
 
                                 curr_branch.pop_back();
 
-                                if (cond_val) {
-                                    gen_mode = (gen_mode.has_assignments() || gen_mode.has_false_assignments()) ?
-                                                  (gen_mode & generation_mode::circuit()) | generation_mode::false_assignments() :
-                                                  gen_mode & generation_mode::circuit();
-                                }
-
-                                log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % !gen_mode.has_assignments());
+                                log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % curr_branch.back().is_active_branch);
                                 auto false_next_inst = true_next_inst;
                                 if (cond_val && false_name == "panic") {
                                     log.debug(boost::format("skip handle false branch as false positive panic: %1%") % curr_branch.size());
@@ -1338,10 +1329,10 @@ namespace nil {
                             }
 
                             const AssignerState assigner_state(*this);
-                            curr_branch.push_back({cond, false, stack_size});
-                            curr_branch.push_back({cond, true, stack_size});
+                            curr_branch.push_back({cond, false, false, stack_size});
+                            curr_branch.push_back({cond, true, false, stack_size});
 
-                            log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % !gen_mode.has_assignments());
+                            log.debug(boost::format("start handle true branch: %1% %2%") % curr_branch.size() % curr_branch.back().is_active_branch);
                             const llvm::Instruction* true_next_inst = nullptr;
                             if (true_name == "panic") {
                                 log.debug(boost::format("skip handle true branch as false positive panic: %1%") % curr_branch.size());
@@ -1354,7 +1345,7 @@ namespace nil {
                             restore_state(assigner_state);
                             curr_branch.pop_back();
 
-                            log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % (gen_mode.has_assignments() == 0));
+                            log.debug(boost::format("start handle false branch: %1% %2%") % curr_branch.size() % curr_branch.back().is_active_branch);
                             auto false_next_inst = true_next_inst;
                             if (false_name == "panic") {
                                 log.debug(boost::format("skip handle false branch as false positive panic: %1%") % curr_branch.size());
@@ -1412,13 +1403,8 @@ namespace nil {
                                 bit_width,
                                 (int64_t) static_cast<typename BlueprintFieldType::integral_type>(cond_var.data));
                             for (auto Case : switch_inst->cases()) {
-                                if (!Case.getCaseValue()->getValue().eq(cond_val)) {
-                                    gen_mode = (gen_mode.has_assignments() || gen_mode.has_false_assignments()) ?
-                                        (gen_mode & generation_mode::circuit()) | generation_mode::false_assignments() :
-                                        gen_mode & generation_mode::circuit();
-                                }
                                 const AssignerState assigner_state(*this);
-                                curr_branch.push_back({frame.scalars[cond], Case.getCaseValue()->getValue().eq(cond_val), call_stack.size()});
+                                curr_branch.push_back({frame.scalars[cond], true, Case.getCaseValue()->getValue().eq(cond_val), call_stack.size()});
                                 const auto next_inst = handle_branch(&Case.getCaseSuccessor()->front());
                                 restore_state(assigner_state);
                                 curr_branch.pop_back();
@@ -1426,7 +1412,7 @@ namespace nil {
                         } else {
                             for (auto Case : switch_inst->cases()) {
                                 const AssignerState assigner_state(*this);
-                                curr_branch.push_back({frame.scalars[cond], false, call_stack.size()});
+                                curr_branch.push_back({frame.scalars[cond], false, false, call_stack.size()});
                                 const auto next_inst = handle_branch(&Case.getCaseSuccessor()->front());
                                 restore_state(assigner_state);
                                 curr_branch.pop_back();
@@ -1473,7 +1459,7 @@ namespace nil {
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::GetElementPtr: {
-                        BOOST_LOG_TRIVIAL(trace) << "gep modes " << gen_mode.has_circuit() << " " << gen_mode.has_assignments() << " " << gen_mode.has_false_assignments() << "\n";
+                        BOOST_LOG_TRIVIAL(trace) << "gep modes " << gen_mode.has_circuit() << " " << gen_mode.has_assignments() << "\n";
                         auto *gep = llvm::cast<llvm::GetElementPtrInst>(inst);
                         std::vector<int> gep_indices;
                         std::vector<std::size_t> constants_positions = { 1 };
@@ -1581,7 +1567,11 @@ namespace nil {
                                 fill_return_value(llvm::cast<llvm::ReturnInst>(inst), frame);
                             }
 
-                            if(print_output_format != no_print && gen_mode.has_assignments()) {
+                            bool is_active_branch = gen_mode.has_assignments();
+                            if (is_active_branch && curr_branch.size() > 0) {
+                                is_active_branch = curr_branch.back().is_active_branch;
+                            }
+                            if(print_output_format != no_print && is_active_branch) {
                                 if(print_output_format == hex) {
                                     std::cout << std::hex;
                                 }
@@ -1693,7 +1683,7 @@ namespace nil {
             }
 
             typename BlueprintFieldType::value_type get_var_value(const var &input_var) {
-                return detail::var_value<BlueprintFieldType, var>(input_var, assignments[currProverIdx], internal_storage, (gen_mode.has_assignments() || gen_mode.has_false_assignments()));
+                return detail::var_value<BlueprintFieldType, var>(input_var, assignments[currProverIdx], internal_storage, gen_mode.has_assignments());
             }
 
             /**

@@ -86,7 +86,6 @@ namespace nil {
          *
          * - CIRCUIT - generate circuit;
          * - ASSIGNMENTS - generate assignment table;
-         * - FALSE_ASSIGNMENTS;
          * - SIZE_ESTIMATION - print circuit stats (generate nothing);
          * - PUBLIC_INPUT_COLUMN - generate public input column.
          *
@@ -99,9 +98,8 @@ namespace nil {
                 NONE = 0,
                 CIRCUIT = 1 << 0,
                 ASSIGNMENTS = 1 << 1,
-                FALSE_ASSIGNMENTS = 1 << 2,
-                SIZE_ESTIMATION = 1 << 3,
-                PUBLIC_INPUT_COLUMN = 1 << 4,
+                SIZE_ESTIMATION = 1 << 2,
+                PUBLIC_INPUT_COLUMN = 1 << 3,
             };
 
         public:
@@ -127,10 +125,6 @@ namespace nil {
             /// @brief Generate assignment table.
             constexpr static generation_mode assignments() {
                 return generation_mode(ASSIGNMENTS);
-            }
-
-            constexpr static generation_mode false_assignments() {
-                return generation_mode(FALSE_ASSIGNMENTS);
             }
 
             /// @brief Generate public input column.
@@ -182,10 +176,6 @@ namespace nil {
             /// @brief Whether generate assignment table or not in this mode.
             constexpr bool has_assignments() const {
                 return mode_ & ASSIGNMENTS;
-            }
-
-            constexpr bool has_false_assignments() const {
-                return mode_ & FALSE_ASSIGNMENTS;
             }
 
             /// @brief Whether print circuit statistics or not in this mode.
@@ -349,7 +339,7 @@ namespace nil {
             // generate circuit in any case for fill selectors
             generate_circuit(component_instance, bp, assignment, instance_input, start_row);
 
-            if (param.gen_mode.has_assignments() || param.gen_mode.has_false_assignments()) {
+            if (param.gen_mode.has_assignments()) {
                 return generate_assignments(component_instance, assignment, instance_input, start_row,
                                             param.target_prover_idx);
             } else {
@@ -357,47 +347,6 @@ namespace nil {
                 // fake allocate rows
                 for (std::uint32_t i = 0; i < rows_amount; i++) {
                     assignment.witness(0, start_row + i) = BlueprintFieldType::value_type::zero();
-                }
-
-                if (param.gen_mode.has_false_assignments()) {
-                    // disable selector
-                    for (std::uint32_t i = 0; i < rows_amount; i++) {
-                        for (std::uint32_t j = 0; j < assignment.selectors_amount(); j++) {
-                            if (assignment.selector(j).size() > (start_row + i)) {
-                                assignment.selector(j, start_row + i) = BlueprintFieldType::value_type::zero();
-                            }
-                        }
-                    }
-
-                    using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
-
-                    // fill copy constraints
-                    const auto &copy_constraints = bp.copy_constraints();
-                    for (std::uint32_t i = num_copy_constraints; i < copy_constraints.size(); i++) {
-                        if (copy_constraints[i].first.type == var::column_type::witness &&
-                            copy_constraints[i].first.rotation >= start_row) {
-                            if (copy_constraints[i].second.rotation >=
-                                assignment.witness(copy_constraints[i].second.index).size()) {
-                                assignment.witness(copy_constraints[i].second.index,
-                                                   copy_constraints[i].second.rotation) =
-                                    BlueprintFieldType::value_type::zero();
-                            }
-                            assignment.witness(copy_constraints[i].first.index, copy_constraints[i].first.rotation) =
-                                var_value(assignment, copy_constraints[i].second);
-                        } else if (copy_constraints[i].second.type == var::column_type::witness &&
-                                   copy_constraints[i].second.rotation >= start_row) {
-                            if (copy_constraints[i].first.rotation >=
-                                assignment.witness(copy_constraints[i].first.index).size()) {
-                                assignment.witness(copy_constraints[i].first.index,
-                                                   copy_constraints[i].first.rotation) =
-                                    BlueprintFieldType::value_type::zero();
-                            }
-                            assignment.witness(copy_constraints[i].second.index, copy_constraints[i].second.rotation) =
-                                var_value(assignment, copy_constraints[i].first);
-                        } else {
-                            std::cout << "wrong copy constraint\n";
-                        }
-                    }
                 }
                 return typename ComponentType::result_type(component_instance, start_row);
             }
