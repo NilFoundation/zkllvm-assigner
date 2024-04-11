@@ -693,7 +693,7 @@ namespace nil {
                         var true_var = curr_branch.back().is_true_branch ? v : curr_var;
                         var false_var = curr_branch.back().is_true_branch ? curr_var : v;
                         v = create_select_component<BlueprintFieldType, var>(
-                                    curr_branch.back().cond, true_var, false_var, circuits[currProverIdx], assignments[currProverIdx], internal_storage, statistics, param);
+                                    curr_branch.back().cond, true_var, false_var, circuits[currProverIdx], assignments[currProverIdx], internal_storage, statistics, param, one_var);
                     }
                     size_t cur_offset = cell.offset;
                     size_t cell_size = cell.size;
@@ -1225,7 +1225,8 @@ namespace nil {
                             assignments[currProverIdx],
                             internal_storage,
                             statistics,
-                            param
+                            param,
+                            one_var
                         );
                         return inst->getNextNonDebugInstruction();
                     }
@@ -1858,6 +1859,7 @@ namespace nil {
                 // Initialize undef and zero vars once
                 undef_var = put_constant_into_assignment(typename BlueprintFieldType::value_type());
                 zero_var = put_constant_into_assignment(typename BlueprintFieldType::value_type(0));
+                one_var = put_constant_into_assignment(typename BlueprintFieldType::value_type(1));
 
                 const llvm::Instruction *next_inst = &circuit_function->begin()->front();
                 while (true) {
@@ -1907,6 +1909,7 @@ namespace nil {
             std::unique_ptr<LayoutResolver> layout_resolver;
             var undef_var;
             var zero_var;
+            var one_var;
             logger log;
             std::uint32_t maxNumProvers;
             std::uint32_t targetProverIdx;
