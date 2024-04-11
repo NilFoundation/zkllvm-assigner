@@ -212,6 +212,8 @@ namespace nil {
             for (auto& v : input) {
                 BOOST_LOG_TRIVIAL(trace) << "input var:  " << v.get() << " " << var_value(assignment, v.get()).data;
 
+                ASSERT(v.get().type != var::column_type::uninitialized);
+
                 // component input can't be from internal_storage'
                 ASSERT(v.get().type != var::column_type::constant || v.get().index != detail::internal_storage_index);
                 if ((used_rows.find(v.get().rotation) == used_rows.end()) &&
