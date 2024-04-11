@@ -141,6 +141,7 @@ namespace nil {
                 print_output_format(output_print_format),
                 validity_check(check_validity),
                 gen_mode(gen_mode)
+
             {
 
                 detail::PolicyManager::set_policy(kind);
@@ -689,11 +690,11 @@ namespace nil {
                     auto &cell = memory[ptr];
                     const common_component_parameters param = {targetProverIdx, gen_mode};
                     if (curr_branch.size() > 0) {
-                        var curr_var = (cell.v.type == var::column_type::uninitialized) ? v : cell.v;
+                        var curr_var = (!cell.v.has_value()) ? v : cell.v.value();
                         var true_var = curr_branch.back().is_true_branch ? v : curr_var;
                         var false_var = curr_branch.back().is_true_branch ? curr_var : v;
                         v = create_select_component<BlueprintFieldType, var>(
-                                    curr_branch.back().cond, true_var, false_var, circuits[currProverIdx], assignments[currProverIdx], internal_storage, statistics, param);
+                                    curr_branch.back().cond, true_var, false_var, circuits[currProverIdx], assignments[currProverIdx], internal_storage, statistics, param, one_var);
                     }
                     size_t cur_offset = cell.offset;
                     size_t cell_size = cell.size;
@@ -732,12 +733,14 @@ namespace nil {
                 size_t num_cells = layout_resolver->get_cells_num<BlueprintFieldType>(dest->getType());
                 if (num_cells == 1) {
                     auto &cell = memory[ptr];
-                    frame.scalars[dest] = cell.v;
+                    ASSERT(cell.v.has_value());
+                    frame.scalars[dest] = cell.v.value();
                 } else {
                     std::vector<var> res;
                     for (size_t i = 0; i < num_cells; ++i) {
                         auto &cell = memory[ptr + i];
-                        res.push_back(cell.v);
+                        ASSERT(cell.v.has_value());
+                        res.push_back(cell.v.value());
                     }
                     frame.vectors[dest] = res;
                 }
@@ -1225,7 +1228,8 @@ namespace nil {
                             assignments[currProverIdx],
                             internal_storage,
                             statistics,
-                            param
+                            param,
+                            one_var
                         );
                         return inst->getNextNonDebugInstruction();
                     }
@@ -1858,6 +1862,7 @@ namespace nil {
                 // Initialize undef and zero vars once
                 undef_var = put_constant_into_assignment(typename BlueprintFieldType::value_type());
                 zero_var = put_constant_into_assignment(typename BlueprintFieldType::value_type(0));
+                one_var = put_constant_into_assignment(typename BlueprintFieldType::value_type(1));
 
                 const llvm::Instruction *next_inst = &circuit_function->begin()->front();
                 while (true) {
@@ -1905,8 +1910,9 @@ namespace nil {
             std::unordered_map<const llvm::BasicBlock *, var> labels;
             bool finished = false;
             std::unique_ptr<LayoutResolver> layout_resolver;
-            var undef_var;
-            var zero_var;
+            var undef_var = var(1, 0, false, var::column_type::constant);
+            var zero_var = var(1, 0, false, var::column_type::constant);
+            var one_var = var(1, 0, false, var::column_type::constant);
             logger log;
             std::uint32_t maxNumProvers;
             std::uint32_t targetProverIdx;

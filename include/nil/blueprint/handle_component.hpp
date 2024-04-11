@@ -38,6 +38,7 @@
 #include <nil/blueprint/components/algebra/curves/pasta/plonk/variable_base_scalar_mul.hpp>
 #include <nil/blueprint/components/algebra/curves/edwards/plonk/non_native/variable_base_multiplication.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/division.hpp>
+#include <nil/blueprint/components/algebra/fields/plonk/division_or_zero.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/multiplication.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/non_native/multiplication.hpp>
 #include <nil/blueprint/components/algebra/fields/plonk/subtraction.hpp>
@@ -211,9 +212,7 @@ namespace nil {
             for (auto& v : input) {
                 BOOST_LOG_TRIVIAL(trace) << "input var:  " << v.get() << " " << var_value(assignment, v.get()).data;
 
-                ASSERT(v.get().type != var::column_type::uninitialized);
-
-                // component input can't be from intranel_storage'
+                // component input can't be from internal_storage'
                 ASSERT(v.get().type != var::column_type::constant || v.get().index != detail::internal_storage_index);
                 if ((used_rows.find(v.get().rotation) == used_rows.end()) &&
                            (v.get().type == var::column_type::witness || v.get().type == var::column_type::constant)) {
