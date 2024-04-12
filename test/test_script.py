@@ -39,12 +39,33 @@ def compare(expected, real, test_type):
     print(ll_file + test_type + "comparison test: ", end = "")
     if res.returncode == 0:
         print_green("success!")
+        # return 0
     if res.returncode == 2:
         print_red("failed!\n")
-        sys.exit(res.stderr)
+        # return 2
+        # sys.exit(res.stderr)
     if res.returncode == 1:
         print_red("failed!\n")
-        sys.exit(f"{test_type} are not equal!\n{res.stdout}")
+        # return 1
+        # sys.exit(f"{test_type} are not equal!\n{res.stdout}")
+    return res
 
-compare(expected_tbl, real_tbl, " assignment tables ")
-compare(expected_crct, real_crct, " circuit files ")
+
+tbl_res = compare(expected_tbl, real_tbl, " assignment tables ")
+crct_res = compare(expected_crct, real_crct, " circuit files ")
+
+if (tbl_res.returncode != 0 or crct_res.returncode != 0):
+    message = ""
+    if (tbl_res.returncode == 2):
+        message += tbl_res.stderr
+        message += "\n"
+    if (crct_res.returncode == 2):
+        message += crct_res.stderr
+        message += "\n"
+    if (tbl_res.returncode == 1):
+        message += f"assignment tables are not equal!\n{tbl_res.stdout}"
+        message += "\n"
+    if (crct_res.returncode == 1):
+        message += f"circuit files are not equal!\n{crct_res.stdout}"
+        message += "\n"
+    sys.exit(message)
