@@ -75,9 +75,7 @@ namespace nil {
                         y[8],  y[9],  y[10], y[11]
                     };
 
-                    typename component_type::input_type instance_input;
-                    instance_input.a = x_arr;
-                    instance_input.b = y_arr;
+                    typename component_type::input_type instance_input(x_arr, y_arr);
 
                     handle_component<BlueprintFieldType, component_type>
                         (bp, assignment, internal_storage, statistics, param, instance_input, inst, frame);

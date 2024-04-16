@@ -60,8 +60,7 @@ namespace nil {
 
                     var input = frame.scalars[inst->getOperand(0)];
 
-                    typename component_type::input_type instance_input;
-                    instance_input.input = input;
+                    typename component_type::input_type instance_input(input);
 
                     handle_component<BlueprintFieldType, component_type>
                         (bp, assignment, internal_storage, statistics, param, instance_input, inst, frame);

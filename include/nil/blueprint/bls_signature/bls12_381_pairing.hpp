@@ -72,9 +72,7 @@ namespace nil {
                                             operand1_vars[2],
                                             operand1_vars[3]};
 
-                    typename component_type::input_type instance_input;
-                    instance_input.P = P;
-                    instance_input.Q = Q;
+                    typename component_type::input_type instance_input(P, Q);
 
                     handle_component<BlueprintFieldType, component_type>
                         (bp, assignment, internal_storage, statistics, param, instance_input, inst, frame);
