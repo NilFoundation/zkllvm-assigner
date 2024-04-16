@@ -95,6 +95,16 @@ namespace nil {
                     std::array<var,12> a;
                     std::array<var,12> b;
 
+                    input_type(const std::vector<var>& input_vect) {
+                        if (input_vect.size() != 24) {
+                            throw std::out_of_range("Vector size does not match input size");
+                        }
+                        for (int i = 0; i < 12; i++) {
+                            a[i] = input_vect[i];
+                            b[i] = input_vect[i + 12];
+                        }
+                    }
+
                     std::vector<std::reference_wrapper<var>> all_vars() {
                         std::vector<std::reference_wrapper<var>> result = {};
                         for (int i = 0; i < a.size(); i++) {

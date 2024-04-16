@@ -171,6 +171,18 @@ namespace nil {
                     std::array<var,2> P;
                     std::array<var,4> Q;
 
+                    input_type(const std::vector<var>& input_vect) {
+                        if (input_vect.size() != 6) {
+                            throw std::out_of_range("Vector size does not match input size");
+                        }
+                        P[0] = input_vect[0];
+                        P[1] = input_vect[1];
+                        Q[0] = input_vect[2];
+                        Q[1] = input_vect[3];
+                        Q[2] = input_vect[4];
+                        Q[3] = input_vect[5];
+                    }
+
                     std::vector<std::reference_wrapper<var>> all_vars() {
                         std::vector<std::reference_wrapper<var>> result = {};
                         result.push_back(std::ref(P[0]));
