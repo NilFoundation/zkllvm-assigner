@@ -92,6 +92,16 @@ namespace nil {
                     std::array<var, 2> X;
                     std::array<var, 2> Y;
 
+                    input_type(const std::vector<var>& input_vect) {
+                        if (input_vect.size() != 4) {
+                            throw std::out_of_range("Vector size does not match input size");
+                        }
+                        X[0] = input_vect[0];
+                        X[1] = input_vect[1];
+                        Y[0] = input_vect[2];
+                        Y[1] = input_vect[3];
+                    }
+
                     std::vector<std::reference_wrapper<var>> all_vars() {
                         std::vector<std::reference_wrapper<var>> result;
                         result.insert(result.end(), X.begin(), X.end());
