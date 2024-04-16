@@ -78,6 +78,7 @@
 #include <nil/blueprint/statistics.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
 
+#include <nil/blueprint/table_piece.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -102,6 +103,7 @@ namespace nil {
                 ASSIGNMENTS = 1 << 1,
                 SIZE_ESTIMATION = 1 << 2,
                 PUBLIC_INPUT_COLUMN = 1 << 3,
+                FAST_TBL = 1 << 4,
             };
 
         public:
@@ -137,6 +139,11 @@ namespace nil {
             /// @brief Print circuit statistics (generate nothing).
             constexpr static generation_mode size_estimation() {
                 return generation_mode(SIZE_ESTIMATION);
+            }
+
+            /// @brief Generate table in a fast way.
+            constexpr static generation_mode fast_tbl() {
+                return generation_mode(FAST_TBL);
             }
 
             constexpr bool operator==(generation_mode other) const {
@@ -188,6 +195,11 @@ namespace nil {
             /// @brief Whether generate public input column or not in this mode.
             constexpr bool has_public_input_column() const {
                 return mode_ & PUBLIC_INPUT_COLUMN;
+            }
+
+            /// @brief Whether fast table generation or not in this mode.
+            constexpr bool has_fast_tbl() const {
+                return mode_ & FAST_TBL;
             }
 
         private:
@@ -381,12 +393,32 @@ namespace nil {
 
                 auto res = typename ComponentType::result_type(component_instance, start_row);
             std::vector<var> outputs = {};
-                for (std::size_t i = 0; i < res.all_vars().size(); i++) {
-                outputs.push_back(res.all_vars()[i].get());
+            for (std::size_t i = 0; i < res.all_vars().size(); i++) {
+                var curr_outp = res.all_vars()[i].get();
+                outputs.push_back(curr_outp);
+                comp_counter_form_var[curr_outp] = table_pieces.size();
                     // BOOST_LOG_TRIVIAL(info) << "res.all_vars() " << res.all_vars()[i].get().index << " " << res.all_vars()[i].get().rotation << " " << column_to_uint<var>(res.all_vars()[i].get().type);
                 }
 
-            all_components.push_back(component_io<var>(start_row, inputs, outputs));
+            std::vector<std::size_t> parents = {};
+            for (std::size_t i = 0; i < inputs.size(); i++) {
+                auto it = comp_counter_form_var.find(inputs[i]);
+                if (comp_counter_form_var.find(inputs[i]) == comp_counter_form_var.end()) {
+                    continue;
+                }
+                parents.push_back(comp_counter_form_var[inputs[i]]);
+            }
+
+            nil::blueprint::table_pieces.push_back(
+                table_piece<var>(
+                    table_pieces.size(),
+                    parents,
+                    component_instance.component_name,
+                    start_row,
+                    inputs,
+                    outputs
+                )
+            );
 
             if (param.gen_mode.has_assignments()) {
                 return generate_assignments(component_instance, assignment, instance_input, start_row,
