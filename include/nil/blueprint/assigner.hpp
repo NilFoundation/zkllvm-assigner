@@ -461,10 +461,7 @@ namespace nil {
                             auto &input_block = frame.vectors[inst->getOperand(0)];
                             ASSERT(input_block.size() == component_type::state_size);
 
-                            std::array<var, component_type::state_size> input_state_var;
-                            std::copy(input_block.begin(), input_block.end(), input_state_var.begin());
-
-                            typename component_type::input_type instance_input = {input_state_var};
+                            typename component_type::input_type instance_input(input_block);
 
                             handle_component<BlueprintFieldType, component_type>
                                     (circuits[currProverIdx], assignments[currProverIdx], internal_storage, statistics, param, instance_input, inst, frame);
@@ -1861,7 +1858,8 @@ namespace nil {
 
             bool evaluate(
                 const boost::json::array &public_input,
-                const boost::json::array &private_input
+                const boost::json::array &private_input,
+                std::vector<table_piece<var>> &table_pieces
             ) {
 
                 stack_frame<var> base_frame;
@@ -1869,7 +1867,7 @@ namespace nil {
                 base_frame.caller = nullptr;
 
                 auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
-                    base_frame, memory, assignments[currProverIdx], *layout_resolver, internal_storage, gen_mode.has_assignments());
+                    base_frame, memory, assignments[currProverIdx], *layout_resolver, internal_storage, gen_mode.has_assignments() || gen_mode.has_fast_tbl());
                 if (!input_reader.fill_public_input(*circuit_function, public_input, private_input, log)) {
                     std::cerr << "Public input does not match the circuit signature";
                     const std::string &error = input_reader.get_error();
@@ -1934,28 +1932,11 @@ namespace nil {
                 BOOST_LOG_TRIVIAL(info) << "usual_handle_inst_duration: " << usual_handle_inst_duration.count() << "ms";
 
                 auto fast_tbl_start = std::chrono::high_resolution_clock::now();
-                std::vector<std::thread> threads = {};
-                for (std::size_t i = 0; i < all_components.size(); i++) {
-
-                    // threads.emplace_back(
-                    // std::thread(
-                    // components::generate_assignments<BlueprintFieldType, BlueprintFieldType>,
-                    components::generate_assignments(
-                        temp_comp_type(
-                            detail::PolicyManager::get_parameters(detail::ManifestReader<temp_comp_type>::get_witness(0)).witness,
-                            std::array<std::uint32_t, 1>{0},
-                            std::array<std::uint32_t, 1>{0}
-                        ),
-                        assignments[currProverIdx],
-                        typename temp_comp_type::input_type{
-                            all_components[i].inputs[0],
-                            all_components[i].inputs[1],
-                            all_components[i].inputs[2]
-                        },
-                        all_components[i].start_row
-                    );
-                    // BOOST_LOG_TRIVIAL(info) << "all_components[" << i << "]: " << all_components[i].start_row << all_components[i].inputs[0].index;
+                for (std::size_t i = 0; i < table_pieces.size(); i++) {
+                    extract_component_type_and_gen_assignments<BlueprintFieldType, table_piece<var>>(table_pieces[i], assignments[currProverIdx]);
+                    // BOOST_LOG_TRIVIAL(info) << "table_pieces[" << i <<"]: " << table_pieces[i];
                 }
+
                 auto fast_tbl_duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - fast_tbl_start);
                 BOOST_LOG_TRIVIAL(info) << "fast_tbl_duration: " << fast_tbl_duration.count() << "ms";
                 return true;
