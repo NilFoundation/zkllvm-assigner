@@ -61,7 +61,7 @@ namespace nil {
                 var condition_0_or_1 = get_component_result<BlueprintFieldType, div_or_zero_comp_type>
                     (bp, assignment, internal_storage, statistics, param, div_or_zero_input).output; // returns 1 if !=0 and 0 if ==0
 
-                typename field_mul_comp_type::input_type field_mul_input({condition_0_or_1, true_var});
+                typename field_mul_comp_type::input_type field_mul_input(condition_0_or_1, true_var);
                 var contitioned_true_var = get_component_result<BlueprintFieldType, field_mul_comp_type>
                     (bp, assignment, internal_storage, statistics, param, field_mul_input).output; // true_var if true, 0 if false
 
@@ -69,7 +69,7 @@ namespace nil {
                 var inversed_condition_0_or_1 = get_component_result<BlueprintFieldType, field_sub_comp_type>
                     (bp, assignment, internal_storage, statistics, param, field_sub_input).output; // true_var if true, 0 if false
 
-                typename field_mul_comp_type::input_type field_mul_input_2({inversed_condition_0_or_1, false_var});
+                typename field_mul_comp_type::input_type field_mul_input_2(inversed_condition_0_or_1, false_var);
                 var contitioned_false_var = get_component_result<BlueprintFieldType, field_mul_comp_type>
                     (bp, assignment, internal_storage, statistics, param, field_mul_input_2).output; // false_var if false, 0 otherwise
 

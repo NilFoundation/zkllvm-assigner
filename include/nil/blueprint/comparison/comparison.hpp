@@ -50,7 +50,7 @@ namespace nil {
                 component_calls &statistics,
                 const common_component_parameters& param) {
 
-            typename ComponentType::input_type instance_input({x, y});
+            typename ComponentType::input_type instance_input(x, y);
 
             switch (p) {
                 case llvm::CmpInst::ICMP_EQ: {

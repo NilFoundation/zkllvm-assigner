@@ -64,7 +64,7 @@ namespace nil {
 
                 var x = variables[operand0];
                 var y = variables[operand1];
-                typename component_type::input_type instance_input({x, y});
+                typename component_type::input_type instance_input(x, y);
 
                 return get_component_result<BlueprintFieldType, component_type>
                     (bp, assignment, internal_storage, statistics, param, instance_input);
