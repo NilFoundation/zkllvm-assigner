@@ -65,6 +65,7 @@ struct table_piece {
     std::size_t start_row;
     std::vector<var> inputs;
     std::vector<var> outputs;
+    bool done;
 
     table_piece(
         std::size_t c,
@@ -80,6 +81,7 @@ struct table_piece {
         start_row = sr;
         inputs = in;
         outputs = out;
+        done = false;
     };
 
     boost::json::value to_json() const {
@@ -250,6 +252,7 @@ std::vector<table_piece<
                 std::cerr << "got component name " << table_piece.component_name << "\n";
                 UNREACHABLE("component does not exist!");
             }
+            table_piece.done = true;
         }
 
     }     // namespace blueprint

@@ -111,6 +111,7 @@
 #include <nil/crypto3/algebra/pairing/bls12.hpp>
 #include <nil/crypto3/algebra/algorithms/pair.hpp>
 #include <thread>
+#include <chrono>
 
 namespace nil {
     namespace blueprint {
@@ -1904,10 +1905,39 @@ namespace nil {
                 BOOST_LOG_TRIVIAL(info) << "usual_handle_inst_duration: " << usual_handle_inst_duration.count() << "ms";
 
                 auto fast_tbl_start = std::chrono::high_resolution_clock::now();
-                for (std::size_t i = 0; i < table_pieces.size(); i++) {
-                    extract_component_type_and_gen_assignments<BlueprintFieldType, table_piece<var>>(table_pieces[i], assignments[currProverIdx]);
-                    // BOOST_LOG_TRIVIAL(info) << "table_pieces[" << i <<"]: " << table_pieces[i];
+
+                std::vector<std::thread> threads;
+                auto& asdf = assignments[0];
+
+
+                for (auto& piece : table_pieces) {
+                        threads.emplace_back([&piece, &table_pieces, &asdf]() {
+                            while (true) {
+                                bool can_process = true;
+                                for (auto parent_idx : piece.parent_pieces) {
+                                    if (!table_pieces[parent_idx].done) {
+                                        can_process = false;
+                                        break;
+                                    }
+                                }
+                                if (can_process) {
+                                    extract_component_type_and_gen_assignments(piece, asdf);
+                                    break;
+                                }
+                                std::this_thread::sleep_for(std::chrono::microseconds(10));
+                            }
+                        });
+                    }
+
+                for (auto& th : threads) {
+                    th.join();
                 }
+
+
+                // for (std::size_t i = 0; i < table_pieces.size(); i++) {
+                //     extract_component_type_and_gen_assignments<BlueprintFieldType, table_piece<var>>(table_pieces[i], assignments[currProverIdx]);
+                //     // BOOST_LOG_TRIVIAL(info) << "table_pieces[" << i <<"]: " << table_pieces[i];
+                // }
 
                 auto fast_tbl_duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - fast_tbl_start);
                 BOOST_LOG_TRIVIAL(info) << "fast_tbl_duration: " << fast_tbl_duration.count() << "ms";
