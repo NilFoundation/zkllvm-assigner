@@ -207,6 +207,8 @@ std::vector<table_piece<
 
             using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
             static std::map<std::string, std::function<void(table_piece_type&, assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>&)>> func_map = {
+{"select_instruction unfinished", call_gen_assignments<BlueprintFieldType, table_piece_type, components::select_instruction<ArithmetizationType, BlueprintFieldType>>},
+{"load_instruction unfinished",   call_gen_assignments<BlueprintFieldType, table_piece_type, components::store_instruction<ArithmetizationType, BlueprintFieldType>>},
 {"poseidon hash",         call_gen_assignments<BlueprintFieldType, table_piece_type, components::poseidon<ArithmetizationType, BlueprintFieldType>>},
 {"non-native curve addition", call_gen_assignments<BlueprintFieldType, table_piece_type, components::complete_addition<ArithmetizationType, typename crypto3::algebra::curves::pallas, typename crypto3::algebra::curves::ed25519, basic_non_native_policy<BlueprintFieldType>>>},
 // {"non-native curve multiplication", call_gen_assignments<BlueprintFieldType, table_piece_type, components::variable_base_multiplication<ArithmetizationType, typename crypto3::algebra::curves::pallas, typename crypto3::algebra::curves::ed25519, basic_non_native_policy<BlueprintFieldType>>>},
@@ -245,6 +247,7 @@ std::vector<table_piece<
             if (it != func_map.end()) {
                 it->second(table_piece, assignment);
             } else {
+                std::cerr << "got component name " << table_piece.component_name << "\n";
                 UNREACHABLE("component does not exist!");
             }
         }

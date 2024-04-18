@@ -123,6 +123,12 @@ namespace nil {
                 struct input_type {
                     var v;
 
+                    input_type(var _v) : v(_v) {};
+                    input_type(std::vector<var> input_vect) {
+                        ASSERT_MSG(input_vect.size() == 1, "load_instruction input size must be 1");
+                        v = input_vect[0];
+                    }
+
                     std::vector<std::reference_wrapper<var>> all_vars() {
                         return {v};
                     }

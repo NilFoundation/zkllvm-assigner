@@ -126,6 +126,15 @@ namespace nil {
                     var true_val;
                     var false_val;
 
+                    input_type(var _c, var _t, var _f) : condition(_c), true_val(_t), false_val(_f) {};
+                    input_type(std::vector<var> input_vect) {
+                        ASSERT_MSG(input_vect.size() == 3, "select_instruction input size must be 3");
+                        condition = input_vect[0];
+                        true_val = input_vect[1];
+                        false_val = input_vect[2];
+                    }
+
+
                     std::vector<std::reference_wrapper<var>> all_vars() {
                         return {condition, true_val, false_val};
                     }

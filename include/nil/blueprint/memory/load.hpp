@@ -53,9 +53,7 @@ namespace nil {
 
                 using component_type = components::store_instruction<arithmetization_type, BlueprintFieldType>;
 
-                typename component_type::input_type instance_input = {
-                    input
-                };
+                typename component_type::input_type instance_input(input);
 
                 var result = get_component_result<BlueprintFieldType, component_type>
                     (bp, assignment, internal_storage, statistics, param, instance_input).res;
