@@ -51,11 +51,17 @@
 #include <nil/crypto3/algebra/curves/bls12.hpp>
 #include <nil/crypto3/algebra/pairing/bls12.hpp>
 #include <nil/crypto3/algebra/algorithms/pair.hpp>
+#include <condition_variable>
+#include <mutex>
 #include <thread>
+#include <atomic>
 
 namespace nil {
     namespace blueprint {
 
+std::mutex m;
+std::condition_variable cv;
+std::atomic<int> execute_count{0};
 
 template<typename var>
 struct table_piece {
@@ -65,6 +71,9 @@ struct table_piece {
     std::size_t start_row;
     std::vector<var> inputs;
     std::vector<var> outputs;
+    bool done;
+    bool in_progress;
+    std::size_t prover_index;
 
     table_piece(
         std::size_t c,
@@ -72,7 +81,8 @@ struct table_piece {
         std::string cn,
         std::size_t sr,
         std::vector<var> in,
-        std::vector<var> out
+        std::vector<var> out,
+        std::size_t prover_idx
     ) {
         counter = c;
         parent_pieces = pp;
@@ -80,6 +90,9 @@ struct table_piece {
         start_row = sr;
         inputs = in;
         outputs = out;
+        done = false;
+        in_progress = false;
+        prover_index = prover_idx;
     };
 
     boost::json::value to_json() const {
@@ -103,6 +116,7 @@ struct table_piece {
             {"parent_pieces", parent_pieces_json},
             {"component_name", component_name},
             {"start_row", start_row},
+            {"prover_index", prover_index},
             {"inputs", inputs_json},
             {"outputs", outputs_json}
         };
@@ -115,6 +129,7 @@ struct table_piece {
         }
         component_name = obj.at("component_name").as_string().c_str();
         start_row = obj.at("start_row").as_int64();
+        prover_index = obj.at("prover_index").as_int64();
         for (const auto& input : obj.at("inputs").as_array()) {
             inputs.emplace_back(input.as_object());
         }
@@ -122,8 +137,18 @@ struct table_piece {
         for (const auto& output : obj.at("outputs").as_array()) {
             outputs.emplace_back(output.as_object());
         }
+        done = false;
+        in_progress = false;
     }
 
+    bool is_ready(const std::vector<table_piece<crypto3::zk::snark::plonk_variable<typename crypto3::algebra::curves::pallas::base_field_type::value_type>>> &table_pieces) const {
+        for (const auto& parent_idx : parent_pieces) {
+            if (!table_pieces[parent_idx].done) {
+                return false;
+            }
+        }
+        return true;
+    }
 };
 
 std::map<
@@ -245,11 +270,15 @@ std::vector<table_piece<
             };
             auto it = func_map.find(table_piece.component_name);
             if (it != func_map.end()) {
+                //std::cout << std::this_thread::get_id() << " execute " << it->first << "\n";
                 it->second(table_piece, assignment);
+                table_piece.done = true;
             } else {
                 std::cerr << "got component name \"" << table_piece.component_name << "\"\n";
                 UNREACHABLE("component does not exist!");
             }
+            execute_count--;
+            cv.notify_all();
         }
 
     }     // namespace blueprint

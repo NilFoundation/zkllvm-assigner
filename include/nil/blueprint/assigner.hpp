@@ -110,6 +110,7 @@
 #include <nil/crypto3/algebra/pairing/bls12.hpp>
 #include <nil/crypto3/algebra/algorithms/pair.hpp>
 #include <thread>
+#include <chrono>
 
 namespace nil {
     namespace blueprint {
@@ -227,7 +228,7 @@ namespace nil {
             template<typename map_type>
             void handle_scalar_cmp(const llvm::ICmpInst *inst, map_type &frame) {
                 llvm::CmpInst::Predicate p = inst->getPredicate();
-                const common_component_parameters param = {targetProverIdx, gen_mode};
+                const common_component_parameters param = {currProverIdx, targetProverIdx, gen_mode};
                 handle_comparison_component<BlueprintFieldType> (
                     inst, frame, p, circuits[currProverIdx], assignments[currProverIdx], internal_storage, statistics, param);
             }
@@ -246,7 +247,7 @@ namespace nil {
                     bitness = llvm::cast<llvm::IntegerType>(vector_ty->getElementType())->getBitWidth();
                 }
 
-                const common_component_parameters param = {targetProverIdx, gen_mode};
+                const common_component_parameters param = {currProverIdx, targetProverIdx, gen_mode};
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     using eq_component_type = components::equality_flag<
                         crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
@@ -275,7 +276,7 @@ namespace nil {
                 using eq_component_type = components::equality_flag<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>, BlueprintFieldType>;
 
-                const common_component_parameters param = {targetProverIdx, gen_mode};
+                const common_component_parameters param = {currProverIdx, targetProverIdx, gen_mode};
                 for (size_t i = 0; i < lhs.size(); ++i) {
                     auto v = handle_comparison_component_eq_neq<BlueprintFieldType, eq_component_type>(
                         inst->getPredicate(), lhs[i], rhs[i], 0,
@@ -441,7 +442,7 @@ namespace nil {
                     }
                 }
 
-                const common_component_parameters param = {targetProverIdx, gen_mode};
+                const common_component_parameters param = {currProverIdx, targetProverIdx, gen_mode};
 
                 switch (id) {
                     case llvm::Intrinsic::assigner_malloc: {
@@ -691,7 +692,7 @@ namespace nil {
             void handle_store(ptr_type ptr, const llvm::Value *val, stack_frame<var> &frame) {
                 auto store_scalar = [this](ptr_type ptr, var v, size_t type_size) ->ptr_type {
                     auto &cell = memory[ptr];
-                    const common_component_parameters param = {targetProverIdx, gen_mode};
+                    const common_component_parameters param = {currProverIdx, targetProverIdx, gen_mode};
                     size_t cur_offset = cell.offset;
                     size_t cell_size = cell.size;
                     if (cell_size != type_size) {
@@ -726,6 +727,7 @@ namespace nil {
             }
 
             void handle_load(ptr_type ptr, const llvm::Value *dest, stack_frame<var> &frame) {
+                const common_component_parameters param = {currProverIdx, targetProverIdx, gen_mode};
                 size_t num_cells = layout_resolver->get_cells_num<BlueprintFieldType>(dest->getType());
                 if (num_cells == 1) {
                     auto &cell = memory[ptr];
@@ -963,7 +965,7 @@ namespace nil {
             void merge_memory_state(const memory_state<var>& state, const var& cond) {
                 auto stack_top = std::max(memory.get_stack_top(), state.stack_top);
                 auto heap_top = std::max(memory.get_heap_top(), state.heap_top);
-                const common_component_parameters param = {targetProverIdx, gen_mode};
+                const common_component_parameters param = {currProverIdx, targetProverIdx, gen_mode};
                 auto merge_region = [&cond, &param, &state, this](size_t memory_region_begin, size_t false_memory_region_end, size_t true_memory_region_end, bool is_stack) {
                     auto max_end = std::max(false_memory_region_end, true_memory_region_end); // max memory state and current memory used cells
                     // run throw all cells
@@ -1064,7 +1066,7 @@ namespace nil {
                     }
                 }
 
-                const common_component_parameters param = {targetProverIdx, gen_mode};
+                const common_component_parameters param = {currProverIdx, targetProverIdx, gen_mode};
 
                 switch (inst->getOpcode()) {
                     case llvm::Instruction::Add: {
@@ -1908,37 +1910,101 @@ namespace nil {
 
                 BOOST_LOG_TRIVIAL(info) << "evaluate start: ";
 
-                auto usual_handle_inst_start = std::chrono::high_resolution_clock::now();
+                if (!gen_mode.has_fast_tbl()) {
 
-                const llvm::Instruction *next_inst = &circuit_function->begin()->front();
-                while (true) {
-                    next_inst = handle_instruction(next_inst);
-                    if (finished) {
-                        if (gen_mode.has_size_estimation()) {
-                            std::cout << "\nallocated_rows: " <<  assignments[currProverIdx].allocated_rows() << "\n";
-                            statistics.print();
+                    auto usual_handle_inst_start = std::chrono::high_resolution_clock::now();
+
+                    const llvm::Instruction *next_inst = &circuit_function->begin()->front();
+                    while (true) {
+                        next_inst = handle_instruction(next_inst);
+                        if (finished) {
+                            if (gen_mode.has_size_estimation()) {
+                                std::cout << "\nallocated_rows: " <<  assignments[currProverIdx].allocated_rows() << "\n";
+                                statistics.print();
+                            }
+                            break;
+                            // return true;
                         }
-                        break;
-                        // return true;
+                        if (next_inst == nullptr) {
+                            return false;
+                        }
                     }
-                    if (next_inst == nullptr) {
-                        return false;
+
+                    using temp_comp_type = components::poseidon<ArithmetizationType, BlueprintFieldType>;
+
+                    auto usual_handle_inst_duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - usual_handle_inst_start);
+                    BOOST_LOG_TRIVIAL(info) << "usual_handle_inst_duration: " << usual_handle_inst_duration.count() << "ms";
+                } else {
+
+                    auto fast_tbl_start = std::chrono::high_resolution_clock::now();
+
+                    std::size_t counter = table_pieces.size();
+                    // resize witness, constant columns before run, because it should be thread protected operation
+                    auto max_row = table_pieces.back().start_row + 10;
+                    auto num_witness = assignment_ptr->witnesses_amount();
+                    auto num_constants = assignment_ptr->constants_amount();
+                    for (std::uint32_t i = 0; i < num_witness; i++) {
+                        assignment_ptr->witness(i, max_row) = 0;
                     }
+                    for (std::uint32_t i = 0; i < num_constants; i++) {
+                        assignment_ptr->constant(i, max_row) = 0;
+                    }
+
+                    auto worker = [&counter, &table_pieces, this]() {
+                        while (counter > 0) {
+                            //std::cout << std::this_thread::get_id() << " waiting " << counter << "\n";
+                            std::unique_lock<std::mutex> lk(m);
+                            //std::cout << std::this_thread::get_id() << " start serach\n";
+                            bool found = false;
+                            for (std::size_t i = 0; i < table_pieces.size(); i++) {
+                                if (!table_pieces[i].done && !table_pieces[i].in_progress && table_pieces[i].is_ready(table_pieces)) {
+                                    if (table_pieces[i].prover_index >= assignments.size()) {
+                                        assignments.emplace_back(assignment_ptr, table_pieces[i].prover_index);
+                                    }
+                                    table_pieces[i].in_progress = true;
+                                    counter--;
+                                    found = true;
+                                    execute_count++;
+                                    //std::cout << std::this_thread::get_id() << " end serach: " << table_pieces[i].counter << "\n";
+                                    lk.unlock();
+                                    extract_component_type_and_gen_assignments(table_pieces[i], assignments[table_pieces[i].prover_index]);
+                                    break;
+                                }
+                            }
+                            // have to wait till someone complete execution only if no task for execute and some thread executing now
+                            if (!found && execute_count.load() > 0) {
+                                //std::cout << std::this_thread::get_id() <<  " not found " << execute_count.load() << "\n";
+                                cv.wait(lk);// m.unlock()
+                            }// m.lock()
+                            //m.unlock - go out ot the scope and destroy lk
+                        }
+                        cv.notify_all();
+                    };
+
+                    unsigned int nthreads = std::thread::hardware_concurrency();
+                    BOOST_LOG_TRIVIAL(info) << "number threads: " << nthreads;
+                    std::vector<std::thread> threads;
+                    threads.resize(nthreads);
+
+                    for (std::size_t i = 0; i < nthreads; i++) {
+                        threads[i] = std::thread(worker);
+                    }
+
+                    for (auto& th : threads) {
+                        if (th.joinable()) {
+                            th.join();
+                        }
+                    }
+
+
+                    // for (std::size_t i = 0; i < table_pieces.size(); i++) {
+                    //     extract_component_type_and_gen_assignments<BlueprintFieldType, table_piece<var>>(table_pieces[i], assignments[currProverIdx]);
+                    //     // BOOST_LOG_TRIVIAL(info) << "table_pieces[" << i <<"]: " << table_pieces[i];
+                    // }
+
+                    auto fast_tbl_duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - fast_tbl_start);
+                    BOOST_LOG_TRIVIAL(info) << "fast_tbl_duration: " << fast_tbl_duration.count() << "ms";
                 }
-
-                using temp_comp_type = components::poseidon<ArithmetizationType, BlueprintFieldType>;
-
-                auto usual_handle_inst_duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - usual_handle_inst_start);
-                BOOST_LOG_TRIVIAL(info) << "usual_handle_inst_duration: " << usual_handle_inst_duration.count() << "ms";
-
-                auto fast_tbl_start = std::chrono::high_resolution_clock::now();
-                for (std::size_t i = 0; i < table_pieces.size(); i++) {
-                    extract_component_type_and_gen_assignments<BlueprintFieldType, table_piece<var>>(table_pieces[i], assignments[currProverIdx]);
-                    // BOOST_LOG_TRIVIAL(info) << "table_pieces[" << i <<"]: " << table_pieces[i];
-                }
-
-                auto fast_tbl_duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - fast_tbl_start);
-                BOOST_LOG_TRIVIAL(info) << "fast_tbl_duration: " << fast_tbl_duration.count() << "ms";
                 return true;
             }
 

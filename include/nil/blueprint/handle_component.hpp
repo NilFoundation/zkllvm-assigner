@@ -237,6 +237,7 @@ namespace nil {
         > all_components = {};
 
         struct common_component_parameters {
+            std::uint32_t curr_prover_idx;
             std::uint32_t target_prover_idx;
             generation_mode gen_mode;
         };
@@ -389,14 +390,14 @@ namespace nil {
             // generate circuit in any case for fill selectors
             generate_circuit(component_instance, bp, assignment, instance_input, start_row);
 
-                auto res = typename ComponentType::result_type(component_instance, start_row);
+            auto res = typename ComponentType::result_type(component_instance, start_row);
             std::vector<var> outputs = {};
             for (std::size_t i = 0; i < res.all_vars().size(); i++) {
                 var curr_outp = res.all_vars()[i].get();
                 outputs.push_back(curr_outp);
                 comp_counter_form_var[curr_outp] = table_pieces.size();
                     // BOOST_LOG_TRIVIAL(info) << "res.all_vars() " << res.all_vars()[i].get().index << " " << res.all_vars()[i].get().rotation << " " << column_to_uint<var>(res.all_vars()[i].get().type);
-                }
+            }
 
             std::vector<std::size_t> parents = {};
             for (std::size_t i = 0; i < inputs.size(); i++) {
@@ -414,7 +415,8 @@ namespace nil {
                     component_instance.component_name,
                     start_row,
                     inputs,
-                    outputs
+                    outputs,
+                    param.curr_prover_idx
                 )
             );
 
