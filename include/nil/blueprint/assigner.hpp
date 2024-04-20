@@ -1378,8 +1378,6 @@ namespace nil {
 
                                 curr_branch.pop_back();
 
-                                ASSERT((stack_size - 1) == call_stack.size() || finished);
-
                                 return false_next_inst;
                             }
 
@@ -1417,8 +1415,6 @@ namespace nil {
 
                             curr_branch.pop_back();
 
-                            ASSERT((stack_size - 1) == call_stack.size() || finished);
-
                             return false_next_inst;
                         }
                         auto bb_to_jump = llvm::cast<llvm::BasicBlock>(inst->getOperand(0));
@@ -1431,7 +1427,7 @@ namespace nil {
                                 llvm::Value *incoming_value = phi_node->getIncomingValue(i);
                                 llvm::Type *value_type = incoming_value->getType();
                                 if (value_type->isIntegerTy() || value_type->isPointerTy() ||
-                                           (value_type->isFieldTy() && field_arg_num<BlueprintFieldType>(value_type) == 1)) {
+                                    (value_type->isFieldTy() && field_arg_num<BlueprintFieldType>(value_type) == 1)) {
                                     ASSERT(variables.find(incoming_value) != variables.end());
                                     variables[phi_node] = variables[incoming_value];
                                 } else {
@@ -1684,9 +1680,18 @@ namespace nil {
                             }
                             return nullptr;
                         }
-                        if (curr_branch.size() == 0 || !curr_branch.back().is_true_branch ||
-                            // call inside branch
-                            curr_branch.back().call_stack_size < call_stack.size()) {
+
+                        bool should_keep_stack_frame = (curr_branch.size() > 1);
+                        if (should_keep_stack_frame) {
+                            if (curr_branch.back().call_stack_size < call_stack.size()) {
+                                // call inside branch
+                                should_keep_stack_frame = false;
+                            } else {
+                                // more than one branch uses current stack frame
+                                should_keep_stack_frame = (curr_branch[curr_branch.size() - 2].call_stack_size == call_stack.size());
+                            }
+                        }
+                        if (!should_keep_stack_frame) {
                             auto extracted_frame = std::move(call_stack.top());
                             call_stack.pop();
                             memory.pop_frame();
