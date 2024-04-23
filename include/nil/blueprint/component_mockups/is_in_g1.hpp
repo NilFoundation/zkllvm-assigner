@@ -54,7 +54,7 @@ namespace nil {
 
 
                 constexpr static const std::size_t gates_amount = 0;
-                const std::size_t rows_amount = get_rows_amount(this->witness_amount(), 0);
+                const std::size_t rows_amount = get_rows_amount(this->witness_amount());
                 const std::string component_name = "is_in_g1";
 
                 using var = typename component_type::var;
@@ -67,8 +67,7 @@ namespace nil {
                     }
                 };
 
-                static gate_manifest get_gate_manifest(std::size_t witness_amount,
-                                                        std::size_t lookup_column_amount) {
+                static gate_manifest get_gate_manifest(std::size_t witness_amount) {
                     static gate_manifest manifest = gate_manifest(gate_manifest_type());
                     return manifest;
                 }
@@ -84,8 +83,7 @@ namespace nil {
                     return manifest;
                 }
 
-                constexpr static std::size_t get_rows_amount(std::size_t witness_amount,
-                                                             std::size_t lookup_column_amount) {
+                constexpr static std::size_t get_rows_amount(std::size_t witness_amount) {
                     return 0;
                 }
 
