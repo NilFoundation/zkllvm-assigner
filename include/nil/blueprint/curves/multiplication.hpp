@@ -124,7 +124,7 @@ namespace nil {
 
                 return get_component_result<BlueprintFieldType, component_type>
                     (bp, assignment, internal_storage, statistics, param, addition_input,
-                     253, nil::blueprint::components::bit_shift_mode::RIGHT);
+                     253, nil::blueprint::components::bit_composition_mode::MSB);
             }
 
         }    // namespace detail

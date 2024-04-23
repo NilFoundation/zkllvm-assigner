@@ -52,18 +52,17 @@ namespace nil {
 
             struct CompilerRestrictions {
                 inline static compiler_manifest common_restriction_manifest = compiler_manifest(15, // TODO hardcoded
-                                                                                                std::numeric_limits<std::int32_t>::max() - 1,
-                                                                                                std::numeric_limits<std::int32_t>::max(), true);
+                                                                                                true);
             };
 
             template<typename ComponentType>
             struct ManifestReader {
-                inline static typename ComponentType::manifest_type manifest =
-                        CompilerRestrictions::common_restriction_manifest.intersect(ComponentType::get_manifest());
 
                 template<typename... Args>
                 static std::vector <std::pair<std::uint32_t, std::uint32_t>>
                 get_witness(Args... args) {
+                    typename ComponentType::manifest_type manifest =
+                        CompilerRestrictions::common_restriction_manifest.intersect(ComponentType::get_manifest(args...));
                     ASSERT(manifest.is_satisfiable());
                     auto witness_amount_ptr = manifest.witness_amount;
                     std::vector <std::pair<std::uint32_t, std::uint32_t>> values;

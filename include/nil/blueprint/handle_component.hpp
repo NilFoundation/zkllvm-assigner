@@ -309,7 +309,7 @@ namespace nil {
                 typename ComponentType::input_type& instance_input,
                 Args... args) {
 
-            const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType>::get_witness(0, args...));
+            const auto p = detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType>::get_witness(args...));
 
             ComponentType component_instance(
                 p.witness,
@@ -342,7 +342,7 @@ namespace nil {
                 return generate_assignments(component_instance, assignment, instance_input, start_row,
                                             param.target_prover_idx);
             } else {
-                const auto rows_amount = ComponentType::get_rows_amount(p.witness.size(), 0, args...);
+                const auto rows_amount = ComponentType::get_rows_amount(p.witness.size(), args...);
                 // fake allocate rows
                 for (std::uint32_t i = 0; i < rows_amount; i++) {
                     assignment.witness(0, start_row + i) = BlueprintFieldType::value_type::zero();

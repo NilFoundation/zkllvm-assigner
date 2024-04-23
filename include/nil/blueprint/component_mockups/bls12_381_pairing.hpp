@@ -103,8 +103,7 @@ namespace nil {
                     }
                 };
 
-                static gate_manifest get_gate_manifest(std::size_t witness_amount,
-                                                       std::size_t lookup_column_amount) {
+                static gate_manifest get_gate_manifest(std::size_t witness_amount) {
                     static gate_manifest manifest =
                         gate_manifest(gate_manifest_type(witness_amount));
                     return manifest;
@@ -158,13 +157,13 @@ namespace nil {
 
 
                 constexpr static std::size_t get_rows_amount(std::size_t witness_amount,
-                                                             std::size_t lookup_column_amount) {
+                                                             std::size_t lookup_column_amount = 0) {
                     return rows_amount_miller_loop(witness_amount, lookup_column_amount,0xD201000000010000) +
                            rows_amount_bls12_exponentiation(witness_amount, lookup_column_amount);
                 }
 
                 const std::size_t gates_amount = gates_amount_internal(this->witness_amount());
-                const std::size_t rows_amount = get_rows_amount(this->witness_amount(), 0);
+                const std::size_t rows_amount = get_rows_amount(this->witness_amount());
                 const std::string component_name = "native_bls12_381_pairing";
 
                 struct input_type {
