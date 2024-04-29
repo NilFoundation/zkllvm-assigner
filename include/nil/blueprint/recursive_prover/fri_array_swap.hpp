@@ -75,13 +75,13 @@ namespace nil {
             std::vector<var> res = get_component_result<BlueprintFieldType, component_type>
                     (bp, assignment, internal_storage, statistics, param, instance_input, array_size / 2).output;
 
-                ptr_type result_ptr = static_cast<ptr_type>(typename BlueprintFieldType::integral_type(
-                    detail::var_value<BlueprintFieldType, var>
-                    (frame.scalars[result_value], assignment, internal_storage, true).data));
-                for (std::size_t i = 0; i < array_size; i++) {
-                    ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                    memory.store(result_ptr++, res[i]);
-                }
+            ptr_type result_ptr = static_cast<ptr_type>(typename BlueprintFieldType::integral_type(
+                detail::var_value<BlueprintFieldType, var>
+                (frame.scalars[result_value], assignment, internal_storage, true).data));
+            for (std::size_t i = 0; i < array_size; i++) {
+                ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
+                memory.store(result_ptr++, res[i]);
+            }
         }
     }    // namespace blueprint
 }    // namespace nil

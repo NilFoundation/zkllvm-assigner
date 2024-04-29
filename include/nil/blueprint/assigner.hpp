@@ -556,19 +556,19 @@ namespace nil {
                         return true;
                     }
                     case llvm::Intrinsic::memcpy: {
-                            llvm::Value *src_val = inst->getOperand(1);
-                            ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
-                            ptr_type src = resolve_number<ptr_type>(frame, src_val);
-                            unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
-                            memcpy(dst, src, width);
+                        llvm::Value *src_val = inst->getOperand(1);
+                        ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
+                        ptr_type src = resolve_number<ptr_type>(frame, src_val);
+                        unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
+                        memcpy(dst, src, width);
                         return true;
                     }
                     case llvm::Intrinsic::memset: {
-                            ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
-                            unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
-                            ASSERT(frame.scalars.find(inst->getOperand(1)) != frame.scalars.end());
-                            const auto value_var = frame.scalars[inst->getOperand(1)];
-                            memset(dst, value_var, width);
+                        ptr_type dst = resolve_number<ptr_type>(frame, inst->getOperand(0));
+                        unsigned width = resolve_number<unsigned>(frame, inst->getOperand(2));
+                        ASSERT(frame.scalars.find(inst->getOperand(1)) != frame.scalars.end());
+                        const auto value_var = frame.scalars[inst->getOperand(1)];
+                        memset(dst, value_var, width);
                         return true;
                     }
                     case llvm::Intrinsic::assigner_zkml_convolution: {
@@ -974,58 +974,46 @@ namespace nil {
                 auto stack_top = std::max(memory.get_stack_top(), state.stack_top);
                 auto heap_top = std::max(memory.get_heap_top(), state.heap_top);
                 const common_component_parameters param = {targetProverIdx, gen_mode};
-                for (ptr_type i = 1; i < stack_top; i++) {
-                    if (i < memory.get_stack_top() && i < state.stack_top) {
-                        auto v_true = state.stack[i - 1].v;
-                        auto v_false = memory[i].v;
-                        if (v_true.has_value() && v_false.has_value()) {
-                            if (!detail::is_internal<var>(v_true.value()) && !detail::is_internal<var>(v_false.value())) {
-                                memory.store(i, create_select_component<BlueprintFieldType, var>(
-                                             cond, v_true.value(), v_false.value(), circuits[currProverIdx], assignments[currProverIdx], internal_storage, statistics, param, one_var));
-                            } else {
-                                typename BlueprintFieldType::value_type res_value = 0;
-                                if (gen_mode.has_assignments()) {
-                                    res_value = (get_var_value(cond) != res_value) ? get_var_value(v_true.value()) : get_var_value(v_false.value());
+                auto merge_region = [&cond, &param, &state, this](size_t memory_region_begin, size_t false_memory_region_end, size_t true_memory_region_end, bool is_stack) {
+                    auto max_end = std::max(false_memory_region_end, true_memory_region_end); // max memory state and current memory used cells
+                    // run throw all cells
+                    for (size_t i = memory_region_begin; i < max_end; i++) {
+                        if (i < false_memory_region_end && i < true_memory_region_end) {
+                            auto v_true = is_stack ? state.stack[i - memory_region_begin].v : state.heap[i - memory_region_begin].v;
+                            auto v_false = memory[i].v;
+                            if (v_true.has_value() && v_false.has_value()) {
+                                if (!detail::is_internal<var>(v_true.value()) && !detail::is_internal<var>(v_false.value())) {
+                                    // cell exist and contains real var in both state and current memory, so merged result = select(cond, state var, current memory var)
+                                    memory.store(i, create_select_component<BlueprintFieldType, var>(
+                                                cond, v_true.value(), v_false.value(), circuits[currProverIdx], assignments[currProverIdx], internal_storage, statistics, param, one_var));
+                                } else {
+                                    typename BlueprintFieldType::value_type res_value = 0;
+                                    if (gen_mode.has_assignments()) {
+                                        res_value = (get_var_value(cond) != res_value) ? get_var_value(v_true.value()) : get_var_value(v_false.value());
+                                    }
+                                    // cell exist in both state and current memory, but contains internal var, so merged result = internal var
+                                    var internal_select_res = put_value_into_internal_storage(res_value);
+                                    memory.store(i, internal_select_res);
                                 }
-                                var internal_select_res = put_value_into_internal_storage(res_value);
-                                memory.store(i, internal_select_res);
+                            } else if (v_true.has_value()) {
+                                // cell exist in both state and current memory, but only state_var has value, so merged result = state_var
+                                memory.store(i, v_true.value());
                             }
-                        } else if (v_true.has_value()) {
-                            memory.store(i, v_true.value());
-                        }
-                    } else if (i < state.stack_top) {
-                        auto v_true = state.stack[i - 1].v;
-                        if (v_true.has_value()) {
-                            memory.store(i, v_true.value());
-                        }
-                    }
-                }
-                for (size_t i = memory.get_stack_size() + 1; i < heap_top; i++) {
-                    if (i < memory.get_heap_top() && i < state.heap_top) {
-                        auto v_true = state.heap[i - memory.get_stack_size() - 1].v;
-                        auto v_false = memory[i].v;
-                        if (v_true.has_value() && v_false.has_value()) {
-                            if (!detail::is_internal<var>(v_true.value()) && !detail::is_internal<var>(v_false.value())) {
-                                memory.store(i, create_select_component<BlueprintFieldType, var>(
-                                             cond, v_true.value(), v_false.value(), circuits[currProverIdx], assignments[currProverIdx], internal_storage, statistics, param, one_var));
-                            } else {
-                                typename BlueprintFieldType::value_type res_value = 0;
-                                if (gen_mode.has_assignments()) {
-                                    res_value = (get_var_value(cond) != res_value) ? get_var_value(v_true.value()) : get_var_value(v_false.value());
-                                }
-                                var internal_select_res = put_value_into_internal_storage(res_value);
-                                memory.store(i, internal_select_res);
+                            // otherwise merge result = current_memory var
+                        } else if (i < true_memory_region_end) {
+                            auto v_true = is_stack ? state.stack[i - memory_region_begin].v : state.heap[i - memory_region_begin].v;
+                            if (v_true.has_value()) {
+                                // cell exist only in state, so merged result = state_var
+                                memory.store(i, v_true.value());
                             }
-                        } else if (v_true.has_value()) {
-                            memory.store(i, v_true.value());
                         }
-                    } else if (i < state.heap_top) {
-                        auto v_true = state.heap[i - memory.get_stack_size() - 1].v;
-                        if (v_true.has_value() && !detail::is_internal<var>(v_true.value())) {
-                            memory.store(i, v_true.value());
-                        }
+                        // otherwise merge result = current_memory var
                     }
-                }
+                };
+                // merge stack
+                merge_region(1, memory.get_stack_top(), state.stack_top, true);
+                // merge heap
+                merge_region(memory.get_stack_size() + 1, memory.get_heap_top(), state.heap_top, false);
             }
 
             const llvm::Instruction *handle_branch(const llvm::Instruction* inst) {
