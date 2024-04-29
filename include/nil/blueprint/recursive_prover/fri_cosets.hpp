@@ -68,15 +68,15 @@ namespace nil {
             const auto& result = get_component_result<BlueprintFieldType, component_type>
                 (bp, assignment, internal_storage, statistics, param, instance_input, res_length, omega).output;
 
-                ptr_type result_ptr = static_cast<ptr_type>(
-                    typename BlueprintFieldType::integral_type(detail::var_value<BlueprintFieldType, var>
-                        (variables[result_value], assignment, internal_storage, true).data));
-                for (std::size_t i = 0; i < result.size(); i++) {
-                    for (std::size_t j = 0; j < 3; j++) {
-                        ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
-                        memory.store(result_ptr++, result[i][j]);
-                    }
+            ptr_type result_ptr = static_cast<ptr_type>(
+                typename BlueprintFieldType::integral_type(detail::var_value<BlueprintFieldType, var>
+                    (variables[result_value], assignment, internal_storage, true).data));
+            for (std::size_t i = 0; i < result.size(); i++) {
+                for (std::size_t j = 0; j < 3; j++) {
+                    ASSERT(memory[result_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
+                    memory.store(result_ptr++, result[i][j]);
                 }
+            }
         }
 
         }    // namespace detail
