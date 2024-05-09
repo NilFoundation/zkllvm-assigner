@@ -87,6 +87,7 @@ namespace nil {
                 for (std::size_t i = 0; i < input_length; i++) {
                     ASSERT(memory[input_ptr].size == (BlueprintFieldType::number_bits + 7) / 8);
                     auto v = memory.load(input_ptr++);
+                    ASSERT(detail::is_initialized<var>(v));
                     res.push_back(v);
                 }
                 return res;

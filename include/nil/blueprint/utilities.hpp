@@ -143,6 +143,11 @@ namespace nil {
                 }
                 return false;
             }
+
+            template<typename var>
+            bool is_initialized(const var &v) {
+                return (v.type != var::column_type::uninitialized);
+            }
         }    // namespace detail
     }    // namespace blueprint
 }    // namespace nil

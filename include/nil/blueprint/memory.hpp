@@ -40,7 +40,7 @@ namespace nil {
 
         template<typename VarType>
         struct cell {
-            std::optional<VarType> v;
+            VarType v;
             size_t offset;
             int8_t size;
             int8_t following;
@@ -59,9 +59,9 @@ namespace nil {
         struct program_memory : public std::vector<cell<VarType>> {
         public:
             program_memory(size_t stack_size) : stack_size(stack_size), heap_top(stack_size) {
-                this->push_back({std::nullopt, 0, 0});
+                this->push_back({VarType(), 0, 0});
                 this->resize(heap_top);
-                this->push_back({std::nullopt, stack_size + 1, 0});
+                this->push_back({VarType(), stack_size + 1, 0});
                 heap_top++;
                 push_frame();
             }
@@ -93,7 +93,7 @@ namespace nil {
                 auto offset = this->back().offset + this->back().size;
                 ptr_type res = this->size();
                 for (size_t i = 0; i < num_bytes; ++i) {
-                    this->push_back(cell<VarType>{std::nullopt, offset++, 1});
+                    this->push_back(cell<VarType>{VarType(), offset++, 1});
                     heap_top++;
                 }
                 return res;
@@ -104,9 +104,7 @@ namespace nil {
             }
 
             VarType load(ptr_type ptr) {
-                auto maybe_v = (*this)[ptr].v;
-                ASSERT(maybe_v.has_value());
-                return maybe_v.value();
+                return (*this)[ptr].v;
             }
 
             size_t ptrtoint(ptr_type ptr) {
