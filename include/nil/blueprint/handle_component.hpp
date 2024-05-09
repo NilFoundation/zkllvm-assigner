@@ -212,7 +212,7 @@ namespace nil {
                 BOOST_LOG_TRIVIAL(trace) << "input var:  " << v.get() << " " << var_value(assignment, v.get()).data;
 
                 // component input can't be from internal_storage'
-                ASSERT(!detail::is_internal<var>(v.get()));
+                ASSERT(!detail::is_internal<var>(v.get()) && detail::is_initialized<var>(v.get()));
                 if ((used_rows.find(v.get().rotation) == used_rows.end()) &&
                            (v.get().type == var::column_type::witness || v.get().type == var::column_type::constant)) {
                     var new_v;

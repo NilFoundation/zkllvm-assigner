@@ -731,22 +731,14 @@ namespace nil {
                 size_t num_cells = layout_resolver->get_cells_num<BlueprintFieldType>(dest->getType());
                 if (num_cells == 1) {
                     auto &cell = memory[ptr];
-                    if(!cell.v.has_value()) {
-                        log.debug(boost::format("Load uninitialized var %1% = 0") % ptr);
-                        cell.v = zero_var;
-                    }
-                    var v = cell.v.value();
-                    frame.scalars[dest] = v;
+                    ASSERT_MSG(detail::is_initialized(cell.v), "Load uninitialized var");
+                    frame.scalars[dest] = cell.v;
                 } else {
                     std::vector<var> res;
                     for (size_t i = 0; i < num_cells; ++i) {
                         auto &cell = memory[ptr + i];
-                        if(!cell.v.has_value()) {
-                            log.debug(boost::format("Load uninitialized var %1% = 0") % (ptr + i));
-                            cell.v = zero_var;
-                        }
-                        var v = cell.v.value();
-                        res.push_back(v);
+                        ASSERT_MSG(detail::is_initialized(cell.v), "Load uninitialized var");
+                        res.push_back(cell.v);
                     }
                     frame.vectors[dest] = res;
                 }
@@ -981,30 +973,30 @@ namespace nil {
                         if (i < false_memory_region_end && i < true_memory_region_end) {
                             auto v_true = is_stack ? state.stack[i - memory_region_begin].v : state.heap[i - memory_region_begin].v;
                             auto v_false = memory[i].v;
-                            if (v_true.has_value() && v_false.has_value()) {
-                                if (!detail::is_internal<var>(v_true.value()) && !detail::is_internal<var>(v_false.value())) {
+                            if (detail::is_initialized(v_true) && detail::is_initialized(v_false)) {
+                                if (!detail::is_internal<var>(v_true) && !detail::is_internal<var>(v_false)) {
                                     // cell exist and contains real var in both state and current memory, so merged result = select(cond, state var, current memory var)
                                     memory.store(i, create_select_component<BlueprintFieldType, var>(
-                                                cond, v_true.value(), v_false.value(), circuits[currProverIdx], assignments[currProverIdx], internal_storage, statistics, param, one_var));
+                                                cond, v_true, v_false, circuits[currProverIdx], assignments[currProverIdx], internal_storage, statistics, param, one_var));
                                 } else {
                                     typename BlueprintFieldType::value_type res_value = 0;
                                     if (gen_mode.has_assignments()) {
-                                        res_value = (get_var_value(cond) != res_value) ? get_var_value(v_true.value()) : get_var_value(v_false.value());
+                                        res_value = (get_var_value(cond) != res_value) ? get_var_value(v_true) : get_var_value(v_false);
                                     }
                                     // cell exist in both state and current memory, but contains internal var, so merged result = internal var
                                     var internal_select_res = put_value_into_internal_storage(res_value);
                                     memory.store(i, internal_select_res);
                                 }
-                            } else if (v_true.has_value()) {
+                            } else if (detail::is_initialized(v_true)) {
                                 // cell exist in both state and current memory, but only state_var has value, so merged result = state_var
-                                memory.store(i, v_true.value());
+                                memory.store(i, v_true);
                             }
                             // otherwise merge result = current_memory var
                         } else if (i < true_memory_region_end) {
                             auto v_true = is_stack ? state.stack[i - memory_region_begin].v : state.heap[i - memory_region_begin].v;
-                            if (v_true.has_value()) {
+                            if (detail::is_initialized(v_true)) {
                                 // cell exist only in state, so merged result = state_var
-                                memory.store(i, v_true.value());
+                                memory.store(i, v_true);
                             }
                         }
                         // otherwise merge result = current_memory var
@@ -1564,12 +1556,14 @@ namespace nil {
                                         extract_inst->getAggregateOperand()->getType(), extract_inst->getIndices())
                                     .second;
                         var v = memory.load(ptr);
+                        ASSERT(detail::is_initialized(v));
                         frame.scalars[inst] = v;
                         return inst->getNextNonDebugInstruction();
                     }
                     case llvm::Instruction::IndirectBr: {
                         ptr_type ptr = resolve_number<ptr_type>(frame, inst->getOperand(0));
                         var bb_var = memory.load(ptr);
+                        ASSERT(detail::is_initialized(bb_var));
                         llvm::BasicBlock *bb = (llvm::BasicBlock *)(resolve_number<uintptr_t>(bb_var));
                         ASSERT(labels.find(bb) != labels.end());
                         return &bb->front();
