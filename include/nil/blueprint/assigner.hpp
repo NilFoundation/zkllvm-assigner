@@ -1858,15 +1858,34 @@ namespace nil {
                 return true;
             }
 
+            void fill_constant_columns(
+                std::vector<std::vector<std::vector<typename BlueprintFieldType::value_type>>> &all_constsant_columns
+            ) {
+                for (std::size_t prover_nr = 0; prover_nr < all_constsant_columns.size(); prover_nr++) {
+                    auto& current_prover_columns = all_constsant_columns[prover_nr];
+                    for (std::size_t column_nr = 0; column_nr < current_prover_columns.size(); column_nr++) {
+                        auto& current_column = current_prover_columns[column_nr];
+                        for(std::size_t i = 0; i < current_column.size(); i++) {
+                            assignments[prover_nr].constant(column_nr, i) = current_column[i];
+                        }
+                    }
+                }
+            }
+
             bool evaluate(
                 const boost::json::array &public_input,
                 const boost::json::array &private_input,
+                std::vector<std::vector<std::vector<typename BlueprintFieldType::value_type>>> &all_constant_columns,
                 std::vector<table_piece<var>> &table_pieces
             ) {
 
                 stack_frame<var> base_frame;
                 auto &variables = base_frame.scalars;
                 base_frame.caller = nullptr;
+
+                if (gen_mode.has_fast_tbl()) {
+                    fill_constant_columns(all_constant_columns);
+                }
 
                 auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
                     base_frame, memory, assignments[currProverIdx], *layout_resolver, internal_storage, gen_mode.has_assignments() || gen_mode.has_fast_tbl());
