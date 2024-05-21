@@ -1927,7 +1927,7 @@ namespace nil {
                 }
 
 
-                BOOST_LOG_TRIVIAL(info) << "evaluate start: ";
+                BOOST_LOG_TRIVIAL(debug) << "evaluate start: ";
 
                 if (!gen_mode.has_fast_tbl()) {
 
@@ -1952,7 +1952,7 @@ namespace nil {
                     using temp_comp_type = components::poseidon<ArithmetizationType, BlueprintFieldType>;
 
                     auto usual_handle_inst_duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - usual_handle_inst_start);
-                    BOOST_LOG_TRIVIAL(info) << "usual_handle_inst_duration: " << usual_handle_inst_duration.count() << "ms";
+                    BOOST_LOG_TRIVIAL(debug) << "usual_handle_inst_duration: " << usual_handle_inst_duration.count() << "ms";
                 } else {
 
                     auto fast_tbl_start = std::chrono::high_resolution_clock::now();
@@ -2001,7 +2001,7 @@ namespace nil {
                     };
 
                     unsigned int nthreads = std::thread::hardware_concurrency();
-                    BOOST_LOG_TRIVIAL(info) << "number threads: " << nthreads;
+                    BOOST_LOG_TRIVIAL(debug) << "number threads: " << nthreads;
                     std::vector<std::thread> threads;
                     threads.resize(nthreads);
 
@@ -2018,11 +2018,11 @@ namespace nil {
 
                     // for (std::size_t i = 0; i < table_pieces.size(); i++) {
                     //     extract_component_type_and_gen_assignments<BlueprintFieldType, table_piece<var>>(table_pieces[i], assignments[currProverIdx]);
-                    //     // BOOST_LOG_TRIVIAL(info) << "table_pieces[" << i <<"]: " << table_pieces[i];
+                    //     // BOOST_LOG_TRIVIAL(debug) << "table_pieces[" << i <<"]: " << table_pieces[i];
                     // }
 
                     auto fast_tbl_duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - fast_tbl_start);
-                    BOOST_LOG_TRIVIAL(info) << "fast_tbl_duration: " << fast_tbl_duration.count() << "ms";
+                    BOOST_LOG_TRIVIAL(debug) << "fast_tbl_duration: " << fast_tbl_duration.count() << "ms";
                 }
                 return true;
             }
