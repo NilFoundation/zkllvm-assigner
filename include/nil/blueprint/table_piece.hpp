@@ -224,6 +224,30 @@ std::vector<table_piece<
             );
         }
 
+        template<typename BlueprintFieldType, typename table_piece_type, typename ComponentType>
+        void call_gen_assignments_eq(
+            const table_piece_type &piece,
+            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &assignment
+        ) {
+            bool inequal = false; // TODO: true or false
+            const ComponentType component_instance(
+                    detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType>::get_witness(inequal)).witness,
+                    std::array<std::uint32_t, 1>{0},
+                    std::array<std::uint32_t, 1>{0},
+                    inequal
+                );
+
+            components::generate_assignments
+            (
+                component_instance,
+                assignment,
+                typename ComponentType::input_type{
+                    piece.inputs
+                },
+                piece.start_row
+            );
+        }
+
         template<typename BlueprintFieldType, typename table_piece_type>
         void extract_component_type_and_gen_assignments(
             table_piece_type &table_piece,
@@ -249,7 +273,7 @@ std::vector<table_piece<
 // {"bit_decomposition", call_gen_assignments<BlueprintFieldType, table_piece_type, components::bit_decomposition<ArithmetizationType>>},
 // {"comparison (==, !=)", call_gen_assignments<BlueprintFieldType, table_piece_type, components::comparison_flag<ArithmetizationType>>},
 // {"native integer division remainder", call_gen_assignments<BlueprintFieldType, table_piece_type, components::division_remainder<ArithmetizationType>>},
-// {"equaluty flag (returns 1 if x==y and 0 otherwise)", call_gen_assignments<BlueprintFieldType, table_piece_type, components::equality_flag<ArithmetizationType, BlueprintFieldType>>},
+{"equaluty flag (returns 1 if x==y and 0 otherwise)", call_gen_assignments_eq<BlueprintFieldType, table_piece_type, components::equality_flag<ArithmetizationType, BlueprintFieldType>>},
 {"logic_not", call_gen_assignments<BlueprintFieldType, table_piece_type, components::logic_not<ArithmetizationType>>},
 {"logic_and", call_gen_assignments<BlueprintFieldType, table_piece_type, components::logic_and<ArithmetizationType>>},
 {"logic_or", call_gen_assignments<BlueprintFieldType, table_piece_type, components::logic_or<ArithmetizationType>>},
