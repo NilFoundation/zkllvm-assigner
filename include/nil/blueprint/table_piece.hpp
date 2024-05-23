@@ -201,6 +201,8 @@ std::vector<table_piece<
     >
 >> table_pieces = {}; // TODO: move to assigner
 
+std::vector<std::pair<std::uint32_t, crypto3::zk::snark::plonk_variable<typename crypto3::algebra::curves::pallas::base_field_type::value_type>>> to_be_shared;
+
 
         template<typename BlueprintFieldType, typename table_piece_type, typename ComponentType>
         void call_gen_assignments(

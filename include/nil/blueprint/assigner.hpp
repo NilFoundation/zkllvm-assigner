@@ -1859,14 +1859,20 @@ namespace nil {
             }
 
             void fill_constant_columns(
-                std::vector<std::vector<std::vector<typename BlueprintFieldType::value_type>>> &all_constsant_columns
+                std::vector<std::vector<std::vector<typename BlueprintFieldType::value_type>>>& all_constsant_columns,
+                std::vector<std::vector<std::uint32_t>>& all_used_rows
             ) {
+                ASSERT(all_constsant_columns.size() == all_used_rows.size());
+
                 for (std::size_t prover_nr = 0; prover_nr < all_constsant_columns.size(); prover_nr++) {
                     auto& current_prover_columns = all_constsant_columns[prover_nr];
+                    auto& current_prover_used_rows = all_used_rows[prover_nr];
+
                     for (std::size_t column_nr = 0; column_nr < current_prover_columns.size(); column_nr++) {
                         auto& current_column = current_prover_columns[column_nr];
-                        for(std::size_t i = 0; i < current_column.size(); i++) {
-                            assignments[prover_nr].constant(column_nr, i) = current_column[i];
+
+                        for(std::size_t i = 0; i < current_prover_used_rows.size(); i++) {
+                            assignments[prover_nr].constant(column_nr, current_prover_used_rows[i]) = current_column[i];
                         }
                     }
                 }
@@ -1876,6 +1882,8 @@ namespace nil {
                 const boost::json::array &public_input,
                 const boost::json::array &private_input,
                 std::vector<std::vector<std::vector<typename BlueprintFieldType::value_type>>> &all_constant_columns,
+                std::vector<std::vector<std::uint32_t>> &all_used_rows,
+                std::vector<std::pair<std::uint32_t, var>>& to_be_shared,
                 std::vector<table_piece<var>> &table_pieces
             ) {
 
@@ -1884,7 +1892,15 @@ namespace nil {
                 base_frame.caller = nullptr;
 
                 if (gen_mode.has_fast_tbl()) {
-                    fill_constant_columns(all_constant_columns);
+                    for (std::size_t i = 1; i < all_constant_columns.size(); i++) {
+                        assignments.emplace_back(assignment_ptr, i);
+                    }
+                }
+                if (gen_mode.has_fast_tbl()) {
+                    fill_constant_columns(
+                        all_constant_columns,
+                        all_used_rows
+                    );
                 }
 
                 auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
@@ -1898,8 +1914,11 @@ namespace nil {
                     std::cout << std::endl;
                     return false;
                 }
+
+                // TODO could be removed in fast tbl mode?
                 call_stack.emplace(std::move(base_frame));
 
+                // TODO could be removed in fast tbl mode?
                 // Collect all the possible labels that could be an argument in IndirectBrInst
                 for (const llvm::Function &function : *module) {
                     for (const llvm::BasicBlock &bb : function) {
@@ -1958,16 +1977,6 @@ namespace nil {
                     auto fast_tbl_start = std::chrono::high_resolution_clock::now();
 
                     std::size_t counter = table_pieces.size();
-                    // resize witness, constant columns before run, because it should be thread protected operation
-                    auto max_row = table_pieces.back().start_row + 10;
-                    auto num_witness = assignment_ptr->witnesses_amount();
-                    auto num_constants = assignment_ptr->constants_amount();
-                    for (std::uint32_t i = 0; i < num_witness; i++) {
-                        assignment_ptr->witness(i, max_row) = 0;
-                    }
-                    for (std::uint32_t i = 0; i < num_constants; i++) {
-                        assignment_ptr->constant(i, max_row) = 0;
-                    }
 
                     auto worker = [&counter, &table_pieces, this]() {
                         while (counter > 0) {
@@ -2013,6 +2022,10 @@ namespace nil {
                         if (th.joinable()) {
                             th.join();
                         }
+                    }
+
+                    for (const auto& pair : to_be_shared) {
+                        save_shared_var(assignments[pair.first], pair.second);
                     }
 
 

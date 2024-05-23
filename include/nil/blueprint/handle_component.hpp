@@ -267,6 +267,7 @@ namespace nil {
                         const auto& shared_idx = assignment.shared_column_size(0);
                         assignment.shared(0, shared_idx) = BlueprintFieldType::value_type::zero();
                         new_v = var(1, shared_idx, false, var::column_type::public_input);
+                        nil::blueprint::to_be_shared.emplace_back(assignment.get_id(), v.get());
                     }
                     v.get().index = new_v.index;
                     v.get().rotation = new_v.rotation;
