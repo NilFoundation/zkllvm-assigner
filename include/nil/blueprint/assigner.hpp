@@ -1874,6 +1874,9 @@ namespace nil {
                         for(std::size_t i = 0; i < current_prover_used_rows.size(); i++) {
                             assignments[prover_nr].constant(column_nr, current_prover_used_rows[i]) = current_column[i];
                         }
+                        for (std::size_t i = 0; i < 15; i++) { // TODO replace 15 with something better
+                            assignments[prover_nr].witness(i, current_prover_used_rows[current_prover_used_rows.size() - 1]) = 0;
+                        }
                     }
                 }
             }
