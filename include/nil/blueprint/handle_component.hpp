@@ -102,6 +102,7 @@ namespace nil {
                 SIZE_ESTIMATION = 1 << 2,
                 PUBLIC_INPUT_COLUMN = 1 << 3,
                 FAST_TBL = 1 << 4,
+                SLOW_TBL = 1 << 5
             };
 
         public:
@@ -142,6 +143,11 @@ namespace nil {
             /// @brief Generate table in a fast way.
             constexpr static generation_mode fast_tbl() {
                 return generation_mode(FAST_TBL);
+            }
+
+            /// @brief Generate assignment table.
+            constexpr static generation_mode slow_tbl() {
+                return generation_mode(SLOW_TBL);
             }
 
             constexpr bool operator==(generation_mode other) const {
@@ -198,6 +204,11 @@ namespace nil {
             /// @brief Whether fast table generation or not in this mode.
             constexpr bool has_fast_tbl() const {
                 return mode_ & FAST_TBL;
+            }
+
+            /// @brief Whether fast table generation or not in this mode.
+            constexpr bool has_slow_tbl() const {
+                return mode_ & SLOW_TBL;
             }
 
         private:
