@@ -74,6 +74,7 @@ struct table_piece {
     bool done;
     bool in_progress;
     std::size_t prover_index;
+    std::string non_standard_constructor_parameters;
 
     table_piece(
         std::size_t c,
@@ -82,7 +83,8 @@ struct table_piece {
         std::size_t sr,
         std::vector<var> in,
         std::vector<var> out,
-        std::size_t prover_idx
+        std::size_t prover_idx,
+        std::string nscp
     ) {
         counter = c;
         parent_pieces = pp;
@@ -93,6 +95,7 @@ struct table_piece {
         done = false;
         in_progress = false;
         prover_index = prover_idx;
+        non_standard_constructor_parameters = nscp;
     };
 
     boost::json::value to_json() const {
@@ -118,7 +121,8 @@ struct table_piece {
             {"start_row", start_row},
             {"prover_index", prover_index},
             {"inputs", inputs_json},
-            {"outputs", outputs_json}
+            {"outputs", outputs_json},
+            {"non_standard_constructor_parameters", non_standard_constructor_parameters}
         };
     }
 
@@ -137,6 +141,8 @@ struct table_piece {
         for (const auto& output : obj.at("outputs").as_array()) {
             outputs.emplace_back(output.as_object());
         }
+        non_standard_constructor_parameters = obj.at("non_standard_constructor_parameters").as_string();
+
         done = false;
         in_progress = false;
     }
@@ -188,6 +194,7 @@ std::map<
                     if (inp.outputs.size() == 0) {
                         os << " empty";
                     }
+                    os << "non_standard_constructor_parameters: " << inp.non_standard_constructor_parameters;
                     os << "\n";
 
 
@@ -231,7 +238,10 @@ std::vector<std::pair<std::uint32_t, crypto3::zk::snark::plonk_variable<typename
             const table_piece_type &piece,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &assignment
         ) {
-            bool inequal = false; // TODO: true or false
+            const std::string& word = piece.non_standard_constructor_parameters;
+            std::string inequal_str = word.substr(0, word.find('\n'));
+            bool inequal = std::stoi(inequal_str);
+
             const ComponentType component_instance(
                     detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType>::get_witness(inequal)).witness,
                     std::array<std::uint32_t, 1>{0},

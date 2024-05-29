@@ -326,6 +326,26 @@ namespace nil {
             }
         };
 
+        template<typename T>
+        void print_arg(std::stringstream& ss, const T& arg) {
+            if constexpr (std::is_same_v<T, std::vector<unsigned long>>) {
+                for (const auto& elem : arg) {
+                    ss << elem << " ";
+                }
+                ss << "\n";
+            } else {
+                ss << arg << "\n";
+            }
+        }
+
+        void print_all_args(std::stringstream& ss) {}
+        int biba = 0;
+        template<typename First, typename... Rest>
+        void print_all_args(std::stringstream& ss, const First& first, const Rest&... rest) {
+            print_arg(ss, first);
+            print_all_args(ss, rest...);
+        }
+
         template<typename BlueprintFieldType, typename ComponentType>
         typename ComponentType::result_type generate_assignments(
             const ComponentType& component_instance,
@@ -409,6 +429,10 @@ namespace nil {
                 parents.push_back(comp_counter_form_var[inputs[i]]);
             }
 
+            std::stringstream ss;
+            print_all_args(ss, args...);
+            std::string non_standart_constructor_params = ss.str();
+
             nil::blueprint::table_pieces.push_back(
                 table_piece<var>(
                     table_pieces.size(),
@@ -417,7 +441,8 @@ namespace nil {
                     start_row,
                     inputs,
                     outputs,
-                    param.curr_prover_idx
+                    param.curr_prover_idx,
+                    non_standart_constructor_params
                 )
             );
 
