@@ -261,13 +261,13 @@ namespace nil {
                 if ((used_rows.find(v.get().rotation) == used_rows.end()) &&
                            (v.get().type == var::column_type::witness || v.get().type == var::column_type::constant)) {
                     var new_v;
+                    nil::blueprint::to_be_shared.emplace_back(assignment.get_id(), v.get());
                     if (param.gen_mode.has_assignments()) {
                         new_v = save_shared_var(assignment, v);
                     } else {
                         const auto& shared_idx = assignment.shared_column_size(0);
                         assignment.shared(0, shared_idx) = BlueprintFieldType::value_type::zero();
                         new_v = var(1, shared_idx, false, var::column_type::public_input);
-                        nil::blueprint::to_be_shared.emplace_back(assignment.get_id(), v.get());
                     }
                     v.get().index = new_v.index;
                     v.get().rotation = new_v.rotation;
