@@ -442,6 +442,20 @@ namespace nil {
 
             std::stringstream ss;
             print_all_args(ss, args...);
+
+            if constexpr (std::is_same<ComponentType, components::lookup_verifier<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>>::value) {
+                ss << instance_input.alphas.size() << " ";
+                ss << instance_input.lookup_gate_selectors.size() << " ";
+                ss << instance_input.lookup_gate_constraints_table_ids.size() << " ";
+                ss << instance_input.lookup_gate_constraints_lookup_inputs.size() << " ";
+                ss << instance_input.lookup_table_selectors.size() << " ";
+                ss << instance_input.lookup_table_lookup_options.size() << " ";
+                ss << instance_input.shifted_lookup_table_selectors.size() << " ";
+                ss << instance_input.shifted_lookup_table_lookup_options.size() << " ";
+                ss << instance_input.sorted.size() << " ";
+                ss << "\n";
+            }
+
             std::string non_standart_constructor_params = ss.str();
 
             nil::blueprint::table_pieces.push_back(

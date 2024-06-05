@@ -45,6 +45,7 @@
 #include <nil/blueprint/memory.hpp>
 #include <nil/blueprint/non_native_marshalling.hpp>
 #include <nil/blueprint/stack.hpp>
+#include <nil/blueprint/call_gen_assignments.hpp>
 
 #include <nil/blueprint/handle_component.hpp>
 
@@ -211,54 +212,6 @@ std::vector<table_piece<
 std::vector<std::pair<std::uint32_t, crypto3::zk::snark::plonk_variable<typename crypto3::algebra::curves::pallas::base_field_type::value_type>>> to_be_shared;
 
 
-        template<typename BlueprintFieldType, typename table_piece_type, typename ComponentType>
-        void call_gen_assignments(
-            const table_piece_type &piece,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &assignment
-        ) {
-            const ComponentType& component_instance = ComponentType(
-                    detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType>::get_witness()).witness,
-                    std::array<std::uint32_t, 1>{0},
-                    std::array<std::uint32_t, 1>{0}
-                );
-
-            components::generate_assignments
-            (
-                component_instance,
-                assignment,
-                typename ComponentType::input_type{
-                    piece.inputs
-                },
-                piece.start_row
-            );
-        }
-
-        template<typename BlueprintFieldType, typename table_piece_type, typename ComponentType>
-        void call_gen_assignments_eq(
-            const table_piece_type &piece,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &assignment
-        ) {
-            const std::string& word = piece.non_standard_constructor_parameters;
-            std::string inequal_str = word.substr(0, word.find('\n'));
-            bool inequal = std::stoi(inequal_str);
-
-            const ComponentType component_instance(
-                    detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType>::get_witness(inequal)).witness,
-                    std::array<std::uint32_t, 1>{0},
-                    std::array<std::uint32_t, 1>{0},
-                    inequal
-                );
-
-            components::generate_assignments
-            (
-                component_instance,
-                assignment,
-                typename ComponentType::input_type{
-                    piece.inputs
-                },
-                piece.start_row
-            );
-        }
 
         template<typename BlueprintFieldType, typename table_piece_type>
         void extract_component_type_and_gen_assignments(
@@ -270,10 +223,10 @@ std::vector<std::pair<std::uint32_t, crypto3::zk::snark::plonk_variable<typename
             static std::map<std::string, std::function<void(table_piece_type&, assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>&)>> func_map = {
 {"poseidon hash",         call_gen_assignments<BlueprintFieldType, table_piece_type, components::poseidon<ArithmetizationType, BlueprintFieldType>>},
 {"non-native curve addition", call_gen_assignments<BlueprintFieldType, table_piece_type, components::complete_addition<ArithmetizationType, typename crypto3::algebra::curves::pallas, typename crypto3::algebra::curves::ed25519, basic_non_native_policy<BlueprintFieldType>>>},
-// {"non-native curve multiplication", call_gen_assignments<BlueprintFieldType, table_piece_type, components::variable_base_multiplication<ArithmetizationType, typename crypto3::algebra::curves::pallas, typename crypto3::algebra::curves::ed25519, basic_non_native_policy<BlueprintFieldType>>>},
+{"non-native curve multiplication", call_gen_assignments_bits_amount_composition_mode<BlueprintFieldType, table_piece_type, components::variable_base_multiplication<ArithmetizationType, typename crypto3::algebra::curves::pallas, typename crypto3::algebra::curves::ed25519, basic_non_native_policy<BlueprintFieldType>>>},
 {"native curve addition", call_gen_assignments<BlueprintFieldType, table_piece_type, components::unified_addition<ArithmetizationType, crypto3::algebra::curves::pallas>>},
 {"native curve multiplication by shifted const (https://arxiv.org/pdf/math/0208038.pdf)", call_gen_assignments<BlueprintFieldType, table_piece_type, components::curve_element_variable_base_scalar_mul<ArithmetizationType, crypto3::algebra::curves::pallas>>},
-// {"bit shift (constant)", call_gen_assignments<BlueprintFieldType, table_piece_type, components::bit_shift_constant<ArithmetizationType>>}, // need to pass Shift into constructor
+{"bit shift (constant)", call_gen_assignments_bit_shift<BlueprintFieldType, table_piece_type, components::bit_shift_constant<ArithmetizationType>>}, // need to pass Shift into constructor
 {"native field addition", call_gen_assignments<BlueprintFieldType, table_piece_type, components::addition<ArithmetizationType, BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>>},
 {"native field subtraction", call_gen_assignments<BlueprintFieldType, table_piece_type, components::subtraction<ArithmetizationType, BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>>},
 {"native field division", call_gen_assignments<BlueprintFieldType, table_piece_type, components::division<ArithmetizationType, BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>>},
@@ -281,11 +234,12 @@ std::vector<std::pair<std::uint32_t, crypto3::zk::snark::plonk_variable<typename
 {"non-native field addition", call_gen_assignments<BlueprintFieldType, table_piece_type, components::addition<ArithmetizationType, typename crypto3::algebra::curves::ed25519::base_field_type, basic_non_native_policy<BlueprintFieldType>>>},
 {"non-native field multiplication", call_gen_assignments<BlueprintFieldType, table_piece_type, components::multiplication<ArithmetizationType, typename crypto3::algebra::curves::ed25519::base_field_type, basic_non_native_policy<BlueprintFieldType>>>},
 
-// {"bit_composition", call_gen_assignments<BlueprintFieldType, table_piece_type, components::bit_composition<ArithmetizationType>>}, // unusual constructors, need additional parameters
-// {"bit_decomposition", call_gen_assignments<BlueprintFieldType, table_piece_type, components::bit_decomposition<ArithmetizationType>>},
-// {"comparison (==, !=)", call_gen_assignments<BlueprintFieldType, table_piece_type, components::comparison_flag<ArithmetizationType>>},
-// {"native integer division remainder", call_gen_assignments<BlueprintFieldType, table_piece_type, components::division_remainder<ArithmetizationType>>},
-{"equaluty flag (returns 1 if x==y and 0 otherwise)", call_gen_assignments_eq<BlueprintFieldType, table_piece_type, components::equality_flag<ArithmetizationType, BlueprintFieldType>>},
+{"bit_composition", call_gen_assignments_bit_comp<BlueprintFieldType, table_piece_type, components::bit_composition<ArithmetizationType>>},
+{"bit_decomposition", call_gen_assignments_bits_amount_composition_mode<BlueprintFieldType, table_piece_type, components::bit_decomposition<ArithmetizationType>>},
+{"comparison (<,<=,>,>=)", call_gen_assignments_leq<BlueprintFieldType, table_piece_type, components::comparison_flag<ArithmetizationType>>},
+{"native integer division remainder", call_gen_assignments_div_rem<BlueprintFieldType, table_piece_type, components::division_remainder<ArithmetizationType>>},
+{"native field division or zero", call_gen_assignments<BlueprintFieldType, table_piece_type, components::division_or_zero<ArithmetizationType, BlueprintFieldType>>},
+{"equaluty flag (returns 1 if x==y and 0 otherwise)", call_gen_assignments_bool<BlueprintFieldType, table_piece_type, components::equality_flag<ArithmetizationType, BlueprintFieldType>>},
 {"logic_not", call_gen_assignments<BlueprintFieldType, table_piece_type, components::logic_not<ArithmetizationType>>},
 {"logic_and", call_gen_assignments<BlueprintFieldType, table_piece_type, components::logic_and<ArithmetizationType>>},
 {"logic_or", call_gen_assignments<BlueprintFieldType, table_piece_type, components::logic_or<ArithmetizationType>>},
@@ -297,12 +251,12 @@ std::vector<std::pair<std::uint32_t, crypto3::zk::snark::plonk_variable<typename
 {"native field subtraction", call_gen_assignments<BlueprintFieldType, table_piece_type, components::subtraction<ArithmetizationType, BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>>},
 {"sha256 hash", call_gen_assignments<BlueprintFieldType, table_piece_type, components::sha256<ArithmetizationType>>},
 {"sha512 hash", call_gen_assignments<BlueprintFieldType, table_piece_type, components::sha512<ArithmetizationType>>},
-// {"fri array swap component", call_gen_assignments<BlueprintFieldType, table_piece_type, components::fri_array_swap<ArithmetizationType, BlueprintFieldType>>},
-// {"fri cosets component", call_gen_assignments<BlueprintFieldType, table_piece_type, components::fri_cosets<ArithmetizationType, BlueprintFieldType>>},
-{"fri linear interpolation component", call_gen_assignments<BlueprintFieldType, table_piece_type, components::fri_lin_inter<ArithmetizationType, BlueprintFieldType>>}
-// {"gate argument verifier component", call_gen_assignments<BlueprintFieldType, table_piece_type, components::basic_constraints_verifier<ArithmetizationType>>},
-// {"lookup argument verifier component", call_gen_assignments<BlueprintFieldType, table_piece_type, components::lookup_verifier<ArithmetizationType>>},
-// {"permutation argument verifier component", call_gen_assignments<BlueprintFieldType, table_piece_type, components::permutation_verifier<ArithmetizationType>>}
+{"fri array swap component", call_gen_assignments_int<BlueprintFieldType, table_piece_type, components::fri_array_swap<ArithmetizationType, BlueprintFieldType>>},
+{"fri cosets component", call_gen_assignments_fri_cosets<BlueprintFieldType, table_piece_type, components::fri_cosets<ArithmetizationType, BlueprintFieldType>>},
+{"fri linear interpolation component", call_gen_assignments<BlueprintFieldType, table_piece_type, components::fri_lin_inter<ArithmetizationType, BlueprintFieldType>>},
+{"gate argument verifier component", call_gen_assignments_vec<BlueprintFieldType, table_piece_type, components::basic_constraints_verifier<ArithmetizationType>>},
+{"lookup argument verifier component", call_gen_assignments_lookup<BlueprintFieldType, table_piece_type, components::lookup_verifier<ArithmetizationType>>},
+{"permutation argument verifier component", call_gen_assignments_int<BlueprintFieldType, table_piece_type, components::permutation_verifier<ArithmetizationType>>}
             };
             auto it = func_map.find(table_piece.component_name);
             if (it != func_map.end()) {
@@ -310,7 +264,7 @@ std::vector<std::pair<std::uint32_t, crypto3::zk::snark::plonk_variable<typename
                 it->second(table_piece, assignment);
                 table_piece.done = true;
             } else {
-                std::cerr << "got component name \"" << table_piece.component_name << "\"\n";
+                std::cerr << "\ngot component name \"" << table_piece.component_name << "\"\n";
                 UNREACHABLE("component does not exist!");
             }
             execute_count--;
