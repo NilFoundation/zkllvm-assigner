@@ -256,7 +256,10 @@ std::vector<std::pair<std::uint32_t, crypto3::zk::snark::plonk_variable<typename
 {"fri linear interpolation component", call_gen_assignments<BlueprintFieldType, table_piece_type, components::fri_lin_inter<ArithmetizationType, BlueprintFieldType>>},
 {"gate argument verifier component", call_gen_assignments_vec<BlueprintFieldType, table_piece_type, components::basic_constraints_verifier<ArithmetizationType>>},
 {"lookup argument verifier component", call_gen_assignments_lookup<BlueprintFieldType, table_piece_type, components::lookup_verifier<ArithmetizationType>>},
-{"permutation argument verifier component", call_gen_assignments_int<BlueprintFieldType, table_piece_type, components::permutation_verifier<ArithmetizationType>>}
+{"permutation argument verifier component", call_gen_assignments_int<BlueprintFieldType, table_piece_type, components::permutation_verifier<ArithmetizationType>>},
+{"bitwise_xor unfinished", call_gen_assignments<BlueprintFieldType, table_piece_type, components::bitwise_xor<ArithmetizationType, BlueprintFieldType>>},
+{"bitwise_and unfinished", call_gen_assignments<BlueprintFieldType, table_piece_type, components::bitwise_and<ArithmetizationType, BlueprintFieldType>>},
+{"bitwise_or unfinished", call_gen_assignments<BlueprintFieldType, table_piece_type, components::bitwise_or<ArithmetizationType, BlueprintFieldType>>},
             };
             auto it = func_map.find(table_piece.component_name);
             if (it != func_map.end()) {
