@@ -142,7 +142,7 @@ struct table_piece {
         for (const auto& output : obj.at("outputs").as_array()) {
             outputs.emplace_back(output.as_object());
         }
-        non_standard_constructor_parameters = obj.at("non_standard_constructor_parameters").as_string();
+        non_standard_constructor_parameters = obj.at("non_standard_constructor_parameters").as_string().c_str();
 
         done = false;
         in_progress = false;
