@@ -60,9 +60,9 @@
 namespace nil {
     namespace blueprint {
 
-std::mutex m;
-std::condition_variable cv;
-std::atomic<int> execute_count{0};
+        std::mutex m;
+        std::condition_variable cv;
+        std::atomic<int> execute_count{0};
 
 template<typename var>
 struct table_piece {
@@ -158,11 +158,6 @@ struct table_piece {
     }
 };
 
-std::map<
-    crypto3::zk::snark::plonk_variable<
-        typename crypto3::algebra::curves::pallas::base_field_type::value_type
-    >
-, std::size_t> comp_counter_form_var;
 
                 template<typename var>
                 std::ostream &operator<<(std::ostream &os, const table_piece<var> &inp) {
@@ -203,13 +198,6 @@ std::map<
                 }
 
 
-std::vector<table_piece<
-    crypto3::zk::snark::plonk_variable<
-        typename crypto3::algebra::curves::pallas::base_field_type::value_type
-    >
->> table_pieces = {}; // TODO: move to assigner
-
-std::vector<std::pair<std::uint32_t, crypto3::zk::snark::plonk_variable<typename crypto3::algebra::curves::pallas::base_field_type::value_type>>> to_be_shared;
 
 
 

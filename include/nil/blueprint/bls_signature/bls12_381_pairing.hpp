@@ -49,7 +49,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 column_type<BlueprintFieldType> &internal_storage,
-                component_calls &statistics,
+                component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                 const common_component_parameters& param) {
 
                     using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -77,7 +77,7 @@ namespace nil {
                     instance_input.Q = Q;
 
                     handle_component<BlueprintFieldType, component_type>
-                        (bp, assignment, internal_storage, statistics, param, instance_input, inst, frame);
+                        (bp, assignment, internal_storage, input_wrapper, param, instance_input, inst, frame);
         }
 
     }    // namespace blueprint
