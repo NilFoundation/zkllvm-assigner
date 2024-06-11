@@ -148,7 +148,7 @@ struct table_piece {
         in_progress = false;
     }
 
-    bool is_ready(const std::vector<table_piece<crypto3::zk::snark::plonk_variable<typename crypto3::algebra::curves::pallas::base_field_type::value_type>>> &table_pieces) const {
+    bool is_ready(const std::vector<table_piece<var>> &table_pieces) const {
         for (const auto& parent_idx : parent_pieces) {
             if (!table_pieces[parent_idx].done) {
                 return false;
@@ -207,8 +207,9 @@ struct table_piece {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &assignment
         ) {
 
-            using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
-            static std::map<std::string, std::function<void(table_piece_type&, assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>&)>> func_map = {
+            if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::curves::pallas::base_field_type>::value) {
+                using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
+                static std::map<std::string, std::function<void(table_piece_type&, assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>&)>> func_map = {
 {"poseidon hash",         call_gen_assignments<BlueprintFieldType, table_piece_type, components::poseidon<ArithmetizationType, BlueprintFieldType>>},
 {"non-native curve addition", call_gen_assignments<BlueprintFieldType, table_piece_type, components::complete_addition<ArithmetizationType, typename crypto3::algebra::curves::pallas, typename crypto3::algebra::curves::ed25519, basic_non_native_policy<BlueprintFieldType>>>},
 {"non-native curve multiplication", call_gen_assignments_bits_amount_composition_mode<BlueprintFieldType, table_piece_type, components::variable_base_multiplication<ArithmetizationType, typename crypto3::algebra::curves::pallas, typename crypto3::algebra::curves::ed25519, basic_non_native_policy<BlueprintFieldType>>>},
@@ -248,7 +249,32 @@ struct table_piece {
 {"bitwise_xor unfinished", call_gen_assignments<BlueprintFieldType, table_piece_type, components::bitwise_xor<ArithmetizationType, BlueprintFieldType>>},
 {"bitwise_and unfinished", call_gen_assignments<BlueprintFieldType, table_piece_type, components::bitwise_and<ArithmetizationType, BlueprintFieldType>>},
 {"bitwise_or unfinished", call_gen_assignments<BlueprintFieldType, table_piece_type, components::bitwise_or<ArithmetizationType, BlueprintFieldType>>},
-            };
+                };
+                auto it = func_map.find(table_piece.component_name);
+                if (it != func_map.end()) {
+                    //std::cout << std::this_thread::get_id() << " execute " << it->first << "\n";
+                    it->second(table_piece, assignment);
+                    table_piece.done = true;
+                } else {
+                    std::cerr << "\ngot component name \"" << table_piece.component_name << "\"\n";
+                    UNREACHABLE("component does not exist!");
+                }
+
+            }
+
+            if constexpr (std::is_same<BlueprintFieldType, typename nil::crypto3::algebra::curves::bls12<381>::base_field_type>::value) {
+                using ArithmetizationType = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
+                static std::map<std::string, std::function<void(table_piece_type&, assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>&)>> func_map = {
+{"native_bls12_381_pairing_unfinished",       call_gen_assignments<BlueprintFieldType, table_piece_type, components::bls12_381_pairing<ArithmetizationType, BlueprintFieldType>>},
+{"non_native fp12 multiplication_unfinished", call_gen_assignments<BlueprintFieldType, table_piece_type, components::fp12_multiplication<ArithmetizationType, BlueprintFieldType>>},
+{"hash to curve unfinished",                  call_gen_assignments<BlueprintFieldType, table_piece_type, components::h2c<ArithmetizationType, BlueprintFieldType>>},
+{"is_in_g1_unfinished",                       call_gen_assignments<BlueprintFieldType, table_piece_type, components::is_in_g1<ArithmetizationType, BlueprintFieldType>>},
+{"is_in_g2_unfinished",                       call_gen_assignments<BlueprintFieldType, table_piece_type, components::is_in_g2<ArithmetizationType, BlueprintFieldType>>},
+{"native field addition",                     call_gen_assignments<BlueprintFieldType, table_piece_type, components::addition<ArithmetizationType, BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>>},
+{"native field subtraction",                  call_gen_assignments<BlueprintFieldType, table_piece_type, components::subtraction<ArithmetizationType, BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>>},
+{"native field multiplication",               call_gen_assignments<BlueprintFieldType, table_piece_type, components::multiplication<ArithmetizationType, BlueprintFieldType, basic_non_native_policy<BlueprintFieldType>>>}
+                };
+
             auto it = func_map.find(table_piece.component_name);
             if (it != func_map.end()) {
                 //std::cout << std::this_thread::get_id() << " execute " << it->first << "\n";
@@ -257,6 +283,7 @@ struct table_piece {
             } else {
                 std::cerr << "\ngot component name \"" << table_piece.component_name << "\"\n";
                 UNREACHABLE("component does not exist!");
+            }
             }
             execute_count--;
             cv.notify_all();

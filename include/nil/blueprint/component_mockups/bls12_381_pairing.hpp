@@ -170,6 +170,8 @@ namespace nil {
                     std::array<var,2> P;
                     std::array<var,4> Q;
 
+                    input_type (std::array<var,2> _P, std::array<var,4> _Q) : P(_P), Q(_Q) {};
+
                     input_type(const std::vector<var>& input_vect) {
                         if (input_vect.size() != 6) {
                             throw std::out_of_range("Vector size does not match input size");

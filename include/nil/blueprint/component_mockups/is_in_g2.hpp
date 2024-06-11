@@ -92,6 +92,8 @@ namespace nil {
                     std::array<var, 2> X;
                     std::array<var, 2> Y;
 
+                    input_type (std::array<var, 2> _X, std::array<var, 2> _Y) : X(_X), Y(_Y) {};
+
                     input_type(const std::vector<var>& input_vect) {
                         if (input_vect.size() != 4) {
                             throw std::out_of_range("Vector size does not match input size");
