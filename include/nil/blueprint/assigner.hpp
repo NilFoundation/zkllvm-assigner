@@ -1607,7 +1607,7 @@ namespace nil {
                             // Final return
                             finished = true;
 
-                            if (gen_mode.has_assignments()) {
+                            if (gen_mode.has_assignments() && !gen_mode.has_size_estimation()) {
                                 fill_return_value(llvm::cast<llvm::ReturnInst>(inst), frame);
                             }
 
@@ -1910,14 +1910,16 @@ namespace nil {
 
                 auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
                     base_frame, memory, assignments[currProverIdx], *layout_resolver, internal_storage, gen_mode.has_assignments() || gen_mode.has_fast_tbl());
-                if (!input_reader.fill_public_input(*circuit_function, public_input, private_input, log)) {
-                    std::cerr << "Public input does not match the circuit signature";
-                    const std::string &error = input_reader.get_error();
-                    if (!error.empty()) {
-                        std::cout << ": " << error;
+                if (!gen_mode.has_size_estimation()) {
+                    if (!input_reader.fill_public_input(*circuit_function, public_input, private_input, log)) {
+                        std::cerr << "Public input does not match the circuit signature";
+                        const std::string &error = input_reader.get_error();
+                        if (!error.empty()) {
+                            std::cout << ": " << error;
+                        }
+                        std::cout << std::endl;
+                        return false;
                     }
-                    std::cout << std::endl;
-                    return false;
                 }
 
                 // TODO could be removed in fast tbl mode?
@@ -1962,7 +1964,6 @@ namespace nil {
                         next_inst = handle_instruction(next_inst);
                         if (finished) {
                             if (gen_mode.has_size_estimation()) {
-                                std::cout << "\nallocated_rows: " <<  assignments[currProverIdx].allocated_rows() << "\n";
                                 input_wrapper.statistics.print();
                             }
                             break;
