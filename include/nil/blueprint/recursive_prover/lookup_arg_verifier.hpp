@@ -46,7 +46,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             column_type<BlueprintFieldType> &internal_storage,
-            component_calls &statistics,
+            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
             const common_component_parameters& param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -74,7 +74,7 @@ namespace nil {
             for (std::size_t i = 0; i < 9; i++) {
                 size = detail::extract_constant_size_t_value<BlueprintFieldType>(inst->getOperand(8 + i * 2 + 1));
                 input_vectors.push_back(detail::extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    inst->getOperand(8 + i * 2), size, frame.scalars, memory, bp, assignment, internal_storage, statistics, param));
+                    inst->getOperand(8 + i * 2), size, frame.scalars, memory, bp, assignment, internal_storage, input_wrapper, param));
             }
 
             var theta = frame.scalars[inst->getOperand(26)];
@@ -112,7 +112,7 @@ namespace nil {
                 };
 
                 handle_component<BlueprintFieldType, component_type>
-                    (bp, assignment, internal_storage, statistics, param, instance_input, inst, frame,
+                    (bp, assignment, internal_storage, input_wrapper, param, instance_input, inst, frame,
                      lookup_gate_size,
                      lookup_gate_constraints_sizes,
                      lookup_gate_constraints_lookup_input_sizes,
