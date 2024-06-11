@@ -352,29 +352,29 @@ namespace nil {
 
 
         template<typename BlueprintFieldType, typename table_piece_type, typename ComponentType>
-        void call_gen_assignments_vec(
+        void call_gen_assignments_gate_arg(
             const table_piece_type &piece,
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &assignment
         ) {
             std::string line = piece.non_standard_constructor_parameters;
 
-            std::string word = extract_word_and_pop(line);
-            std::vector<std::size_t> vec = vect_from_string(word);
-
+            std::vector<std::size_t> gate_sizes = vect_from_string(extract_word_and_pop(line));
 
             const ComponentType component_instance(
-                    detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType>::get_witness(vec)).witness,
+                    detail::PolicyManager::get_parameters(detail::ManifestReader<ComponentType>::get_witness(gate_sizes)).witness,
                     std::array<std::uint32_t, 1>{0},
                     std::array<std::uint32_t, 1>{0},
-                    vec
+                    gate_sizes
                 );
+
+            std::vector<std::size_t> input_vectors_lengths = vect_from_string(extract_word_and_pop(line));
 
             components::generate_assignments
             (
                 component_instance,
                 assignment,
                 typename ComponentType::input_type{
-                    piece.inputs
+                    piece.inputs, input_vectors_lengths,
                 },
                 piece.start_row
             );

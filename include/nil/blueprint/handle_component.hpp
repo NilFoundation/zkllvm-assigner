@@ -455,6 +455,11 @@ namespace nil {
                 ss << instance_input.sorted.size() << " ";
                 ss << "\n";
             }
+            if constexpr (std::is_same<ComponentType, components::basic_constraints_verifier<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>>::value) {
+                ss << instance_input.constraints.size() << " ";
+                ss << instance_input.selectors.size() << " ";
+                ss << "\n";
+            }
 
             std::string non_standart_constructor_params = ss.str();
 

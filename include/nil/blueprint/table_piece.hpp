@@ -254,7 +254,7 @@ std::vector<std::pair<std::uint32_t, crypto3::zk::snark::plonk_variable<typename
 {"fri array swap component", call_gen_assignments_int<BlueprintFieldType, table_piece_type, components::fri_array_swap<ArithmetizationType, BlueprintFieldType>>},
 {"fri cosets component", call_gen_assignments_fri_cosets<BlueprintFieldType, table_piece_type, components::fri_cosets<ArithmetizationType, BlueprintFieldType>>},
 {"fri linear interpolation component", call_gen_assignments<BlueprintFieldType, table_piece_type, components::fri_lin_inter<ArithmetizationType, BlueprintFieldType>>},
-{"gate argument verifier component", call_gen_assignments_vec<BlueprintFieldType, table_piece_type, components::basic_constraints_verifier<ArithmetizationType>>},
+{"gate argument verifier component", call_gen_assignments_gate_arg<BlueprintFieldType, table_piece_type, components::basic_constraints_verifier<ArithmetizationType>>},
 {"lookup argument verifier component", call_gen_assignments_lookup<BlueprintFieldType, table_piece_type, components::lookup_verifier<ArithmetizationType>>},
 {"permutation argument verifier component", call_gen_assignments_int<BlueprintFieldType, table_piece_type, components::permutation_verifier<ArithmetizationType>>},
 {"bitwise_xor unfinished", call_gen_assignments<BlueprintFieldType, table_piece_type, components::bitwise_xor<ArithmetizationType, BlueprintFieldType>>},
