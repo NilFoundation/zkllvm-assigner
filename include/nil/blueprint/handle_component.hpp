@@ -404,7 +404,6 @@ namespace nil {
                     component_instance.gates_amount,
                     component_instance.witness_amount()
                 );
-                return typename ComponentType::result_type(component_instance, assignment.allocated_rows());
             }
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
