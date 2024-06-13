@@ -1869,16 +1869,17 @@ namespace nil {
                 for (std::size_t prover_nr = 0; prover_nr < all_constsant_columns.size(); prover_nr++) {
                     auto& current_prover_columns = all_constsant_columns[prover_nr];
                     auto& current_prover_used_rows = all_used_rows[prover_nr];
+                    auto& current_assignment = assignments[prover_nr];
 
                     for (std::size_t column_nr = 0; column_nr < current_prover_columns.size(); column_nr++) {
                         auto& current_column = current_prover_columns[column_nr];
 
                         for(std::size_t i = 0; i < current_prover_used_rows.size(); i++) {
-                            assignments[prover_nr].constant(column_nr, current_prover_used_rows[i]) = current_column[i];
+                            current_assignment.constant(column_nr, current_prover_used_rows[i]) = current_column[i];
                         }
-                        for (std::size_t i = 0; i < 15; i++) { // TODO replace 15 with something better
-                            assignments[prover_nr].witness(i, current_prover_used_rows[current_prover_used_rows.size() - 1]) = 0;
-                        }
+                    }
+                    for (std::size_t i = 0; i < current_assignment.witnesses_amount(); i++) {
+                        current_assignment.witness(i, current_prover_used_rows[current_prover_used_rows.size() - 1]) = 0;
                     }
                 }
             }
@@ -1896,18 +1897,6 @@ namespace nil {
                 auto &variables = base_frame.scalars;
                 base_frame.caller = nullptr;
 
-                if (gen_mode.has_fast_tbl()) {
-                    for (std::size_t i = 1; i < all_constant_columns.size(); i++) {
-                        assignments.emplace_back(assignment_ptr, i);
-                    }
-                }
-                if (gen_mode.has_fast_tbl()) {
-                    fill_constant_columns(
-                        all_constant_columns,
-                        all_used_rows
-                    );
-                }
-
                 auto input_reader = InputReader<BlueprintFieldType, var, assignment_proxy<ArithmetizationType>>(
                     base_frame, memory, assignments[currProverIdx], *layout_resolver, internal_storage, gen_mode.has_assignments() || gen_mode.has_fast_tbl());
                 if (!input_reader.fill_public_input(*circuit_function, public_input, private_input, log)) {
@@ -1920,40 +1909,34 @@ namespace nil {
                     return false;
                 }
 
-                // TODO could be removed in fast tbl mode?
-                call_stack.emplace(std::move(base_frame));
+                if (!gen_mode.has_fast_tbl()) {
+                    call_stack.emplace(std::move(base_frame));
 
-                // TODO could be removed in fast tbl mode?
-                // Collect all the possible labels that could be an argument in IndirectBrInst
-                for (const llvm::Function &function : *module) {
-                    for (const llvm::BasicBlock &bb : function) {
-                        for (const llvm::Instruction &inst : bb) {
-                            if (inst.getOpcode() != llvm::Instruction::IndirectBr) {
-                                continue;
-                            }
-                            auto ib = llvm::cast<llvm::IndirectBrInst>(&inst);
-                            for (const llvm::BasicBlock *succ : ib->successors()) {
-                                if (labels.find(succ) != labels.end()) {
+                    // Collect all the possible labels that could be an argument in IndirectBrInst
+                    for (const llvm::Function &function : *module) {
+                        for (const llvm::BasicBlock &bb : function) {
+                            for (const llvm::Instruction &inst : bb) {
+                                if (inst.getOpcode() != llvm::Instruction::IndirectBr) {
                                     continue;
                                 }
-                                auto label_type = llvm::Type::getInt8PtrTy(module->getContext());
-                                unsigned label_type_size = layout_resolver->get_type_size(label_type);
-                                ptr_type ptr = memory.add_cells({{label_type_size, 0}});
+                                auto ib = llvm::cast<llvm::IndirectBrInst>(&inst);
+                                for (const llvm::BasicBlock *succ : ib->successors()) {
+                                    if (labels.find(succ) != labels.end()) {
+                                        continue;
+                                    }
+                                    auto label_type = llvm::Type::getInt8PtrTy(module->getContext());
+                                    unsigned label_type_size = layout_resolver->get_type_size(label_type);
+                                    ptr_type ptr = memory.add_cells({{label_type_size, 0}});
 
-                                // Store the pointer to BasicBlock to memory
-                                // TODO(maksenov): avoid C++ pointers in assignment table
-                                memory.store(ptr, put_value_into_internal_storage((const uintptr_t)succ));
+                                    // Store the pointer to BasicBlock to memory
+                                    // TODO(maksenov): avoid C++ pointers in assignment table
+                                    memory.store(ptr, put_value_into_internal_storage((const uintptr_t)succ));
 
-                                labels[succ] = put_value_into_internal_storage(ptr);
+                                    labels[succ] = put_value_into_internal_storage(ptr);
+                                }
                             }
                         }
                     }
-                }
-
-
-                BOOST_LOG_TRIVIAL(debug) << "evaluate start: ";
-
-                if (!gen_mode.has_fast_tbl()) {
 
                     auto usual_handle_inst_start = std::chrono::high_resolution_clock::now();
 
@@ -1977,6 +1960,14 @@ namespace nil {
                     auto usual_handle_inst_duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - usual_handle_inst_start);
                     BOOST_LOG_TRIVIAL(debug) << "usual_handle_inst_duration: " << usual_handle_inst_duration.count() << "ms";
                 } else {
+
+                    for (std::size_t i = 1; i < all_constant_columns.size(); i++) {
+                        assignments.emplace_back(assignment_ptr, i);
+                    }
+                    fill_constant_columns(
+                        all_constant_columns,
+                        all_used_rows
+                    );
 
                     auto fast_tbl_start = std::chrono::high_resolution_clock::now();
 
@@ -2032,11 +2023,6 @@ namespace nil {
                         save_shared_var(assignments[pair.first], pair.second);
                     }
 
-
-                    // for (std::size_t i = 0; i < table_pieces.size(); i++) {
-                    //     extract_component_type_and_gen_assignments<BlueprintFieldType, table_piece<var>>(table_pieces[i], assignments[currProverIdx]);
-                    //     // BOOST_LOG_TRIVIAL(debug) << "table_pieces[" << i <<"]: " << table_pieces[i];
-                    // }
 
                     auto fast_tbl_duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - fast_tbl_start);
                     BOOST_LOG_TRIVIAL(debug) << "fast_tbl_duration: " << fast_tbl_duration.count() << "ms";
