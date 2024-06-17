@@ -18,20 +18,10 @@ if(NOT CMAKE_WORKSPACE_NAME OR NOT ("${CMAKE_WORKSPACE_NAME}" STREQUAL "crypto3"
     cm_workspace(crypto3)
 endif()
 
-macro(cm_find_package NAME)
-    foreach(ITERATOR ${CMAKE_WORKSPACE_LIST})
-        if(NOT "${NAME}" MATCHES "^${ITERATOR}_.*$" AND NOT "${NAME}" STREQUAL CM)
-            find_package(${ARGV})
-        else()
-            set(${ARGV0}_FOUND ON CACHE BOOL "")
-        endif()
-    endforeach()
-endmacro()
-
 cm_project(assigner WORKSPACE_NAME ${CMAKE_WORKSPACE_NAME} LANGUAGES C CXX)
 
 if(NOT Boost_FOUND AND NOT CMAKE_CROSSCOMPILING)
-    cm_find_package(Boost COMPONENTS REQUIRED filesystem log log_setup program_options thread system)
+    find_package(Boost COMPONENTS REQUIRED filesystem log log_setup program_options thread system)
 endif()
 
 cm_find_package(CM)
@@ -80,33 +70,15 @@ target_link_libraries(${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME} INTERFACE
                       LLVMIRReader
                       LLVMCore
                       LLVMSupport
-
                       ${Boost_LIBRARIES}
-
-                      crypto3::algebra
-                      crypto3::block
-                      crypto3::blueprint
-                      crypto3::codec
-                      crypto3::math
-                      crypto3::multiprecision
-                      crypto3::pkpad
-                      crypto3::pubkey
-                      crypto3::random
-                      crypto3::zk
-
-                      marshalling::core
-                      marshalling::crypto3_algebra
-                      marshalling::crypto3_multiprecision
-                      marshalling::crypto3_zk)
+                      crypto3::all)
 
 cm_deploy(TARGETS ${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME}
           INCLUDE include
           NAMESPACE ${CMAKE_WORKSPACE_NAME}::)
 
-
-if(BUILD_TESTS)
-    add_subdirectory(test)
-endif()
+include(CMTest)
+cm_add_test_subdirectory(test)
 
 if(BUILD_EXAMPLES)
     add_subdirectory(example)
