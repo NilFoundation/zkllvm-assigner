@@ -25,7 +25,8 @@ program_memory<var> memory(100);
 stack_frame<var> frame;
 std::nullptr_t empty_assignmnt;
 boost::json::array empty_private_input;
-InputReader<BlueprintFieldType, var, std::nullptr_t> input_reader(frame, memory, empty_assignmnt, layout_resolver, internal_storage);
+InputReader<BlueprintFieldType, var, std::nullptr_t>
+    input_reader(frame, memory, empty_assignmnt, layout_resolver, internal_storage);
 logger test_logger;
 
 boost::json::array read_json_string(std::string json_string) {
@@ -86,7 +87,8 @@ struct LLVMDataFixture {
 
     void test_correct_input(llvm::Function *func,
                             const char *input_string,
-                            const column_type<BlueprintFieldType> expected_result) {
+                            const column_type<BlueprintFieldType>
+                                expected_result) {
         auto input_array = read_json_string(input_string);
         BOOST_TEST_REQUIRE(input_reader.fill_public_input(*func, input_array, empty_private_input, test_logger));
         BOOST_TEST(check_vector_equality(input_reader.get_public_input(), expected_result));
@@ -129,7 +131,8 @@ BOOST_AUTO_TEST_CASE(input_reader_legacy_format) {
 BOOST_AUTO_TEST_CASE(input_reader_mixed_format) {
 
     column_type<BlueprintFieldType> expected = {0x12345678901234567890_cppui255, 2, 3, 4, 5, 6, 7, 8};
-    const char *input_string = R"([ {"array": [{"field":"0x12345678901234567890"}, {"field": 2}, {"field<pallas_base>" :3} ]},
+    const char *input_string =
+        R"([ {"array": [{"field":"0x12345678901234567890"}, {"field": 2}, {"field<pallas_base>" :3} ]},
                                                {"array<field<pallas_base>>": [ 4, 5, 6, 7, 8]}])";
     test_correct_input(arrays_func, input_string, expected);
 }
@@ -199,7 +202,8 @@ BOOST_AUTO_TEST_CASE(input_reader_fields_wrong_amount) {
                                     {"curve<ed25519>": [6, 7]},
                                     {"curve<bls12381>": [5, 5]}
                                     ])";
-    const char *expected_error = R"(Too many values in the input files, public + private input sizes must be equal to passed argument size)";
+    const char *expected_error =
+        R"(Too many values in the input files, public + private input sizes must be equal to passed argument size)";
     test_error_message(fields_curves_func, input_string_wrong_amount, expected_error);
 }
 

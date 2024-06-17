@@ -27,7 +27,7 @@
 #ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_MOCKUPS_IS_IN_G1_HPP_
 #define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_MOCKUPS_IS_IN_G1_HPP_
 
-#include <nil/crypto3/multiprecision/cpp_int/literals.hpp>
+#include <nil/crypto3/multiprecision/cpp_int_modular/literals.hpp>
 #include <nil/crypto3/algebra/matrix/matrix.hpp>
 #include <nil/crypto3/algebra/fields/pallas/base_field.hpp>
 #include <nil/crypto3/algebra/fields/vesta/base_field.hpp>

@@ -24,14 +24,15 @@ BOOST_AUTO_TEST_CASE(input_signature_parser_simple) {
     BOOST_TEST(signature_parser().parse("struct<int>"));
     BOOST_TEST(signature_parser().parse("struct<int, field<pallas_base>>"));
     BOOST_TEST(signature_parser().parse("array<struct<field<pallas_base>>>"));
-    BOOST_TEST(signature_parser().parse("struct"
-          "<"
-                  "vector<int>,"
-                  "array"
-                  "<"
-                        "struct<field<ed25519_scalar>, string>"
-                  ">"
-          ">"));
+    BOOST_TEST(
+        signature_parser().parse("struct"
+                                 "<"
+                                 "vector<int>,"
+                                 "array"
+                                 "<"
+                                 "struct<field<ed25519_scalar>, string>"
+                                 ">"
+                                 ">"));
 
     BOOST_TEST(signature_parser().parse("struct<int>>") == false);
     BOOST_TEST(signature_parser().parse("field<pa") == false);
