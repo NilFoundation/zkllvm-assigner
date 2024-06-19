@@ -47,20 +47,20 @@ namespace nil {
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 column_type<BlueprintFieldType> &internal_storage,
-                component_calls &statistics,
+                component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                 const common_component_parameters& param) {
 
-            typename ComponentType::input_type instance_input({x, y});
+            typename ComponentType::input_type instance_input(x, y);
 
             switch (p) {
                 case llvm::CmpInst::ICMP_EQ: {
                     return get_component_result<BlueprintFieldType, ComponentType>
-                            (bp, assignment, internal_storage, statistics, param, instance_input, false);
+                            (bp, assignment, internal_storage, input_wrapper, param, instance_input, false);
                     break;
                 }
                 case llvm::CmpInst::ICMP_NE:{
                     return get_component_result<BlueprintFieldType, ComponentType>
-                            (bp, assignment, internal_storage, statistics, param, instance_input, true);
+                            (bp, assignment, internal_storage, input_wrapper, param, instance_input, true);
                     break;
                 }
                 default:
@@ -80,7 +80,7 @@ namespace nil {
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 column_type<BlueprintFieldType> &internal_storage,
-                component_calls &statistics,
+                component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                 const common_component_parameters& param) {
 
 
@@ -111,7 +111,7 @@ namespace nil {
             }
 
             return get_component_result<BlueprintFieldType, ComponentType>
-                (bp, assignment, internal_storage, statistics, param, instance_input, bitness, Mode);
+                (bp, assignment, internal_storage, input_wrapper, param, instance_input, bitness, Mode);
 
         }
 
@@ -124,7 +124,7 @@ namespace nil {
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 column_type<BlueprintFieldType> &internal_storage,
-                component_calls &statistics,
+                component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                 const common_component_parameters& param
             ) {
 
@@ -144,7 +144,7 @@ namespace nil {
 
                     auto component_result = handle_comparison_component_eq_neq<
                         BlueprintFieldType, eq_component_type>(
-                            p, x, y, bitness, bp, assignment, internal_storage, statistics, param);
+                            p, x, y, bitness, bp, assignment, internal_storage, input_wrapper, param);
 
                     handle_component_result<BlueprintFieldType, eq_component_type>
                         (assignment, inst, frame, component_result, param.gen_mode);
@@ -179,7 +179,7 @@ namespace nil {
 
                     auto component_result = handle_comparison_component_others<
                         BlueprintFieldType, comp_component_type>(
-                            p, x, y, bitness, bp, assignment, internal_storage, statistics, param);
+                            p, x, y, bitness, bp, assignment, internal_storage, input_wrapper, param);
 
                     handle_component_result<BlueprintFieldType, comp_component_type>
                         (assignment, inst, frame, component_result, param.gen_mode);

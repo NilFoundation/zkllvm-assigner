@@ -48,7 +48,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             column_type<BlueprintFieldType> &internal_storage,
-            component_calls &statistics,
+            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
             common_component_parameters param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -76,7 +76,7 @@ namespace nil {
 
             typename sha2_512_component_type::result_type sha2_512_component_result =
                 get_component_result<BlueprintFieldType, sha2_512_component_type>
-                    (bp, assignment, internal_storage, statistics, param, sha2_512_instance_input);
+                    (bp, assignment, internal_storage, input_wrapper, param, sha2_512_instance_input);
 
             handle_component_result<BlueprintFieldType, sha2_512_component_type>
                 (assignment, inst, frame, sha2_512_component_result, param.gen_mode);
@@ -89,7 +89,7 @@ namespace nil {
 
             typename reduction_component_type::result_type reduction_component_result =
                     get_component_result<BlueprintFieldType, reduction_component_type>
-                            (bp, assignment, internal_storage, statistics, param, reduction_instance_input);
+                            (bp, assignment, internal_storage, input_wrapper, param, reduction_instance_input);
 
             handle_component_result<BlueprintFieldType, reduction_component_type>
                     (assignment, inst, frame, reduction_component_result, param.gen_mode);

@@ -53,7 +53,7 @@ namespace nil {
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
                     column_type<BlueprintFieldType> &internal_storage,
-                    component_calls &statistics,
+                    component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                     const common_component_parameters& param) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -72,7 +72,7 @@ namespace nil {
                 typename component_type::input_type addition_input = {{P.X, P.Y}, {Q.X, Q.Y}};
 
                 return get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, internal_storage, statistics, param, addition_input);
+                    (bp, assignment, internal_storage, input_wrapper, param, addition_input);
             }
 
             template<typename BlueprintFieldType, typename CurveType, typename Ed25519Type>
@@ -88,7 +88,7 @@ namespace nil {
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
                     column_type<BlueprintFieldType> &internal_storage,
-                    component_calls &statistics,
+                    component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                     const common_component_parameters& param) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -131,7 +131,7 @@ namespace nil {
                 typename component_type::input_type addition_input = {{P.X, P.Y}, {Q.X, Q.Y}};
 
                 return get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, internal_storage, statistics, param, addition_input);
+                    (bp, assignment, internal_storage, input_wrapper, param, addition_input);
             }
         }    // namespace detail
 
@@ -143,7 +143,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             column_type<BlueprintFieldType> &internal_storage,
-            component_calls &statistics,
+            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
             const common_component_parameters& param) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
@@ -174,7 +174,7 @@ namespace nil {
                             using component_type = components::unified_addition<ArithmetizationType, operating_curve_type>;
                             typename component_type::result_type res =
                                 detail::handle_native_curve_unified_addition_component<BlueprintFieldType, operating_curve_type>(
-                                    operand0, operand1, frame.vectors, bp, assignment, internal_storage, statistics, param);
+                                    operand0, operand1, frame.vectors, bp, assignment, internal_storage, input_wrapper, param);
                             std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = {res.X, res.Y};
                             handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
                         } else {
@@ -215,7 +215,7 @@ namespace nil {
                                 operating_curve_type, basic_non_native_policy<BlueprintFieldType>>;
                             typename component_type::result_type res =
                                 detail::handle_non_native_curve_addition_component<BlueprintFieldType, pallas_curve_type, operating_curve_type>(
-                                    operand0, operand1, frame.vectors, bp, assignment, internal_storage, statistics, param);
+                                    operand0, operand1, frame.vectors, bp, assignment, internal_storage, input_wrapper, param);
                             handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
                         }
                     }

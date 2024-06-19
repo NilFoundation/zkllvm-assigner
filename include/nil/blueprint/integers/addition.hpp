@@ -49,7 +49,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             column_type<BlueprintFieldType> &internal_storage,
-            component_calls &statistics,
+            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
             const common_component_parameters& param) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
@@ -58,7 +58,7 @@ namespace nil {
             llvm::Value *operand1 = inst->getOperand(1);
 
             auto res = detail::handle_native_field_addition_component<BlueprintFieldType>(
-                                operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
+                                operand0, operand1, frame.scalars, bp, assignment, internal_storage, input_wrapper, param);
 
             using component_type = components::addition<
                 crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>,

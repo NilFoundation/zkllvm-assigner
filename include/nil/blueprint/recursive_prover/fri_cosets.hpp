@@ -52,7 +52,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             column_type<BlueprintFieldType> &internal_storage,
-            component_calls &statistics,
+            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
             const common_component_parameters& param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -66,7 +66,7 @@ namespace nil {
             typename component_type::input_type instance_input({component_input});
 
             const auto& result = get_component_result<BlueprintFieldType, component_type>
-                (bp, assignment, internal_storage, statistics, param, instance_input, res_length, omega).output;
+                (bp, assignment, internal_storage, input_wrapper, param, instance_input, res_length, omega).output;
 
             ptr_type result_ptr = static_cast<ptr_type>(
                 typename BlueprintFieldType::integral_type(detail::var_value<BlueprintFieldType, var>
@@ -90,7 +90,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             column_type<BlueprintFieldType> &internal_storage,
-            component_calls &statistics,
+            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
             const common_component_parameters& param) {
 
             llvm::Value *result_value = inst->getOperand(0);
@@ -99,7 +99,7 @@ namespace nil {
             llvm::Value *input = inst->getOperand(3);
 
             detail::handle_native_fri_cosets_component<BlueprintFieldType>(
-                result_value, result_length_value, omega_value, input, frame.vectors, frame.scalars, memory, bp, assignment, internal_storage, statistics, param);
+                result_value, result_length_value, omega_value, input, frame.vectors, frame.scalars, memory, bp, assignment, internal_storage, input_wrapper, param);
 
         }
 

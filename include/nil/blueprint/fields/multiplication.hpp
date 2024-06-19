@@ -53,7 +53,7 @@ namespace nil {
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
                     column_type<BlueprintFieldType> &internal_storage,
-                    component_calls &statistics,
+                    component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                     const common_component_parameters& param) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -64,10 +64,10 @@ namespace nil {
 
                 var x = variables[operand0];
                 var y = variables[operand1];
-                typename component_type::input_type instance_input({x, y});
+                typename component_type::input_type instance_input(x, y);
 
                 return get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, internal_storage, statistics, param, instance_input);
+                    (bp, assignment, internal_storage, input_wrapper, param, instance_input);
             }
 
             template<typename BlueprintFieldType, typename OperatingFieldType>
@@ -81,7 +81,7 @@ namespace nil {
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
                     column_type<BlueprintFieldType> &internal_storage,
-                    component_calls &statistics,
+                    component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                     const common_component_parameters& param) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -106,7 +106,7 @@ namespace nil {
                 typename component_type::input_type instance_input({x, y});
 
                 return get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, internal_storage, statistics, param, instance_input);
+                    (bp, assignment, internal_storage, input_wrapper, param, instance_input);
             }
 
         }    // namespace detail
@@ -119,7 +119,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             column_type<BlueprintFieldType> &internal_storage,
-            component_calls &statistics,
+            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
             const common_component_parameters& param) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
@@ -143,7 +143,7 @@ namespace nil {
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
+                                                  operand0, operand1, frame.scalars, bp, assignment, internal_storage, input_wrapper, param);
                             handle_component_result<BlueprintFieldType, native_component_type>
                                     (assignment, inst, frame, res, param.gen_mode);
                         } else {
@@ -162,7 +162,7 @@ namespace nil {
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
+                                                  operand0, operand1, frame.scalars, bp, assignment, internal_storage, input_wrapper, param);
                             handle_component_result<BlueprintFieldType, native_component_type>
                                     (assignment, inst, frame, res, param.gen_mode);
                         } else {
@@ -184,13 +184,13 @@ namespace nil {
                     if constexpr (non_native_policy_type::template field<operating_field_type>::ratio != 0) {
                         if (std::is_same<BlueprintFieldType, operating_field_type>::value) {
                             auto res = detail::handle_native_field_multiplication_component<BlueprintFieldType>(
-                                                  operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param);
+                                                  operand0, operand1, frame.scalars, bp, assignment, internal_storage, input_wrapper, param);
                             handle_component_result<BlueprintFieldType, native_component_type>
                                     (assignment, inst, frame, res, param.gen_mode);
                         } else {
                             auto component_result = detail::handle_non_native_field_multiplication_component<
                                                        BlueprintFieldType, operating_field_type>(
-                                                       operand0, operand1, frame.vectors, bp, assignment, internal_storage, statistics, param);
+                                                       operand0, operand1, frame.vectors, bp, assignment, internal_storage, input_wrapper, param);
 
                             handle_component_result<BlueprintFieldType, no_native_component_type>
                                     (assignment, inst, frame, component_result, param.gen_mode);

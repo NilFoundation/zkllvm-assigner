@@ -49,7 +49,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             column_type<BlueprintFieldType> &internal_storage,
-            component_calls &statistics,
+            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
             const common_component_parameters& param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -61,7 +61,7 @@ namespace nil {
             typename component_type::input_type instance_input({x, y});
 
             return get_component_result<BlueprintFieldType, component_type>
-                (bp, assignment, internal_storage, statistics, param, instance_input, Bitness, true);
+                (bp, assignment, internal_storage, input_wrapper, param, instance_input, Bitness, true);
             }
         }    // namespace detail
 
@@ -73,7 +73,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             column_type<BlueprintFieldType> &internal_storage,
-            component_calls &statistics,
+            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
             const common_component_parameters& param,
             bool is_division) {
 
@@ -89,11 +89,11 @@ namespace nil {
             crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> res;
             if (is_division) {
                 res = detail::handle_native_field_division_remainder_component<BlueprintFieldType>(
-                                bitness, operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param).quotient;
+                                bitness, operand0, operand1, frame.scalars, bp, assignment, internal_storage, input_wrapper, param).quotient;
             }
             else {
                 res = detail::handle_native_field_division_remainder_component<BlueprintFieldType>(
-                                bitness, operand0, operand1, frame.scalars, bp, assignment, internal_storage, statistics, param).remainder;
+                                bitness, operand0, operand1, frame.scalars, bp, assignment, internal_storage, input_wrapper, param).remainder;
             }
             handle_result<BlueprintFieldType>
                 (assignment, inst, frame, {res}, param.gen_mode);

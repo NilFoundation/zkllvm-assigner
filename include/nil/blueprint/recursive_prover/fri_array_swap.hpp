@@ -46,7 +46,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             column_type<BlueprintFieldType> &internal_storage,
-            component_calls &statistics,
+            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
             const common_component_parameters& param) {
 
             llvm::Value *result_value = inst->getOperand(0);
@@ -60,7 +60,7 @@ namespace nil {
 
 
             std::vector<var> input_array = detail::extract_intrinsic_input_vector<BlueprintFieldType, var>(
-                    input_array_value, array_size, frame.scalars, memory, bp, assignment, internal_storage, statistics, param);
+                    input_array_value, array_size, frame.scalars, memory, bp, assignment, internal_storage, input_wrapper, param);
 
             var input_bool = frame.scalars[input_bool_value];
 
@@ -73,7 +73,7 @@ namespace nil {
             };
 
             std::vector<var> res = get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, internal_storage, statistics, param, instance_input, array_size / 2).output;
+                    (bp, assignment, internal_storage, input_wrapper, param, instance_input, array_size / 2).output;
 
             ptr_type result_ptr = static_cast<ptr_type>(typename BlueprintFieldType::integral_type(
                 detail::var_value<BlueprintFieldType, var>

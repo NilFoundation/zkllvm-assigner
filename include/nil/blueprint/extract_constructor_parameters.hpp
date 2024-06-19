@@ -79,7 +79,7 @@ namespace nil {
                 circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
-                column_type<BlueprintFieldType> &internal_storage, component_calls &statistics,
+                column_type<BlueprintFieldType> &internal_storage, component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                 const common_component_parameters& param) {
                 std::vector<var> res = {};
                 ptr_type input_ptr = static_cast<ptr_type>(
