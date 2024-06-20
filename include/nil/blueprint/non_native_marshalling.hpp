@@ -165,7 +165,14 @@ namespace nil {
             else {
                 if constexpr (non_native_policy::ratio == 1) {
                     column_type<BlueprintFieldType> res;
-                    res.push_back(typename BlueprintFieldType::value_type(typename BlueprintFieldType::integral_type(input.data)));
+                    typename BlueprintFieldType::integral_type chopped_val = typename BlueprintFieldType::integral_type::backend_type(input.data.backend().base_data());
+                    if (NonNativeFieldType::modulus_bits < BlueprintFieldType::modulus_bits) {
+                        // set unused bits 0
+                        typename BlueprintFieldType::integral_type base = 1;
+                        typename BlueprintFieldType::integral_type mask = (base << NonNativeFieldType::modulus_bits) - 1;
+                        chopped_val = chopped_val & mask;
+                    }
+                    res.push_back(typename BlueprintFieldType::value_type(chopped_val));
                     return res;
                 }
                 else {
@@ -177,7 +184,7 @@ namespace nil {
         }
 
         template<typename BlueprintFieldType, typename NonNativeFieldType>
-        typename NonNativeFieldType::value_type vector_into_value (column_type<BlueprintFieldType> input) {
+        typename BlueprintFieldType::integral_type vector_into_value (column_type<BlueprintFieldType> input) {
             using non_native_policy = typename nil::blueprint::detail::basic_non_native_policy_field_type<BlueprintFieldType, NonNativeFieldType>;
 
             if (input.size() != non_native_policy::ratio) {
@@ -199,7 +206,7 @@ namespace nil {
                         chopped_field[i] = input[i];
                     }
                     typename NonNativeFieldType::value_type res = non_native_policy::glue_non_native(chopped_field);
-                    return res;
+                    return typename BlueprintFieldType::integral_type::backend_type(res.data.backend().base_data());
                 }
             }
         }
@@ -315,23 +322,23 @@ namespace nil {
             switch (field_type) {
                 case llvm::GALOIS_FIELD_CURVE25519_BASE: {
                     using operating_field_type = typename nil::crypto3::algebra::curves::ed25519::base_field_type;
-                    return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                    return vector_into_value<BlueprintFieldType, operating_field_type>(input);
                 }
                 case llvm::GALOIS_FIELD_CURVE25519_SCALAR: {
                     using operating_field_type = typename nil::crypto3::algebra::curves::ed25519::scalar_field_type;
-                    return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                    return vector_into_value<BlueprintFieldType, operating_field_type>(input);
                 }
                 case llvm::GALOIS_FIELD_PALLAS_BASE: {
                     using operating_field_type = typename nil::crypto3::algebra::curves::pallas::base_field_type;
-                    return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                    return vector_into_value<BlueprintFieldType, operating_field_type>(input);
                 }
                 case llvm::GALOIS_FIELD_PALLAS_SCALAR: {
                     using operating_field_type = typename nil::crypto3::algebra::curves::pallas::scalar_field_type;
-                    return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                    return vector_into_value<BlueprintFieldType, operating_field_type>(input);
                 }
                 case llvm::GALOIS_FIELD_BLS12381_BASE: {
                     using operating_field_type = typename nil::crypto3::algebra::curves::bls12<381>::base_field_type;
-                    return typename BlueprintFieldType::integral_type(vector_into_value<BlueprintFieldType, operating_field_type>(input).data);
+                    return vector_into_value<BlueprintFieldType, operating_field_type>(input);
                 }
                 default:
                     UNREACHABLE("unsupported field operand type");
