@@ -13,17 +13,7 @@ cm_find_package(Boost REQUIRED COMPONENTS log log_setup random unit_test_framewo
 
 cm_test_link_libraries(${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME}
 
-                       ${CMAKE_WORKSPACE_NAME}::algebra
-                       ${CMAKE_WORKSPACE_NAME}::blueprint
-                       ${CMAKE_WORKSPACE_NAME}::hash
-                       ${CMAKE_WORKSPACE_NAME}::math
-                       ${CMAKE_WORKSPACE_NAME}::multiprecision
-                       ${CMAKE_WORKSPACE_NAME}::random
-                       ${CMAKE_WORKSPACE_NAME}::zk
-                       marshalling::core
-                       marshalling::crypto3_algebra
-                       marshalling::crypto3_multiprecision
-                       marshalling::crypto3_zk
+                       crypto3::all
                        LLVMIRReader
                        LLVMCore
                        LLVMSupport
