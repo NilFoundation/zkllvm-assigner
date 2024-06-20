@@ -9,8 +9,6 @@
 
 include(CMTest)
 
-cm_find_package(Boost REQUIRED COMPONENTS log log_setup random unit_test_framework)
-
 cm_test_link_libraries(${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME}
 
                        crypto3::all
