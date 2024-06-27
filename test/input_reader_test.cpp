@@ -130,7 +130,7 @@ BOOST_AUTO_TEST_CASE(input_reader_legacy_format) {
 
 BOOST_AUTO_TEST_CASE(input_reader_mixed_format) {
 
-    column_type<BlueprintFieldType> expected = {0x12345678901234567890_cppui255, 2, 3, 4, 5, 6, 7, 8};
+    column_type<BlueprintFieldType> expected = {0x12345678901234567890_cppui_modular255, 2, 3, 4, 5, 6, 7, 8};
     const char *input_string =
         R"([ {"array": [{"field":"0x12345678901234567890"}, {"field": 2}, {"field<pallas_base>" :3} ]},
                                                {"array<field<pallas_base>>": [ 4, 5, 6, 7, 8]}])";
