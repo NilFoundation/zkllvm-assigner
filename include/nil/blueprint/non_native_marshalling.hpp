@@ -165,13 +165,12 @@ namespace nil {
             else {
                 if constexpr (non_native_policy::ratio == 1) {
                     column_type<BlueprintFieldType> res;
-                    typename BlueprintFieldType::integral_type chopped_val = typename BlueprintFieldType::integral_type::backend_type(input.data.backend().base_data());
-                    if (NonNativeFieldType::modulus_bits < BlueprintFieldType::modulus_bits) {
-                        // set unused bits 0
-                        typename BlueprintFieldType::integral_type base = 1;
-                        typename BlueprintFieldType::integral_type mask = (base << NonNativeFieldType::modulus_bits) - 1;
-                        chopped_val = chopped_val & mask;
-                    }
+
+                    typename BlueprintFieldType::integral_type chopped_val =
+                        typename BlueprintFieldType::integral_type(
+                            typename NonNativeFieldType::integral_type(input.data)
+                        );
+
                     res.push_back(typename BlueprintFieldType::value_type(chopped_val));
                     return res;
                 }
