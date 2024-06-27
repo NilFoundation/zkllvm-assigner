@@ -24,9 +24,10 @@ macro(define_assigner_test test)
     cm_test(NAME ${full_test_name} SOURCES ${test}.cpp)
 
     target_include_directories(${full_test_name} PRIVATE
-                               "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-                               "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>"
-                               ${CMAKE_CURRENT_SOURCE_DIR}/../../circifier/llvm/include
+                               ${CMAKE_CURRENT_SOURCE_DIR}/include
+                               ${CMAKE_BINARY_DIR}/include
+                               ${CMAKE_SOURCE_DIR}/libs/blueprint/include
+                               ${CMAKE_SOURCE_DIR}/libs/circifier/llvm/include
                                ${CMAKE_BINARY_DIR}/libs/circifier/llvm/include
 
                                ${Boost_INCLUDE_DIRS})
