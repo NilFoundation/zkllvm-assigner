@@ -205,7 +205,8 @@ namespace nil {
                         chopped_field[i] = input[i];
                     }
                     typename NonNativeFieldType::value_type res = non_native_policy::glue_non_native(chopped_field);
-                    return typename BlueprintFieldType::integral_type::backend_type(res.data.backend().base_data());
+                    return typename BlueprintFieldType::integral_type(
+                        typename NonNativeFieldType::integral_type(res.data));
                 }
             }
         }
