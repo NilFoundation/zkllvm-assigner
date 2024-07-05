@@ -1,10 +1,4 @@
-cmake_minimum_required(VERSION 2.8.12)
-
-cmake_policy(SET CMP0028 NEW)
-cmake_policy(SET CMP0042 NEW)
-cmake_policy(SET CMP0048 NEW)
-cmake_policy(SET CMP0057 NEW)
-cmake_policy(SET CMP0076 NEW)
+cmake_minimum_required(VERSION 3.17.0)
 
 list(APPEND CMAKE_MODULE_PATH
      "${CMAKE_CURRENT_LIST_DIR}/cmake"
@@ -14,27 +8,17 @@ list(APPEND CMAKE_MODULE_PATH
 include(CMConfig)
 include(CMSetupVersion)
 
+cm_project(assigner WORKSPACE_NAME ${CMAKE_WORKSPACE_NAME} LANGUAGES C CXX)
+
 if(NOT CMAKE_WORKSPACE_NAME OR NOT ("${CMAKE_WORKSPACE_NAME}" STREQUAL "crypto3"))
     cm_workspace(crypto3)
 endif()
-
-cm_project(assigner WORKSPACE_NAME ${CMAKE_WORKSPACE_NAME} LANGUAGES C CXX)
 
 cm_find_package(CM)
 include(CMDeploy)
 include(FindPkgConfig)
 
-option(BUILD_WITH_CCACHE "Build with ccache usage" TRUE)
-option(BUILD_TESTS "Build unit tests" FALSE)
 option(BUILD_EXAMPLES "Build examples" FALSE)
-
-if(UNIX AND BUILD_WITH_CCACHE)
-    find_program(CCACHE_FOUND ccache)
-    if(CCACHE_FOUND)
-        set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
-        set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
-    endif(CCACHE_FOUND)
-endif()
 
 if(UNIX AND BUILD_WITH_PROCPS)
     find_package(Procps)
