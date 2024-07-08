@@ -10,12 +10,9 @@
 include(CMTest)
 
 cm_test_link_libraries(${CMAKE_WORKSPACE_NAME}_${CURRENT_PROJECT_NAME}
-
-                       crypto3::all
                        LLVMIRReader
                        LLVMCore
                        LLVMSupport
-
                        ${Boost_LIBRARIES})
 
 macro(define_assigner_test test)
@@ -26,7 +23,6 @@ macro(define_assigner_test test)
     target_include_directories(${full_test_name} PRIVATE
                                ${CMAKE_CURRENT_SOURCE_DIR}/include
                                ${CMAKE_BINARY_DIR}/include
-                               ${CMAKE_SOURCE_DIR}/libs/blueprint/include
                                ${CMAKE_SOURCE_DIR}/libs/circifier/llvm/include
                                ${CMAKE_BINARY_DIR}/libs/circifier/llvm/include
 
