@@ -43,7 +43,7 @@ namespace nil {
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
                 column_type<BlueprintFieldType> &internal_storage,
-                component_calls &statistics,
+                component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                 const common_component_parameters& param) {
 
             using arithmetization_type = crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>;
@@ -54,7 +54,7 @@ namespace nil {
             instance_input.input[1] = y;
 
             return get_component_result<BlueprintFieldType, component_type>
-                (bp, assignment, internal_storage, statistics, param, instance_input).output;
+                (bp, assignment, internal_storage, input_wrapper, param, instance_input).output;
         }
 
     }    // namespace blueprint

@@ -46,7 +46,7 @@ namespace nil {
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
                 column_type<BlueprintFieldType> &internal_storage,
-                component_calls &statistics,
+                component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                 const common_component_parameters& param,
                 crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> one_var
             ) {
@@ -59,23 +59,23 @@ namespace nil {
 
                 typename div_or_zero_comp_type::input_type div_or_zero_input({condition, condition});
                 var condition_0_or_1 = get_component_result<BlueprintFieldType, div_or_zero_comp_type>
-                    (bp, assignment, internal_storage, statistics, param, div_or_zero_input).output; // returns 1 if !=0 and 0 if ==0
+                    (bp, assignment, internal_storage, input_wrapper, param, div_or_zero_input).output; // returns 1 if !=0 and 0 if ==0
 
-                typename field_mul_comp_type::input_type field_mul_input({condition_0_or_1, true_var});
+                typename field_mul_comp_type::input_type field_mul_input(condition_0_or_1, true_var);
                 var contitioned_true_var = get_component_result<BlueprintFieldType, field_mul_comp_type>
-                    (bp, assignment, internal_storage, statistics, param, field_mul_input).output; // true_var if true, 0 if false
+                    (bp, assignment, internal_storage, input_wrapper, param, field_mul_input).output; // true_var if true, 0 if false
 
                 typename field_sub_comp_type::input_type field_sub_input({one_var, condition_0_or_1});
                 var inversed_condition_0_or_1 = get_component_result<BlueprintFieldType, field_sub_comp_type>
-                    (bp, assignment, internal_storage, statistics, param, field_sub_input).output; // true_var if true, 0 if false
+                    (bp, assignment, internal_storage, input_wrapper, param, field_sub_input).output; // true_var if true, 0 if false
 
-                typename field_mul_comp_type::input_type field_mul_input_2({inversed_condition_0_or_1, false_var});
+                typename field_mul_comp_type::input_type field_mul_input_2(inversed_condition_0_or_1, false_var);
                 var contitioned_false_var = get_component_result<BlueprintFieldType, field_mul_comp_type>
-                    (bp, assignment, internal_storage, statistics, param, field_mul_input_2).output; // false_var if false, 0 otherwise
+                    (bp, assignment, internal_storage, input_wrapper, param, field_mul_input_2).output; // false_var if false, 0 otherwise
 
                 typename field_add_comp_type::input_type field_add_input({contitioned_true_var, contitioned_false_var});
                 var result = get_component_result<BlueprintFieldType, field_add_comp_type>
-                    (bp, assignment, internal_storage, statistics, param, field_add_input).output; // true_var if true, false_var if false
+                    (bp, assignment, internal_storage, input_wrapper, param, field_add_input).output; // true_var if true, false_var if false
 
                 return result;
         }
@@ -88,7 +88,7 @@ namespace nil {
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                     &assignment,
                 column_type<BlueprintFieldType> &internal_storage,
-                component_calls &statistics,
+                component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                 const common_component_parameters& param,
                 crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type> one_var) {
 
@@ -101,7 +101,7 @@ namespace nil {
                 auto false_var= frame.scalars[inst->getOperand(2)];
 
                 var result = create_select_component<BlueprintFieldType, var>(
-                                    condition, true_var, false_var, bp, assignment, internal_storage, statistics, param, one_var);
+                                    condition, true_var, false_var, bp, assignment, internal_storage, input_wrapper, param, one_var);
 
                 handle_result<BlueprintFieldType>(assignment, inst, frame, {result}, param.gen_mode);
         }

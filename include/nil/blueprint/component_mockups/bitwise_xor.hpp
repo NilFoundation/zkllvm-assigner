@@ -119,6 +119,12 @@ namespace nil {
                 struct input_type {
                     var x, y;
 
+                    input_type (var x_, var y_) : x(x_), y(y_) {};
+                    input_type (std::vector<var> inp) {
+                        x = inp[0];
+                        y = inp[1];
+                    };
+
                     std::vector<std::reference_wrapper<var>> all_vars() {
                         return {x, y};
                     }

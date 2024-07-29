@@ -53,7 +53,7 @@ namespace nil {
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
                     column_type<BlueprintFieldType> &internal_storage,
-                    component_calls &statistics,
+                    component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                     const common_component_parameters& param) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -73,7 +73,7 @@ namespace nil {
                 typename component_type::input_type addition_input = {{T.X, T.Y}, b[0], b[1]};
 
                 return get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, internal_storage, statistics, param, addition_input);
+                    (bp, assignment, internal_storage, input_wrapper, param, addition_input);
             }
 
             template<typename BlueprintFieldType, typename CurveType, typename Ed25519Type>
@@ -91,7 +91,7 @@ namespace nil {
                     assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                         &assignment,
                     column_type<BlueprintFieldType> &internal_storage,
-                    component_calls &statistics,
+                    component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                     const common_component_parameters& param) {
 
                 using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -123,7 +123,7 @@ namespace nil {
                 typename component_type::input_type addition_input = {{T.X, T.Y}, b};
 
                 return get_component_result<BlueprintFieldType, component_type>
-                    (bp, assignment, internal_storage, statistics, param, addition_input,
+                    (bp, assignment, internal_storage, input_wrapper, param, addition_input,
                      253, nil::blueprint::components::bit_composition_mode::MSB);
             }
 
@@ -137,7 +137,7 @@ namespace nil {
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
             column_type<BlueprintFieldType> &internal_storage,
-            component_calls &statistics,
+            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
             const common_component_parameters& param) {
 
             using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
@@ -191,7 +191,7 @@ namespace nil {
                                     ArithmetizationType, operating_curve_type>;
                             typename component_type::result_type res =
                                 detail::handle_native_curve_non_native_scalar_multiplication_component<BlueprintFieldType, operating_curve_type>(
-                                    operand_curve, operand_field, frame.vectors, bp, assignment, internal_storage, statistics, param);
+                                    operand_curve, operand_field, frame.vectors, bp, assignment, internal_storage, input_wrapper, param);
                             std::vector<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> res_vector = {res.X, res.Y};
                             handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);
                         } else {
@@ -232,7 +232,7 @@ namespace nil {
                                     bp,
                                     assignment,
                                     internal_storage,
-                                    statistics,
+                                    input_wrapper,
                                     param);
 
                             handle_component_result<BlueprintFieldType, component_type>(assignment, inst, frame, res, param.gen_mode);

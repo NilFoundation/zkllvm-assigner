@@ -76,6 +76,8 @@
 #include <nil/blueprint/statistics.hpp>
 #include <nil/blueprint/policy/policy_manager.hpp>
 
+#include <nil/blueprint/table_piece.hpp>
+#include <nil/blueprint/component_handler_input_wrapper.hpp>
 
 namespace nil {
     namespace blueprint {
@@ -100,6 +102,8 @@ namespace nil {
                 ASSIGNMENTS = 1 << 1,
                 SIZE_ESTIMATION = 1 << 2,
                 PUBLIC_INPUT_COLUMN = 1 << 3,
+                FAST_TBL = 1 << 4,
+                SLOW_TBL = 1 << 5
             };
 
         public:
@@ -135,6 +139,16 @@ namespace nil {
             /// @brief Print circuit statistics (generate nothing).
             constexpr static generation_mode size_estimation() {
                 return generation_mode(SIZE_ESTIMATION);
+            }
+
+            /// @brief Generate table in a fast way.
+            constexpr static generation_mode fast_tbl() {
+                return generation_mode(FAST_TBL);
+            }
+
+            /// @brief Generate assignment table.
+            constexpr static generation_mode slow_tbl() {
+                return generation_mode(SLOW_TBL);
             }
 
             constexpr bool operator==(generation_mode other) const {
@@ -188,11 +202,44 @@ namespace nil {
                 return mode_ & PUBLIC_INPUT_COLUMN;
             }
 
+            /// @brief Whether fast table generation or not in this mode.
+            constexpr bool has_fast_tbl() const {
+                return mode_ & FAST_TBL;
+            }
+
+            /// @brief Whether fast table generation or not in this mode.
+            constexpr bool has_slow_tbl() const {
+                return mode_ & SLOW_TBL;
+            }
+
         private:
             uint8_t mode_;
         };
 
+
+        template<typename var>
+        struct component_io {
+            std::size_t start_row;
+            std::vector<var> inputs;
+            std::vector<var> outputs;
+
+            component_io (std::size_t s, std::vector<var> i, std::vector<var> o) {
+                start_row = s;
+                inputs = i;
+                outputs = o;
+            }
+        };
+
+        std::vector<
+            component_io<
+                crypto3::zk::snark::plonk_variable<
+                    typename crypto3::algebra::curves::pallas::base_field_type::value_type
+                >
+            >
+        > all_components = {};
+
         struct common_component_parameters {
+            std::uint32_t curr_prover_idx;
             std::uint32_t target_prover_idx;
             generation_mode gen_mode;
         };
@@ -201,6 +248,7 @@ namespace nil {
         void handle_component_input(
             assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
+            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
             typename ComponentType::input_type& instance_input, const common_component_parameters& param) {
 
             using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
@@ -216,6 +264,7 @@ namespace nil {
                 if ((used_rows.find(v.get().rotation) == used_rows.end()) &&
                            (v.get().type == var::column_type::witness || v.get().type == var::column_type::constant)) {
                     var new_v;
+                    input_wrapper.to_be_shared.emplace_back(assignment.get_id(), v.get());
                     if (param.gen_mode.has_assignments()) {
                         new_v = save_shared_var(assignment, v);
                     } else {
@@ -280,6 +329,26 @@ namespace nil {
             }
         };
 
+        template<typename T>
+        void print_arg(std::stringstream& ss, const T& arg) {
+            if constexpr (std::is_same_v<T, std::vector<unsigned long>>) {
+                for (const auto& elem : arg) {
+                    ss << elem << " ";
+                }
+                ss << "\n";
+            } else {
+                ss << arg << "\n";
+            }
+        }
+
+        void print_all_args(std::stringstream& ss) {}
+        int biba = 0;
+        template<typename First, typename... Rest>
+        void print_all_args(std::stringstream& ss, const First& first, const Rest&... rest) {
+            print_arg(ss, first);
+            print_all_args(ss, rest...);
+        }
+
         template<typename BlueprintFieldType, typename ComponentType>
         typename ComponentType::result_type generate_assignments(
             const ComponentType& component_instance,
@@ -303,7 +372,7 @@ namespace nil {
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 column_type<BlueprintFieldType> &internal_storage,
-                component_calls &statistics,
+                component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                 const common_component_parameters& param,
                 typename ComponentType::input_type& instance_input,
                 Args... args) {
@@ -319,16 +388,21 @@ namespace nil {
             BOOST_LOG_TRIVIAL(debug) << "Using component \"" << component_instance.component_name << "\"";
 
             if (param.gen_mode.has_size_estimation()) {
-                statistics.add_record(
+                input_wrapper.statistics.add_record(
                     component_instance.component_name,
                     component_instance.rows_amount,
                     component_instance.gates_amount,
                     component_instance.witness_amount()
                 );
-                return typename ComponentType::result_type(component_instance, assignment.allocated_rows());
             }
 
-            handle_component_input<BlueprintFieldType, ComponentType>(assignment, instance_input, param);
+            using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+            std::vector<var> inputs = {};
+            for (std::size_t i = 0; i < instance_input.all_vars().size(); i++) {
+                inputs.push_back(instance_input.all_vars()[i].get());
+            }
+
+            handle_component_input<BlueprintFieldType, ComponentType>(assignment, input_wrapper, instance_input, param);
 
             const auto& start_row = assignment.allocated_rows();
             // copy constraints before execute component
@@ -336,6 +410,59 @@ namespace nil {
 
             // generate circuit in any case for fill selectors
             generate_circuit(component_instance, bp, assignment, instance_input, start_row);
+
+            auto res = typename ComponentType::result_type(component_instance, start_row);
+            std::vector<var> outputs = {};
+            for (std::size_t i = 0; i < res.all_vars().size(); i++) {
+                var curr_outp = res.all_vars()[i].get();
+                outputs.push_back(curr_outp);
+                input_wrapper.comp_counter_form_var[curr_outp] = input_wrapper.table_pieces.size();
+            }
+
+            std::vector<std::size_t> parents = {};
+            for (std::size_t i = 0; i < inputs.size(); i++) {
+                auto it = input_wrapper.comp_counter_form_var.find(inputs[i]);
+                if (input_wrapper.comp_counter_form_var.find(inputs[i]) == input_wrapper.comp_counter_form_var.end()) {
+                    continue;
+                }
+                parents.push_back(input_wrapper.comp_counter_form_var[inputs[i]]);
+            }
+
+            std::stringstream ss;
+            print_all_args(ss, args...);
+
+            if constexpr (std::is_same<ComponentType, components::lookup_verifier<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>>::value) {
+                ss << instance_input.alphas.size() << " ";
+                ss << instance_input.lookup_gate_selectors.size() << " ";
+                ss << instance_input.lookup_gate_constraints_table_ids.size() << " ";
+                ss << instance_input.lookup_gate_constraints_lookup_inputs.size() << " ";
+                ss << instance_input.lookup_table_selectors.size() << " ";
+                ss << instance_input.lookup_table_lookup_options.size() << " ";
+                ss << instance_input.shifted_lookup_table_selectors.size() << " ";
+                ss << instance_input.shifted_lookup_table_lookup_options.size() << " ";
+                ss << instance_input.sorted.size() << " ";
+                ss << "\n";
+            }
+            if constexpr (std::is_same<ComponentType, components::basic_constraints_verifier<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>>::value) {
+                ss << instance_input.constraints.size() << " ";
+                ss << instance_input.selectors.size() << " ";
+                ss << "\n";
+            }
+
+            std::string non_standart_constructor_params = ss.str();
+
+            input_wrapper.table_pieces.push_back(
+                table_piece<var>(
+                    input_wrapper.table_pieces.size(),
+                    parents,
+                    component_instance.component_name,
+                    start_row,
+                    inputs,
+                    outputs,
+                    param.curr_prover_idx,
+                    non_standart_constructor_params
+                )
+            );
 
             if (param.gen_mode.has_assignments()) {
                 return generate_assignments(component_instance, assignment, instance_input, start_row,
@@ -410,7 +537,7 @@ namespace nil {
                 assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
                 &assignment,
                 column_type<BlueprintFieldType> &internal_storage,
-                component_calls &statistics,
+                component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
                 const common_component_parameters& param,
                 typename ComponentType::input_type& instance_input,
                 const llvm::Instruction *inst,
@@ -418,7 +545,7 @@ namespace nil {
                 Args... args) {
 
             auto component_result = get_component_result<BlueprintFieldType, ComponentType>
-                    (bp, assignment, internal_storage, statistics, param, instance_input, args...);
+                    (bp, assignment, internal_storage, input_wrapper, param, instance_input, args...);
 
             handle_component_result<BlueprintFieldType, ComponentType>(assignment, inst, frame, component_result, param.gen_mode);
         }

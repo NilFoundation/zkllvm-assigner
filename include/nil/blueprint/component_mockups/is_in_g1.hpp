@@ -90,6 +90,16 @@ namespace nil {
                 struct input_type {
                     std::array<var, 2> input;
 
+                    input_type (std::array<var, 2> _input) : input(_input) {};
+
+                    input_type(const std::vector<var>& input_vect) {
+                        if (input_vect.size() != 2) {
+                            throw std::out_of_range("Vector size does not match input size");
+                        }
+                        input[0] = input_vect[0];
+                        input[1] = input_vect[1];
+                    }
+
                     std::vector<std::reference_wrapper<var>> all_vars() {
                         std::vector<std::reference_wrapper<var>> result;
                         result.insert(result.end(), input.begin(), input.end());

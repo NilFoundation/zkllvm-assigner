@@ -23,45 +23,24 @@
 // SOFTWARE.
 //---------------------------------------------------------------------------//
 
-#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_INTEGERS_DIVISION_HPP_
-#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_INTEGERS_DIVISION_HPP_
+#ifndef ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_HANDLER_INPUT_WRAPPER_HPP_
+#define ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_HANDLER_INPUT_WRAPPER_HPP_
 
-#include "llvm/IR/Type.h"
-#include "llvm/IR/TypeFinder.h"
-#include "llvm/IR/TypedPointerType.h"
-
-#include <nil/crypto3/zk/snark/arithmetization/plonk/constraint_system.hpp>
-
-#include <nil/blueprint/basic_non_native_policy.hpp>
-
-#include <nil/blueprint/fields/subtraction.hpp>
-
-#include <nil/blueprint/asserts.hpp>
-#include <nil/blueprint/stack.hpp>
 
 namespace nil {
     namespace blueprint {
 
         template<typename BlueprintFieldType>
-        void handle_integer_division_component(
-            const llvm::Instruction *inst,
-            stack_frame<crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>> &frame,
-            circuit_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>> &bp,
-            assignment_proxy<crypto3::zk::snark::plonk_constraint_system<BlueprintFieldType>>
-                &assignment,
-            column_type<BlueprintFieldType> &internal_storage,
-            component_handler_input_wrapper<BlueprintFieldType>& input_wrapper,
-            const common_component_parameters& param) {
+        struct component_handler_input_wrapper {
+            using var = crypto3::zk::snark::plonk_variable<typename BlueprintFieldType::value_type>;
+            component_calls statistics;
+            std::map<var, std::size_t> comp_counter_form_var;
+            std::vector<table_piece<var>> table_pieces;
+            std::vector<std::pair<std::uint32_t, var>> to_be_shared;
+        };
 
-            using non_native_policy_type = basic_non_native_policy<BlueprintFieldType>;
-
-            llvm::Value *operand0 = inst->getOperand(0);
-            llvm::Value *operand1 = inst->getOperand(1);
-
-            UNREACHABLE("division operation not implemented for integral types");
-        }
 
     }    // namespace blueprint
 }    // namespace nil
 
-#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_INTEGERS_DIVISION_HPP_
+#endif    // ZKLLVM_ASSIGNER_INCLUDE_NIL_BLUEPRINT_COMPONENT_HANDLER_INPUT_WRAPPER_HPP_
